@@ -4766,6 +4766,7 @@
                 var targetUrl = 'https://pvoutput.org/live.jsp';
                 var html = '';
                 var proxies = [
+                    { url: 'https://cors-get-proxy.sirjosh.workers.dev/?url=' + encodeURIComponent(targetUrl), type: 'text' },
                     { url: 'https://api.allorigins.win/get?url=' + encodeURIComponent(targetUrl), type: 'json' },
                     { url: 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(targetUrl), type: 'text' },
                     { url: 'https://corsproxy.org/?' + encodeURIComponent(targetUrl), type: 'text' }
