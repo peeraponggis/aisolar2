@@ -4806,7 +4806,7 @@
                     var power = cells[6].textContent.trim();
                     var seen = cells[7].textContent.trim();
 
-                    var panels = '', inverter = '', orient = '', country = '', tilt = '';
+                    var panels = '', inverter = '', orient = '', country = '', tilt = '', installDate = '', shading = '', postcode = '', numPanels = '';
                     if (titleAttr) {
                         var pm = titleAttr.match(/Panels:\s*(.+?)(?:<br|$)/);
                         if (pm) panels = pm[1].replace(/<[^>]+>/g,'').trim();
@@ -4818,12 +4818,21 @@
                         if (cm) country = cm[0];
                         var tm = titleAttr.match(/Array Tilt:\s*([\d.]+)/);
                         if (tm) tilt = tm[1] + '°';
+                        var dm = titleAttr.match(/Install Date:\s*(.+?)(?:<br|$)/i);
+                        if (dm) installDate = dm[1].replace(/<[^>]+>/g,'').trim();
+                        var sm = titleAttr.match(/Shading:\s*(.+?)(?:<br|$)/i);
+                        if (sm) shading = sm[1].replace(/<[^>]+>/g,'').trim();
+                        var pcm = titleAttr.match(/Postcode:\s*(.+?)(?:<br|$)/i);
+                        if (pcm) postcode = pcm[1].replace(/<[^>]+>/g,'').trim();
+                        var npm = titleAttr.match(/(\d+)\s*x\s*(\d+)W/);
+                        if (npm) numPanels = npm[1] + ' แผง × ' + npm[2] + 'W';
                     }
                     if (!country && locRaw) country = locRaw;
                     var isThailand = (country.toLowerCase().includes('thai') || locRaw.toLowerCase().includes('thai'));
 
                     systems.push({name:name, loc:locRaw, country:country, size:sizeText, energy:energy, eff:eff,
-                        power:power, seen:seen, panels:panels, inverter:inverter, orient:orient, tilt:tilt, isThailand:isThailand, rank:idx});
+                        power:power, seen:seen, panels:panels, inverter:inverter, orient:orient, tilt:tilt,
+                        isThailand:isThailand, rank:idx, installDate:installDate, shading:shading, postcode:postcode, numPanels:numPanels});
                 });
 
                 addPVOEntitiesToMap(systems);
@@ -4903,7 +4912,7 @@
                 html += '<div style="font-size:10px;color:#69f0ae">' + s.power + '</div>';
                 html += '<div style="font-size:9px;color:#666">' + s.seen + '</div>';
                 html += '</div>';
-                html += '<div onclick="flyToPVOSystem(' + sysIdx + ')" style="cursor:pointer;font-size:16px;padding:4px" title="บินไปยังที่ตั้ง">🛩️</div>';
+                html += '<div onclick="event.stopPropagation();flyToPVOSystem(' + sysIdx + ')" style="cursor:pointer;font-size:16px;padding:6px 4px;border-radius:4px;background:rgba(0,191,255,.1)" title="บินไปยังที่ตั้ง">🛩️</div>';
                 html += '</div>';
                 html += '</div>';
             });
@@ -4955,12 +4964,15 @@
             var details = [
                 ['🏭 ชื่อระบบ', s.name],
                 ['⚡ ขนาดระบบ', s.size],
-                ['📍 ที่ตั้ง', s.country || s.loc]
+                ['📍 ที่ตั้ง', (s.country || s.loc) + (s.postcode ? ' (' + s.postcode + ')' : '')]
             ];
+            if (s.installDate) details.push(['📅 ปีที่ติดตั้ง', s.installDate]);
             if (s.panels) details.push(['🔳 แผงโซลาร์', s.panels]);
+            if (s.numPanels) details.push(['🔢 จำนวนแผง', s.numPanels]);
             if (s.inverter) details.push(['🔌 อินเวอร์เตอร์', s.inverter]);
             if (s.orient) details.push(['🧭 ทิศทาง/เงา', s.orient]);
             if (s.tilt) details.push(['📐 มุมเอียงแผง', s.tilt]);
+            if (s.shading) details.push(['🌥️ ร่มเงา', s.shading]);
             details.push(['📡 อันดับ Live', '#' + s.rank + ' (เรียงตามพลังงานสูงสุด)']);
 
             details.forEach(function(d) {
@@ -4970,18 +4982,67 @@
             });
             html += '</div>';
 
-            // คำอธิบาย
-            html += '<div class="dt-learn" style="font-size:11px">';
-            html += '<b>💡 วิเคราะห์ข้อมูล:</b><br><br>';
-            var enVal = parseFloat(s.energy.replace(/[^\d.]/g,'')) || 0;
+            // งบประมาณโดยประมาณ
             var sizeVal = parseFloat(s.size.replace(/[^\d.]/g,'')) || 1;
+            var enVal = parseFloat(s.energy.replace(/[^\d.]/g,'')) || 0;
+            var pwVal = parseFloat(s.power.replace(/[^\d.]/g,'')) || 0;
             var ratio = (enVal / sizeVal).toFixed(2);
-            html += '<b style="color:#ffd740">อัตราการผลิต:</b> ' + ratio + ' kWh/kW — ';
-            if (parseFloat(ratio) > 4) html += '<span style="color:#00e676">ดีเยี่ยม (แดดจ้ามาก)</span><br>';
-            else if (parseFloat(ratio) > 3) html += '<span style="color:#ffd740">ดี (แดดดี)</span><br>';
-            else if (parseFloat(ratio) > 2) html += '<span style="color:#ff9800">ปานกลาง</span><br>';
-            else html += '<span style="color:#f44336">ต่ำ (เมฆมาก/ฝน)</span><br>';
-            html += '<br><b style="color:#ff6e40">ข้อมูลมาจาก:</b> pvoutput.org — เจ้าของระบบแชร์ข้อมูลจากอินเวอร์เตอร์โดยตรง (ไม่ใช่การประมาณ)';
+            var costPerKwUSD = sizeVal > 100 ? 0.8 : sizeVal > 10 ? 1.0 : 1.2;
+            var estCostUSD = (sizeVal * costPerKwUSD * 1000).toFixed(0);
+            var estCostTHB = (sizeVal * costPerKwUSD * 1000 * 35).toFixed(0);
+            var annualEstKWh = (enVal * 365 * 0.85).toFixed(0);
+            var annualSavingUSD = (annualEstKWh * 0.12).toFixed(0);
+            var paybackYears = (estCostUSD / annualSavingUSD).toFixed(1);
+
+            html += '<div style="background:rgba(255,215,64,.06);border:1px solid rgba(255,215,64,.2);border-radius:6px;padding:12px;margin-bottom:12px">';
+            html += '<div style="font-size:12px;font-weight:700;color:#ffd740;margin-bottom:10px;border-bottom:1px solid #333;padding-bottom:6px">💰 ประมาณการงบประมาณและผลตอบแทน</div>';
+            var costDetails = [
+                ['💵 งบประมาณติดตั้ง (ประมาณ)', '$' + Number(estCostUSD).toLocaleString() + ' (~฿' + Number(estCostTHB).toLocaleString() + ')'],
+                ['💲 ต้นทุนต่อ kW', '$' + (costPerKwUSD*1000) + '/kW'],
+                ['📈 ผลผลิตต่อปี (ประมาณ)', Number(annualEstKWh).toLocaleString() + ' kWh/ปี'],
+                ['💡 ประหยัดค่าไฟต่อปี', '~$' + Number(annualSavingUSD).toLocaleString() + '/ปี'],
+                ['⏱️ ระยะคืนทุน (ประมาณ)', paybackYears + ' ปี']
+            ];
+            costDetails.forEach(function(d) {
+                html += '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #222;font-size:11px">';
+                html += '<span style="color:#888">' + d[0] + '</span>';
+                html += '<span style="color:#ffd740;text-align:right;max-width:55%">' + d[1] + '</span></div>';
+            });
+            html += '<div style="font-size:10px;color:#666;margin-top:6px">* ประมาณการจากราคาเฉลี่ยตลาดโลก อาจแตกต่างตามภูมิภาค</div>';
+            html += '</div>';
+
+            // วิเคราะห์ประสิทธิภาพ
+            html += '<div style="background:rgba(105,240,174,.06);border:1px solid rgba(105,240,174,.2);border-radius:6px;padding:12px;margin-bottom:12px">';
+            html += '<div style="font-size:12px;font-weight:700;color:#69f0ae;margin-bottom:10px;border-bottom:1px solid #333;padding-bottom:6px">📊 วิเคราะห์ประสิทธิภาพระบบ</div>';
+            html += '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:11px"><span style="color:#888">อัตราการผลิต (Yield)</span><span style="color:#69f0ae;font-weight:700">' + ratio + ' kWh/kW</span></div>';
+            html += '<div style="background:#333;border-radius:4px;height:8px;margin:4px 0 8px"><div style="background:' + (parseFloat(ratio)>4?'#00e676':parseFloat(ratio)>3?'#ffd740':parseFloat(ratio)>2?'#ff9800':'#f44336') + ';height:100%;border-radius:4px;width:' + Math.min(parseFloat(ratio)/6*100,100) + '%"></div></div>';
+            if (parseFloat(ratio) > 4) html += '<div style="font-size:11px;color:#00e676">🟢 ดีเยี่ยม — แดดจ้ามาก สภาพอากาศเอื้ออำนวย</div>';
+            else if (parseFloat(ratio) > 3) html += '<div style="font-size:11px;color:#ffd740">🟡 ดี — สภาพแดดดี ระบบทำงานปกติ</div>';
+            else if (parseFloat(ratio) > 2) html += '<div style="font-size:11px;color:#ff9800">🟠 ปานกลาง — อาจมีเมฆบ้าง</div>';
+            else html += '<div style="font-size:11px;color:#f44336">🔴 ต่ำ — เมฆมาก/ฝน หรือระบบต้องตรวจสอบ</div>';
+
+            if (pwVal > 0) {
+                var capFactor = (pwVal / (sizeVal * 1000) * 100).toFixed(1);
+                html += '<div style="margin-top:8px;display:flex;justify-content:space-between;padding:4px 0;font-size:11px"><span style="color:#888">Capacity Factor (ปัจจุบัน)</span><span style="color:#69f0ae">' + capFactor + '%</span></div>';
+            }
+            html += '</div>';
+
+            // คำแนะนำการดูแลระบบ
+            html += '<div style="background:rgba(0,191,255,.06);border:1px solid rgba(0,191,255,.2);border-radius:6px;padding:12px;margin-bottom:12px">';
+            html += '<div style="font-size:12px;font-weight:700;color:#00bfff;margin-bottom:8px;border-bottom:1px solid #333;padding-bottom:6px">🔧 คำแนะนำการดูแลระบบโซลาร์</div>';
+            html += '<div style="font-size:11px;color:#bbb;line-height:1.6">';
+            html += '• <b style="color:#ffd740">ทำความสะอาดแผง</b> — ทุก 3-6 เดือน ล้างฝุ่น/ขี้นกด้วยน้ำสะอาด<br>';
+            html += '• <b style="color:#ffd740">ตรวจสอบอินเวอร์เตอร์</b> — ทุกเดือน ดูไฟสถานะ/error code<br>';
+            html += '• <b style="color:#ffd740">ตรวจสายไฟ</b> — ทุก 6 เดือน เช็คจุดเชื่อมต่อ ป้องกันหนูกัด<br>';
+            html += '• <b style="color:#ffd740">ตัดกิ่งไม้</b> — หากเงาบังแผง ลดประสิทธิภาพ 10-25%<br>';
+            html += '• <b style="color:#ffd740">ค่าดูแลรักษา</b> — ประมาณ 1-2% ของงบติดตั้งต่อปี (~$' + Math.round(estCostUSD*0.015).toLocaleString() + '/ปี)<br>';
+            html += '• <b style="color:#ffd740">อายุการใช้งาน</b> — แผงโซลาร์ 25-30 ปี / อินเวอร์เตอร์ 10-15 ปี';
+            html += '</div></div>';
+
+            // แหล่งข้อมูล
+            html += '<div class="dt-learn" style="font-size:11px">';
+            html += '<b style="color:#ff6e40">📡 แหล่งข้อมูล:</b> pvoutput.org — เจ้าของระบบแชร์ข้อมูลจากอินเวอร์เตอร์โดยตรง (ไม่ใช่การประมาณ)<br>';
+            html += '<span style="color:#666">ข้อมูลงบประมาณเป็นการประมาณจากราคาตลาดเฉลี่ย ไม่ใช่ราคาจริงของโครงการนี้</span>';
             html += '</div>';
 
             body.innerHTML = html;
