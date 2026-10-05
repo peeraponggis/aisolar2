@@ -4758,9 +4758,27 @@
             body.innerHTML = '<div style="text-align:center;padding:40px;color:#999">⏳ กำลังดึงข้อมูล Live จาก PVOutput.org...</div>';
 
             try {
-                var proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://pvoutput.org/live.jsp');
-                var resp = await fetch(proxyUrl, { signal: AbortSignal.timeout(15000) });
-                var html = await resp.text();
+                var targetUrl = 'https://pvoutput.org/live.jsp';
+                var html = '';
+                var proxies = [
+                    { url: 'https://api.allorigins.win/get?url=' + encodeURIComponent(targetUrl), type: 'json' },
+                    { url: 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(targetUrl), type: 'text' },
+                    { url: 'https://corsproxy.org/?' + encodeURIComponent(targetUrl), type: 'text' }
+                ];
+                for (var pi = 0; pi < proxies.length; pi++) {
+                    try {
+                        var resp = await fetch(proxies[pi].url, { signal: AbortSignal.timeout(30000) });
+                        if (!resp.ok) continue;
+                        if (proxies[pi].type === 'json') {
+                            var json = await resp.json();
+                            html = json.contents || '';
+                        } else {
+                            html = await resp.text();
+                        }
+                        if (html.length > 100) break;
+                    } catch(pe) { console.warn('PVOutput proxy ' + pi + ' failed:', pe.message); }
+                }
+                if (!html || html.length < 100) throw new Error('ไม่สามารถเชื่อมต่อ proxy ได้');
                 var parser = new DOMParser();
                 var doc = parser.parseFromString(html, 'text/html');
                 var table = doc.querySelector('table.table-data');
