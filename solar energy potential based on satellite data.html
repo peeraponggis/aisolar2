@@ -179,6 +179,10 @@
         .tab-btn.mesh-active.active { color: #00e5ff; text-shadow: 0 0 8px rgba(0,229,255,.5); }
         .tab-btn.solar-fc-active.active { color: #ffd740; text-shadow: 0 0 8px rgba(255,215,64,.4); }
         .tab-btn.grid-active.active { color: #69f0ae; text-shadow: 0 0 8px rgba(105,240,174,.4); }
+        .tab-btn.pvout-active.active { color: #ff6e40; text-shadow: 0 0 8px rgba(255,110,64,.4); }
+        .pvo-row { display:flex; gap:8px; padding:10px; border-bottom:1px solid #222; cursor:pointer; transition:background .2s; align-items:center; }
+        .pvo-row:hover { background:rgba(255,110,64,.08); }
+        .pvo-rank { min-width:28px; font-size:16px; font-weight:800; color:#ff6e40; text-align:center; }
         .solar-fc-bar { height: 100%; border-radius: 2px; transition: height .3s; }
         .grid-gauge { width: 100%; height: 14px; background: #1a1a1a; border-radius: 7px; overflow: hidden; margin: 4px 0; }
         .grid-gauge-fill { height: 100%; border-radius: 7px; transition: width .4s; }
@@ -561,6 +565,7 @@
             <button class="tab-btn" id="tab-mesh" onclick="switchSource('MESH_DT')">📡 MESH/DT</button>
             <button class="tab-btn" id="tab-solar-fc" onclick="switchSource('SOLAR_FORECAST')">☀️ พยากรณ์โซลาร์</button>
             <button class="tab-btn" id="tab-grid" onclick="switchSource('GRID_MONITOR')">⚡ Grid Monitor</button>
+            <button class="tab-btn" id="tab-pvoutput" onclick="switchSource('PVOUTPUT')">🔌 PVOutput Live</button>
         </div>
 
         <div class="form-group">
@@ -1343,6 +1348,16 @@
                 bsf.classList.add('solar-fc-active');
                 currentSource = sourceName;
                 loadSolarForecast();
+                return;
+            }
+
+            // --- 🔌 PVOutput Live (ข้อมูลจริงจากระบบโซลาร์ทั่วโลก) ---
+            if (sourceName === 'PVOUTPUT') {
+                var bpv = document.getElementById('tab-pvoutput');
+                bpv.classList.add('active');
+                bpv.classList.add('pvout-active');
+                currentSource = sourceName;
+                loadPVOutputLive();
                 return;
             }
 
@@ -4731,6 +4746,194 @@
             document.getElementById('panelTitle').innerText = '☀️ พยากรณ์กำลังผลิตโซลาร์';
         }
         window.loadSolarForecast = loadSolarForecast;
+
+        /* =========================================================
+           17.5) 🔌 PVOutput Live — ข้อมูลจริงจากระบบโซลาร์ทั่วโลก
+           ดึงจาก pvoutput.org ผ่าน allorigins CORS proxy
+           ========================================================= */
+
+        async function loadPVOutputLive() {
+            openPanel('🔌 PVOutput Live — ระบบโซลาร์ทั่วโลก');
+            var body = document.getElementById('panelBody');
+            body.innerHTML = '<div style="text-align:center;padding:40px;color:#999">⏳ กำลังดึงข้อมูล Live จาก PVOutput.org...</div>';
+
+            try {
+                var proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://pvoutput.org/live.jsp');
+                var resp = await fetch(proxyUrl, { signal: AbortSignal.timeout(15000) });
+                var html = await resp.text();
+                var parser = new DOMParser();
+                var doc = parser.parseFromString(html, 'text/html');
+                var table = doc.querySelector('table.table-data');
+                if (!table) throw new Error('ไม่พบตารางข้อมูล');
+
+                var systems = [];
+                var rows = table.querySelectorAll('tr');
+                rows.forEach(function(row, idx) {
+                    if (idx === 0) return;
+                    var cells = row.querySelectorAll('td');
+                    if (cells.length < 8) return;
+                    var nameEl = cells[1].querySelector('a');
+                    var name = nameEl ? nameEl.textContent.trim() : cells[1].textContent.trim();
+                    var locRaw = cells[2].textContent.trim();
+                    var sizeA = cells[3].querySelector('a');
+                    var titleAttr = sizeA ? (sizeA.getAttribute('title') || '') : '';
+                    var sizeText = sizeA ? sizeA.textContent.trim() : cells[3].textContent.trim();
+                    var energy = cells[4].textContent.trim();
+                    var eff = cells[5].textContent.trim();
+                    var power = cells[6].textContent.trim();
+                    var seen = cells[7].textContent.trim();
+
+                    var panels = '', inverter = '', orient = '', country = '', tilt = '';
+                    if (titleAttr) {
+                        var pm = titleAttr.match(/Panels:\s*(.+?)(?:<br|$)/);
+                        if (pm) panels = pm[1].replace(/<[^>]+>/g,'').trim();
+                        var im = titleAttr.match(/Inverter:\s*(.+?)(?:<br|$)/);
+                        if (im) inverter = im[1].replace(/<[^>]+>/g,'').trim();
+                        var om2 = titleAttr.match(/Orientation:\s*(.+?)(?:<br|$)/);
+                        if (om2) orient = om2[1].replace(/<[^>]+>/g,'').trim();
+                        var cm = titleAttr.match(/(?:Australia|Thailand|Maldives|Japan|India|Germany|USA|UK|France|Italy|Spain|Netherlands|Belgium|Austria|Switzerland|Brazil|South Africa|New Zealand|Canada|Singapore|Malaysia|Indonesia|Philippines|Vietnam|Korea|Taiwan|China|Israel|UAE)/i);
+                        if (cm) country = cm[0];
+                        var tm = titleAttr.match(/Array Tilt:\s*([\d.]+)/);
+                        if (tm) tilt = tm[1] + '°';
+                    }
+                    if (!country && locRaw) country = locRaw;
+                    var isThailand = (country.toLowerCase().includes('thai') || locRaw.toLowerCase().includes('thai'));
+
+                    systems.push({name:name, loc:locRaw, country:country, size:sizeText, energy:energy, eff:eff,
+                        power:power, seen:seen, panels:panels, inverter:inverter, orient:orient, tilt:tilt, isThailand:isThailand, rank:idx});
+                });
+
+                renderPVOutputPanel(systems);
+            } catch (e) {
+                body.innerHTML = '<div style="color:#f44336;padding:20px;text-align:center">❌ ไม่สามารถดึงข้อมูลได้: ' + e.message + '<br><br><span style="color:#888;font-size:11px">ลองรีเฟรชอีกครั้ง — เซิร์ฟเวอร์ CORS proxy อาจชั่วคราว</span></div>';
+            }
+        }
+
+        function renderPVOutputPanel(systems) {
+            var body = document.getElementById('panelBody');
+            var html = '';
+
+            // Summary
+            var totalPower = 0, totalEnergy = 0, thaiCount = 0;
+            systems.forEach(function(s) {
+                var pw = parseFloat(s.power.replace(/[^\d.]/g, '')) || 0;
+                totalPower += pw;
+                var en = parseFloat(s.energy.replace(/[^\d.]/g, '')) || 0;
+                totalEnergy += en;
+                if (s.isThailand) thaiCount++;
+            });
+
+            html += '<div style="background:rgba(255,110,64,.08);border:1px solid rgba(255,110,64,.25);border-radius:6px;padding:12px;margin-bottom:12px">';
+            html += '<div style="font-size:13px;font-weight:700;color:#ff6e40;margin-bottom:8px">🔴 LIVE — PVOutput.org Real-Time Solar Data</div>';
+            html += '<div style="font-size:11px;color:#aaa;margin-bottom:8px">ข้อมูลจริงจากอินเวอร์เตอร์โซลาร์ที่เจ้าของระบบแชร์สาธารณะ อัปเดตทุก 5 นาที</div>';
+
+            html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">';
+            html += '<div class="dt-card"><div class="dt-val" style="color:#ff6e40;font-size:18px">' + systems.length + '</div><div class="dt-label">🏭 ระบบทั้งหมด</div></div>';
+            html += '<div class="dt-card"><div class="dt-val" style="color:#ffd740;font-size:14px">' + (totalEnergy/1000).toFixed(1) + ' MWh</div><div class="dt-label">⚡ พลังงานรวมวันนี้</div></div>';
+            html += '<div class="dt-card"><div class="dt-val" style="color:#69f0ae;font-size:14px">' + (totalPower/1000).toFixed(0) + ' kW</div><div class="dt-label">🔌 กำลังผลิตรวม</div></div>';
+            html += '</div>';
+            if (thaiCount > 0) {
+                html += '<div style="margin-top:8px;padding:6px;background:rgba(255,215,64,.1);border-radius:4px;font-size:11px;color:#ffd740;text-align:center">🇹🇭 พบระบบโซลาร์ในประเทศไทย ' + thaiCount + ' ระบบ!</div>';
+            }
+            html += '</div>';
+
+            // List
+            html += '<div style="background:rgba(255,255,255,.04);border-radius:6px;overflow:hidden;margin-bottom:12px">';
+            html += '<div style="padding:10px 12px;font-size:12px;font-weight:700;color:#ccc;border-bottom:1px solid #333">📋 อันดับกำลังผลิตสูงสุด (Live)</div>';
+
+            systems.forEach(function(s) {
+                var thaiFlag = s.isThailand ? ' 🇹🇭' : '';
+                var bgExtra = s.isThailand ? 'background:rgba(255,215,64,.06);' : '';
+                html += '<div class="pvo-row" style="' + bgExtra + '" onclick="showPVODetail(\'' + encodeURIComponent(JSON.stringify(s)) + '\')">';
+                html += '<div class="pvo-rank">#' + s.rank + '</div>';
+                html += '<div style="flex:1;min-width:0">';
+                html += '<div style="font-size:12px;color:#eee;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + s.name + thaiFlag + '</div>';
+                html += '<div style="font-size:10px;color:#888;margin-top:2px">' + s.size + ' | ' + (s.country || s.loc) + '</div>';
+                html += '</div>';
+                html += '<div style="text-align:right;min-width:75px">';
+                html += '<div style="font-size:13px;font-weight:700;color:#ff6e40">' + s.energy + '</div>';
+                html += '<div style="font-size:10px;color:#69f0ae">' + s.power + '</div>';
+                html += '<div style="font-size:9px;color:#666">' + s.seen + '</div>';
+                html += '</div>';
+                html += '</div>';
+            });
+            html += '</div>';
+
+            // คำอธิบาย
+            html += '<div class="dt-learn" style="font-size:11px">';
+            html += '<b>💡 คำอธิบายพารามิเตอร์:</b><br><br>';
+            html += '<b style="color:#ff6e40">Energy (kWh)</b> — พลังงานที่ผลิตได้ทั้งวันนี้ ค่ายิ่งสูงยิ่งดี<br>';
+            html += '<b style="color:#69f0ae">Power (W)</b> — กำลังผลิต ณ ขณะนี้ (real-time จากอินเวอร์เตอร์)<br>';
+            html += '<b style="color:#ffd740">Efficiency (kWh/kW)</b> — อัตราการผลิตต่อ kW ที่ติดตั้ง ค่ายิ่งสูง = ยิ่งมีแดดดี<br>';
+            html += '<b style="color:#fff">System Size (kW)</b> — ขนาดกำลังติดตั้งรวมของแผงโซลาร์<br><br>';
+            html += '<b style="color:#ff6e40">แหล่งข้อมูล:</b> pvoutput.org — ระบบแชร์ข้อมูลโซลาร์ที่ใหญ่ที่สุดในโลก<br>';
+            html += 'ข้อมูลจริงจากอินเวอร์เตอร์ของเจ้าของระบบ ไม่ใช่การประมาณ<br>';
+            html += 'คลิกที่แต่ละระบบเพื่อดูรายละเอียด (แผงโซลาร์, อินเวอร์เตอร์, ทิศทาง)';
+            html += '</div>';
+
+            body.innerHTML = html;
+            document.getElementById('panelTitle').innerText = '🔌 PVOutput Live — ' + systems.length + ' ระบบ';
+        }
+
+        function showPVODetail(encoded) {
+            var s = JSON.parse(decodeURIComponent(encoded));
+            var body = document.getElementById('panelBody');
+            var html = '<div style="margin-bottom:10px"><button onclick="loadPVOutputLive()" style="background:rgba(255,110,64,.15);border:1px solid #ff6e40;color:#ff6e40;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:12px">← กลับไปหน้ารายการ</button></div>';
+
+            html += '<div style="text-align:center;margin-bottom:14px">';
+            html += '<div style="font-size:36px">☀️</div>';
+            html += '<div style="font-size:18px;font-weight:700;color:#ff6e40;margin-top:4px">' + s.name + '</div>';
+            html += '<div style="font-size:12px;color:#aaa;margin-top:4px">📍 ' + (s.country || s.loc) + (s.isThailand ? ' 🇹🇭' : '') + '</div>';
+            html += '</div>';
+
+            // สรุปข้อมูลหลัก
+            html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">';
+            html += '<div class="dt-card"><div class="dt-val" style="color:#ff6e40;font-size:16px">' + s.energy + '</div><div class="dt-label">⚡ พลังงานวันนี้</div></div>';
+            html += '<div class="dt-card"><div class="dt-val" style="color:#69f0ae;font-size:16px">' + s.power + '</div><div class="dt-label">🔌 กำลังผลิตปัจจุบัน</div></div>';
+            html += '<div class="dt-card"><div class="dt-val" style="color:#ffd740">' + s.eff + '</div><div class="dt-label">📊 ประสิทธิภาพ</div></div>';
+            html += '<div class="dt-card"><div class="dt-val" style="color:#aaa;font-size:11px">' + s.seen + '</div><div class="dt-label">🕐 อัปเดตล่าสุด</div></div>';
+            html += '</div>';
+
+            // ข้อมูลรายละเอียด
+            html += '<div style="background:rgba(255,255,255,.04);border-radius:6px;padding:12px;margin-bottom:12px">';
+            html += '<div style="font-size:12px;font-weight:700;color:#ccc;margin-bottom:10px;border-bottom:1px solid #333;padding-bottom:6px">🔧 ข้อมูลเชิงเทคนิค (Technical Specifications)</div>';
+            var details = [
+                ['🏭 ชื่อระบบ', s.name],
+                ['⚡ ขนาดระบบ', s.size],
+                ['📍 ที่ตั้ง', s.country || s.loc]
+            ];
+            if (s.panels) details.push(['🔳 แผงโซลาร์', s.panels]);
+            if (s.inverter) details.push(['🔌 อินเวอร์เตอร์', s.inverter]);
+            if (s.orient) details.push(['🧭 ทิศทาง/เงา', s.orient]);
+            if (s.tilt) details.push(['📐 มุมเอียงแผง', s.tilt]);
+            details.push(['📡 อันดับ Live', '#' + s.rank + ' (เรียงตามพลังงานสูงสุด)']);
+
+            details.forEach(function(d) {
+                html += '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #222;font-size:12px">';
+                html += '<span style="color:#888">' + d[0] + '</span>';
+                html += '<span style="color:#eee;text-align:right;max-width:60%">' + d[1] + '</span></div>';
+            });
+            html += '</div>';
+
+            // คำอธิบาย
+            html += '<div class="dt-learn" style="font-size:11px">';
+            html += '<b>💡 วิเคราะห์ข้อมูล:</b><br><br>';
+            var enVal = parseFloat(s.energy.replace(/[^\d.]/g,'')) || 0;
+            var sizeVal = parseFloat(s.size.replace(/[^\d.]/g,'')) || 1;
+            var ratio = (enVal / sizeVal).toFixed(2);
+            html += '<b style="color:#ffd740">อัตราการผลิต:</b> ' + ratio + ' kWh/kW — ';
+            if (parseFloat(ratio) > 4) html += '<span style="color:#00e676">ดีเยี่ยม (แดดจ้ามาก)</span><br>';
+            else if (parseFloat(ratio) > 3) html += '<span style="color:#ffd740">ดี (แดดดี)</span><br>';
+            else if (parseFloat(ratio) > 2) html += '<span style="color:#ff9800">ปานกลาง</span><br>';
+            else html += '<span style="color:#f44336">ต่ำ (เมฆมาก/ฝน)</span><br>';
+            html += '<br><b style="color:#ff6e40">ข้อมูลมาจาก:</b> pvoutput.org — เจ้าของระบบแชร์ข้อมูลจากอินเวอร์เตอร์โดยตรง (ไม่ใช่การประมาณ)';
+            html += '</div>';
+
+            body.innerHTML = html;
+            document.getElementById('panelTitle').innerText = '🔌 ' + s.name;
+        }
+        window.showPVODetail = showPVODetail;
+        window.loadPVOutputLive = loadPVOutputLive;
 
         /* =========================================================
            17) ⚡ Grid Monitor — รังสีดวงอาทิตย์ + สภาพอากาศสำหรับโซลาร์
