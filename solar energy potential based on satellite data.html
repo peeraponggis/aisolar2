@@ -4959,7 +4959,10 @@
             var coords = pvoCountryCoords[s.country] || pvoCountryCoords[s.loc];
             if (coords) {
                 var satLat = coords[0], satLng = coords[1];
-                var satUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=' + (satLng-0.01) + ',' + (satLat-0.01) + ',' + (satLng+0.01) + ',' + (satLat+0.01) + '&size=400,250&format=jpg&f=image';
+                var z = 12;
+                var tileX = Math.floor((satLng + 180) / 360 * Math.pow(2, z));
+                var tileY = Math.floor((1 - Math.log(Math.tan(satLat * Math.PI / 180) + 1 / Math.cos(satLat * Math.PI / 180)) / Math.PI) / 2 * Math.pow(2, z));
+                var satUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/' + z + '/' + tileY + '/' + tileX;
                 html += '<div style="margin-bottom:12px;border-radius:8px;overflow:hidden;border:1px solid #333">';
                 html += '<img src="' + satUrl + '" style="width:100%;height:160px;object-fit:cover;display:block" alt="Satellite view" onerror="this.parentElement.style.display=\'none\'">';
                 html += '<div style="background:rgba(0,0,0,.6);padding:6px 10px;font-size:10px;color:#aaa">🛰️ ภาพดาวเทียม ESRI — บริเวณ ' + (s.country || s.loc) + ' (' + satLat.toFixed(2) + '°, ' + satLng.toFixed(2) + '°)</div>';
