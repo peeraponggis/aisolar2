@@ -177,6 +177,11 @@
         .tab-btn.dam-active.active { color: #26a69a; }
         .tab-btn.rain-active.active { color: #5c6bc0; }
         .tab-btn.mesh-active.active { color: #00e5ff; text-shadow: 0 0 8px rgba(0,229,255,.5); }
+        .tab-btn.solar-fc-active.active { color: #ffd740; text-shadow: 0 0 8px rgba(255,215,64,.4); }
+        .tab-btn.grid-active.active { color: #69f0ae; text-shadow: 0 0 8px rgba(105,240,174,.4); }
+        .solar-fc-bar { height: 100%; border-radius: 2px; transition: height .3s; }
+        .grid-gauge { width: 100%; height: 14px; background: #1a1a1a; border-radius: 7px; overflow: hidden; margin: 4px 0; }
+        .grid-gauge-fill { height: 100%; border-radius: 7px; transition: width .4s; }
 
         /* ================= Digital Twin MQTT Panel ================= */
         .dt-status { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
@@ -554,6 +559,8 @@
             <button class="tab-btn" id="tab-dam" onclick="switchSource('DAM')">🏞️ เขื่อน/อ่างเก็บน้ำ</button>
             <button class="tab-btn" id="tab-rain" onclick="switchSource('RAIN')">🌧️ ปริมาณฝน</button>
             <button class="tab-btn" id="tab-mesh" onclick="switchSource('MESH_DT')">📡 MESH/DT</button>
+            <button class="tab-btn" id="tab-solar-fc" onclick="switchSource('SOLAR_FORECAST')">☀️ พยากรณ์โซลาร์</button>
+            <button class="tab-btn" id="tab-grid" onclick="switchSource('GRID_MONITOR')">⚡ Grid Monitor</button>
         </div>
 
         <div class="form-group">
@@ -1326,6 +1333,26 @@
                 currentSource = sourceName;
                 if (!rainEntities.length) loadRainfall();
                 else { rainEntities.forEach(e => e.show = true); openPanel('🌧️ ปริมาณฝนสะสม 24 ชั่วโมง รายสถานี'); }
+                return;
+            }
+
+            // --- ☀️ พยากรณ์กำลังผลิตโซลาร์ (Forecast.Solar + Open-Meteo) ---
+            if (sourceName === 'SOLAR_FORECAST') {
+                var bsf = document.getElementById('tab-solar-fc');
+                bsf.classList.add('active');
+                bsf.classList.add('solar-fc-active');
+                currentSource = sourceName;
+                loadSolarForecast();
+                return;
+            }
+
+            // --- ⚡ Grid Monitor (Open-Meteo Solar Radiation) ---
+            if (sourceName === 'GRID_MONITOR') {
+                var bgm = document.getElementById('tab-grid');
+                bgm.classList.add('active');
+                bgm.classList.add('grid-active');
+                currentSource = sourceName;
+                loadGridMonitor();
                 return;
             }
 
@@ -4544,6 +4571,327 @@
                 connectMqtt();
             }
         }
+
+        /* =========================================================
+           16) ☀️ พยากรณ์กำลังผลิตโซลาร์ — Forecast.Solar + Open-Meteo
+           ไม่ต้อง API key — ข้อมูลจริงจากดาวเทียม+แบบจำลอง
+           ========================================================= */
+        var solarFcCache = null;
+
+        async function loadSolarForecast() {
+            openPanel('☀️ พยากรณ์กำลังผลิตโซลาร์');
+            var body = document.getElementById('panelBody');
+            body.innerHTML = '<div style="text-align:center;padding:40px;color:#999">⏳ กำลังดึงข้อมูลจาก Forecast.Solar และ Open-Meteo...</div>';
+
+            var coordsVal = document.getElementById('coords').value || '13.7563, 100.5018';
+            var parts = coordsVal.split(',').map(function(s){return parseFloat(s.trim());});
+            var lat = parts[0] || 13.7563;
+            var lng = parts[1] || 100.5018;
+            var tilt = 15, azimuth = 0, kwp = 10;
+
+            try {
+                var fcUrl = 'https://api.forecast.solar/estimate/' + lat + '/' + lng + '/' + tilt + '/' + azimuth + '/' + kwp;
+                var omUrl = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lng + '&hourly=shortwave_radiation,direct_radiation,diffuse_radiation,direct_normal_irradiance,temperature_2m,cloudcover,windspeed_10m&daily=sunshine_duration&forecast_days=3&timezone=Asia%2FBangkok';
+
+                var results = await Promise.all([
+                    fetch(fcUrl).then(function(r){return r.json();}),
+                    fetch(omUrl).then(function(r){return r.json();})
+                ]);
+                var fc = results[0];
+                var om = results[1];
+                solarFcCache = { fc: fc, om: om, lat: lat, lng: lng };
+                renderSolarForecastPanel(fc, om, lat, lng, kwp);
+            } catch (e) {
+                body.innerHTML = '<div style="color:#f44336;padding:20px">❌ ไม่สามารถดึงข้อมูลได้: ' + e.message + '</div>';
+            }
+        }
+
+        function renderSolarForecastPanel(fc, om, lat, lng, kwp) {
+            var body = document.getElementById('panelBody');
+            var html = '';
+
+            // ส่วนปรับพารามิเตอร์
+            html += '<div style="background:rgba(255,215,64,.08);border:1px solid rgba(255,215,64,.25);border-radius:6px;padding:12px;margin-bottom:12px">';
+            html += '<div style="font-size:13px;font-weight:700;color:#ffd740;margin-bottom:8px">⚙️ พารามิเตอร์ระบบโซลาร์เซลล์</div>';
+            html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11.5px">';
+            html += '<div style="color:#aaa">📍 ตำแหน่ง</div><div style="color:#eee">' + lat.toFixed(4) + ', ' + lng.toFixed(4) + '</div>';
+            html += '<div style="color:#aaa">📐 มุมเอียง (Tilt)</div><div style="color:#eee">15°</div>';
+            html += '<div style="color:#aaa">🧭 ทิศ (Azimuth)</div><div style="color:#eee">0° (ทิศใต้)</div>';
+            html += '<div style="color:#aaa">⚡ กำลังติดตั้ง</div><div style="color:#eee">' + kwp + ' kWp</div>';
+            html += '</div></div>';
+
+            // กราฟพยากรณ์กำลังผลิตรายชั่วโมง (Forecast.Solar)
+            if (fc && fc.result && fc.result.watts) {
+                var watts = fc.result.watts;
+                var times = Object.keys(watts);
+                var values = Object.values(watts);
+                var maxW = Math.max.apply(null, values) || 1;
+                var totalWh = 0;
+
+                html += '<div style="background:rgba(255,255,255,.04);border-radius:6px;padding:12px;margin-bottom:12px">';
+                html += '<div style="font-size:12px;font-weight:700;color:#ffd740;margin-bottom:8px">📊 พยากรณ์กำลังผลิต (Watts) — Forecast.Solar</div>';
+                html += '<div style="display:flex;align-items:flex-end;gap:1px;height:120px;background:#111;border-radius:4px;padding:4px;overflow-x:auto">';
+                for (var i = 0; i < times.length; i++) {
+                    var pct = (values[i] / maxW * 100);
+                    var hr = times[i].split(' ')[1] || times[i].split('T')[1] || '';
+                    hr = hr.substring(0, 5);
+                    var col = values[i] > maxW * 0.7 ? '#ffd740' : values[i] > maxW * 0.3 ? '#ffab00' : '#ff8f00';
+                    html += '<div style="flex:1;min-width:8px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%">';
+                    html += '<div class="solar-fc-bar" style="width:100%;height:' + pct + '%;background:' + col + '" title="' + hr + ' → ' + values[i] + 'W"></div>';
+                    if (i % 4 === 0) html += '<div style="font-size:7px;color:#666;margin-top:2px;white-space:nowrap">' + hr + '</div>';
+                    html += '</div>';
+                    totalWh += values[i];
+                }
+                html += '</div>';
+
+                // Daily totals
+                if (fc.result.watt_hours_day) {
+                    var dayData = fc.result.watt_hours_day;
+                    html += '<div style="margin-top:10px">';
+                    html += '<div style="font-size:11px;color:#888;margin-bottom:6px">📅 พลังงานรวมรายวัน:</div>';
+                    Object.keys(dayData).forEach(function(date) {
+                        var kwhDay = (dayData[date] / 1000).toFixed(1);
+                        html += '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #222;font-size:12px">';
+                        html += '<span style="color:#aaa">' + date + '</span>';
+                        html += '<span style="color:#ffd740;font-weight:700">' + kwhDay + ' kWh</span>';
+                        html += '</div>';
+                    });
+                    html += '</div>';
+                }
+
+                html += '<div style="font-size:10px;color:#555;margin-top:6px">ข้อมูลจาก: api.forecast.solar (ฟรี, ไม่ต้อง API key)</div>';
+                html += '</div>';
+            }
+
+            // ข้อมูลรังสีดวงอาทิตย์จาก Open-Meteo
+            if (om && om.hourly) {
+                var hrTime = om.hourly.time || [];
+                var ghi = om.hourly.shortwave_radiation || [];
+                var dni = om.hourly.direct_radiation || [];
+                var dhi = om.hourly.diffuse_radiation || [];
+                var temp = om.hourly.temperature_2m || [];
+                var cloud = om.hourly.cloudcover || [];
+
+                // หาค่าปัจจุบัน (ชั่วโมงที่ใกล้เคียงที่สุด)
+                var now = new Date();
+                var currentHr = now.getHours();
+                var todayStr = now.toISOString().substring(0, 10);
+                var nearIdx = 0;
+                for (var j = 0; j < hrTime.length; j++) {
+                    if (hrTime[j].startsWith(todayStr) && parseInt(hrTime[j].substring(11, 13)) === currentHr) {
+                        nearIdx = j; break;
+                    }
+                }
+
+                html += '<div style="background:rgba(255,255,255,.04);border-radius:6px;padding:12px;margin-bottom:12px">';
+                html += '<div style="font-size:12px;font-weight:700;color:#69f0ae;margin-bottom:8px">🌤️ รังสีดวงอาทิตย์ ณ ขณะนี้ — Open-Meteo</div>';
+
+                html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">';
+                html += '<div class="dt-card"><div class="dt-val" style="color:#ffd740">' + (ghi[nearIdx] || 0) + '</div><div class="dt-label">☀️ GHI (W/m²)</div></div>';
+                html += '<div class="dt-card"><div class="dt-val" style="color:#ff9800">' + (dni[nearIdx] || 0) + '</div><div class="dt-label">🔆 DNI (W/m²)</div></div>';
+                html += '<div class="dt-card"><div class="dt-val" style="color:#29b6f6">' + (dhi[nearIdx] || 0) + '</div><div class="dt-label">🌥️ DHI (W/m²)</div></div>';
+                html += '<div class="dt-card"><div class="dt-val" style="color:#fff">' + (temp[nearIdx] != null ? temp[nearIdx].toFixed(1) + '°C' : '-') + '</div><div class="dt-label">🌡️ อุณหภูมิ</div></div>';
+                html += '</div>';
+
+                // กราฟรังสี GHI 48 ชั่วโมง
+                var maxGHI = Math.max.apply(null, ghi) || 1;
+                html += '<div style="font-size:11px;color:#888;margin-bottom:4px">📈 รังสีรวม GHI 3 วัน (W/m²):</div>';
+                html += '<div style="display:flex;align-items:flex-end;gap:1px;height:80px;background:#111;border-radius:4px;padding:4px">';
+                for (var k = 0; k < ghi.length; k++) {
+                    var ghiPct = (ghi[k] / maxGHI * 100);
+                    var ghiCol = ghi[k] > 600 ? '#ffd740' : ghi[k] > 300 ? '#ffab00' : ghi[k] > 0 ? '#ff8f00' : '#333';
+                    html += '<div style="flex:1;min-width:2px;height:' + ghiPct + '%;background:' + ghiCol + ';border-radius:1px" title="' + hrTime[k] + ': ' + ghi[k] + ' W/m²"></div>';
+                }
+                html += '</div>';
+                html += '<div style="display:flex;justify-content:space-between;font-size:9px;color:#555;margin-top:2px">';
+                if (hrTime.length > 0) html += '<span>' + hrTime[0].substring(5, 10) + '</span>';
+                if (hrTime.length > 24) html += '<span>' + hrTime[24].substring(5, 10) + '</span>';
+                if (hrTime.length > 48) html += '<span>' + hrTime[48].substring(5, 10) + '</span>';
+                html += '</div>';
+
+                html += '<div style="font-size:10px;color:#555;margin-top:6px">ข้อมูลจาก: Open-Meteo.com (ฟรี, ไม่ต้อง API key, CORS-friendly)</div>';
+                html += '</div>';
+            }
+
+            // คำอธิบายพารามิเตอร์ภาษาไทย
+            html += '<div class="dt-learn" style="font-size:11px">';
+            html += '<b>💡 คำอธิบายพารามิเตอร์:</b><br><br>';
+            html += '<b style="color:#ffd740">GHI (Global Horizontal Irradiance)</b> — รังสีรวมที่ตกกระทบพื้นราบ เป็นผลรวมของ DNI+DHI หน่วย W/m² ค่าสูงสุดทั่วไป ~1000 W/m²<br>';
+            html += '<b style="color:#ff9800">DNI (Direct Normal Irradiance)</b> — รังสีตรงจากดวงอาทิตย์ สำคัญสำหรับ Solar Tracking และ CSP<br>';
+            html += '<b style="color:#29b6f6">DHI (Diffuse Horizontal Irradiance)</b> — รังสีกระจาย (แสงจากเมฆ/บรรยากาศ) สำคัญในวันมีเมฆมาก<br>';
+            html += '<b style="color:#ffd740">kWh (Kilowatt-hour)</b> — พลังงานที่ผลิตได้ เช่น 50 kWh/วัน = ใช้เครื่องปรับอากาศ 1 ตัวได้ ~16 ชม.<br>';
+            html += '<b style="color:#fff">kWp (Kilowatt-peak)</b> — กำลังผลิตสูงสุดของแผงโซลาร์ ค่า 10 kWp ≈ แผง 400W จำนวน 25 แผง<br><br>';
+            html += '<b style="color:#69f0ae">แหล่งข้อมูล:</b><br>';
+            html += '• <b>Forecast.Solar</b> — พยากรณ์กำลังผลิตจริงตามตำแหน่ง/มุม/ขนาด (อัปเดตทุกชั่วโมง)<br>';
+            html += '• <b>Open-Meteo</b> — ข้อมูลรังสีดวงอาทิตย์จากดาวเทียม+แบบจำลอง (อัปเดตทุกชั่วโมง)<br>';
+            html += '• ทั้งสองเป็น API ฟรี ไม่ต้อง API key ข้อมูลเปิดใช้ได้โดยไม่มีข้อจำกัด';
+            html += '</div>';
+
+            body.innerHTML = html;
+            document.getElementById('panelTitle').innerText = '☀️ พยากรณ์กำลังผลิตโซลาร์';
+        }
+        window.loadSolarForecast = loadSolarForecast;
+
+        /* =========================================================
+           17) ⚡ Grid Monitor — รังสีดวงอาทิตย์ + สภาพอากาศสำหรับโซลาร์
+           ข้อมูลจาก Open-Meteo — ฟรี ไม่ต้อง API key
+           ========================================================= */
+
+        async function loadGridMonitor() {
+            openPanel('⚡ Grid Monitor — Solar Radiation Analysis');
+            var body = document.getElementById('panelBody');
+            body.innerHTML = '<div style="text-align:center;padding:40px;color:#999">⏳ กำลังดึงข้อมูลจาก Open-Meteo...</div>';
+
+            var coordsVal = document.getElementById('coords').value || '13.7563, 100.5018';
+            var parts = coordsVal.split(',').map(function(s){return parseFloat(s.trim());});
+            var lat = parts[0] || 13.7563;
+            var lng = parts[1] || 100.5018;
+
+            try {
+                var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lng
+                    + '&hourly=shortwave_radiation,direct_radiation,diffuse_radiation,direct_normal_irradiance,temperature_2m,relativehumidity_2m,cloudcover,windspeed_10m,weathercode'
+                    + '&daily=shortwave_radiation_sum,sunshine_duration,temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max'
+                    + '&forecast_days=7&timezone=Asia%2FBangkok';
+                var resp = await fetch(url);
+                var data = await resp.json();
+                renderGridMonitorPanel(data, lat, lng);
+            } catch (e) {
+                body.innerHTML = '<div style="color:#f44336;padding:20px">❌ ไม่สามารถดึงข้อมูลได้: ' + e.message + '</div>';
+            }
+        }
+
+        function weatherCodeToThai(code) {
+            var m = {0:'ท้องฟ้าแจ่มใส ☀️',1:'เมฆบางส่วน 🌤️',2:'เมฆมาก ⛅',3:'ปกคลุมด้วยเมฆ ☁️',
+                45:'หมอก 🌫️',48:'หมอกน้ำค้าง',51:'ฝนปรอย เบา 🌦️',53:'ฝนปรอย ปานกลาง',55:'ฝนปรอย หนัก',
+                61:'ฝน เบา 🌧️',63:'ฝน ปานกลาง 🌧️',65:'ฝนหนัก 🌧️',71:'หิมะ เบา ❄️',73:'หิมะ ปานกลาง',75:'หิมะ หนัก',
+                80:'ฝนซู่ เบา',81:'ฝนซู่ ปานกลาง',82:'ฝนซู่ หนัก ⛈️',95:'พายุฝนฟ้าคะนอง ⛈️',96:'พายุลูกเห็บ',99:'พายุลูกเห็บรุนแรง'};
+            return m[code] || ('รหัส ' + code);
+        }
+
+        function solarRatingThai(ghiSum) {
+            if (ghiSum >= 6) return {text:'ดีเยี่ยม', color:'#00e676', emoji:'🟢'};
+            if (ghiSum >= 4.5) return {text:'ดี', color:'#ffd740', emoji:'🟡'};
+            if (ghiSum >= 3) return {text:'ปานกลาง', color:'#ff9800', emoji:'🟠'};
+            return {text:'ต่ำ', color:'#f44336', emoji:'🔴'};
+        }
+
+        function renderGridMonitorPanel(data, lat, lng) {
+            var body = document.getElementById('panelBody');
+            var html = '';
+            var h = data.hourly || {};
+            var d = data.daily || {};
+
+            // ค่าปัจจุบัน
+            var now = new Date();
+            var currentHr = now.getHours();
+            var todayStr = now.toISOString().substring(0, 10);
+            var ci = 0;
+            var times = h.time || [];
+            for (var i = 0; i < times.length; i++) {
+                if (times[i].startsWith(todayStr) && parseInt(times[i].substring(11, 13)) === currentHr) {
+                    ci = i; break;
+                }
+            }
+
+            var curGHI = (h.shortwave_radiation || [])[ci] || 0;
+            var curDNI = (h.direct_radiation || [])[ci] || 0;
+            var curTemp = (h.temperature_2m || [])[ci];
+            var curCloud = (h.cloudcover || [])[ci] || 0;
+            var curWind = (h.windspeed_10m || [])[ci] || 0;
+            var curWC = (h.weathercode || [])[ci] || 0;
+
+            // สถานะ ณ ปัจจุบัน
+            html += '<div style="background:rgba(105,240,174,.08);border:1px solid rgba(105,240,174,.25);border-radius:6px;padding:12px;margin-bottom:12px">';
+            html += '<div style="font-size:13px;font-weight:700;color:#69f0ae;margin-bottom:6px">🔴 LIVE — สถานะปัจจุบัน (' + now.toLocaleTimeString('th-TH') + ')</div>';
+            html += '<div style="font-size:12px;color:#aaa;margin-bottom:8px">📍 ' + lat.toFixed(4) + ', ' + lng.toFixed(4) + ' | ' + weatherCodeToThai(curWC) + '</div>';
+
+            html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">';
+            html += '<div class="dt-card"><div class="dt-val" style="color:#ffd740;font-size:20px">' + curGHI + '</div><div class="dt-label">☀️ GHI (W/m²)</div></div>';
+            html += '<div class="dt-card"><div class="dt-val" style="color:#ff9800;font-size:20px">' + curDNI + '</div><div class="dt-label">🔆 DNI (W/m²)</div></div>';
+            html += '<div class="dt-card"><div class="dt-val" style="color:#fff;font-size:20px">' + (curTemp != null ? curTemp.toFixed(1) + '°' : '-') + '</div><div class="dt-label">🌡️ อุณหภูมิ</div></div>';
+            html += '</div>';
+
+            html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">';
+            html += '<div><div style="font-size:10px;color:#888">☁️ เมฆปกคลุม</div>';
+            html += '<div class="grid-gauge"><div class="grid-gauge-fill" style="width:' + curCloud + '%;background:' + (curCloud > 70 ? '#78909c' : curCloud > 40 ? '#b0bec5' : '#ffd740') + '"></div></div>';
+            html += '<div style="font-size:11px;color:#eee;text-align:center">' + curCloud + '%</div></div>';
+            html += '<div><div style="font-size:10px;color:#888">💨 ลม</div>';
+            var windPct = Math.min(curWind / 30 * 100, 100);
+            html += '<div class="grid-gauge"><div class="grid-gauge-fill" style="width:' + windPct + '%;background:#29b6f6"></div></div>';
+            html += '<div style="font-size:11px;color:#eee;text-align:center">' + curWind.toFixed(1) + ' km/h</div></div>';
+            html += '</div></div>';
+
+            // พยากรณ์ 7 วัน
+            if (d.time) {
+                html += '<div style="background:rgba(255,255,255,.04);border-radius:6px;padding:12px;margin-bottom:12px">';
+                html += '<div style="font-size:12px;font-weight:700;color:#69f0ae;margin-bottom:8px">📅 พยากรณ์ศักยภาพโซลาร์ 7 วัน</div>';
+
+                for (var di = 0; di < d.time.length; di++) {
+                    var ghiDay = d.shortwave_radiation_sum ? (d.shortwave_radiation_sum[di] / 1000).toFixed(2) : '-';
+                    var sunHr = d.sunshine_duration ? (d.sunshine_duration[di] / 3600).toFixed(1) : '-';
+                    var tMax = d.temperature_2m_max ? d.temperature_2m_max[di].toFixed(1) : '-';
+                    var tMin = d.temperature_2m_min ? d.temperature_2m_min[di].toFixed(1) : '-';
+                    var rain = d.precipitation_sum ? d.precipitation_sum[di].toFixed(1) : '0';
+                    var rating = solarRatingThai(parseFloat(ghiDay));
+                    var dateStr = new Date(d.time[di]).toLocaleDateString('th-TH', {weekday:'short', day:'numeric', month:'short'});
+
+                    html += '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #222">';
+                    html += '<div style="min-width:80px;font-size:12px;color:#aaa">' + dateStr + '</div>';
+                    html += '<div style="flex:1">';
+                    html += '<div style="display:flex;justify-content:space-between;font-size:11px">';
+                    html += '<span style="color:#ffd740">☀️ ' + ghiDay + ' kWh/m²</span>';
+                    html += '<span style="color:#69f0ae">🕐 ' + sunHr + ' ชม.</span>';
+                    html += '</div>';
+                    html += '<div style="display:flex;justify-content:space-between;font-size:10px;color:#888;margin-top:2px">';
+                    html += '<span>🌡️ ' + tMin + '-' + tMax + '°C</span>';
+                    html += '<span>🌧️ ' + rain + ' mm</span>';
+                    html += '</div>';
+                    html += '</div>';
+                    html += '<div style="text-align:center;min-width:45px">';
+                    html += '<div style="font-size:14px">' + rating.emoji + '</div>';
+                    html += '<div style="font-size:9px;color:' + rating.color + '">' + rating.text + '</div>';
+                    html += '</div></div>';
+                }
+                html += '</div>';
+            }
+
+            // กราฟ GHI 7 วัน
+            if (h.shortwave_radiation) {
+                var ghiArr = h.shortwave_radiation;
+                var maxG = Math.max.apply(null, ghiArr) || 1;
+                html += '<div style="background:rgba(255,255,255,.04);border-radius:6px;padding:12px;margin-bottom:12px">';
+                html += '<div style="font-size:12px;font-weight:700;color:#ffd740;margin-bottom:6px">📈 กราฟ GHI รายชั่วโมง 7 วัน</div>';
+                html += '<div style="display:flex;align-items:flex-end;gap:0;height:80px;background:#111;border-radius:4px;padding:4px">';
+                for (var gi = 0; gi < ghiArr.length; gi++) {
+                    var gPct = ghiArr[gi] / maxG * 100;
+                    var gCol = ghiArr[gi] > 600 ? '#ffd740' : ghiArr[gi] > 300 ? '#ffab00' : ghiArr[gi] > 0 ? '#5d4037' : '#1a1a1a';
+                    html += '<div style="flex:1;min-width:1px;height:' + gPct + '%;background:' + gCol + '"></div>';
+                }
+                html += '</div>';
+                html += '<div style="display:flex;justify-content:space-between;font-size:8px;color:#555;margin-top:2px">';
+                for (var dd = 0; dd < Math.min(7, (d.time||[]).length); dd++) {
+                    html += '<span>' + (d.time[dd] || '').substring(5,10) + '</span>';
+                }
+                html += '</div></div>';
+            }
+
+            // คำอธิบาย
+            html += '<div class="dt-learn" style="font-size:11px">';
+            html += '<b>💡 วิธีอ่านข้อมูล Grid Monitor:</b><br><br>';
+            html += '<b style="color:#69f0ae">ศักยภาพโซลาร์รายวัน:</b><br>';
+            html += '&nbsp;&nbsp;🟢 ดีเยี่ยม (≥6 kWh/m²/วัน) — ผลิตไฟได้เต็มที่<br>';
+            html += '&nbsp;&nbsp;🟡 ดี (4.5-6) — ผลิตไฟได้ดี<br>';
+            html += '&nbsp;&nbsp;🟠 ปานกลาง (3-4.5) — มีเมฆบดบังบ้าง<br>';
+            html += '&nbsp;&nbsp;🔴 ต่ำ (<3) — ฝนตก/เมฆหนา<br><br>';
+            html += '<b style="color:#ffd740">เปรียบเทียบ:</b> ประเทศไทยเฉลี่ย 4.5-5.5 kWh/m²/วัน (สูงกว่ายุโรป 2-3 เท่า)<br><br>';
+            html += '<b style="color:#69f0ae">แหล่งข้อมูล:</b> Open-Meteo.com — ข้อมูลจากดาวเทียมและแบบจำลอง ERA5/ECMWF<br>';
+            html += 'ฟรี ไม่ต้อง API key — อัปเดตทุกชั่วโมง ครอบคลุมทั่วโลก';
+            html += '</div>';
+
+            body.innerHTML = html;
+            document.getElementById('panelTitle').innerText = '⚡ Grid Monitor — Solar Radiation Analysis';
+        }
+        window.loadGridMonitor = loadGridMonitor;
 
     </script>
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js" async></script>
