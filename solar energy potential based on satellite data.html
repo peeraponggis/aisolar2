@@ -4143,23 +4143,125 @@
             } catch (e) { }
         }
 
+        var meshDataSource = '';
+
         function loadDemoNodes() {
-            var demoData = [
-                { id: 'DEMO_BKK01', shortName: 'BKK-01', longName: 'สาธิต กรุงเทพฯ 1', lat: 13.7563, lng: 100.5018, battery: 87, snr: 9.5, rssi: -85, temperature: 33.2, humidity: 72, altitude: 5 },
-                { id: 'DEMO_BKK02', shortName: 'BKK-02', longName: 'สาธิต กรุงเทพฯ 2', lat: 13.7300, lng: 100.5230, battery: 54, snr: 6.2, rssi: -92, temperature: 34.1, humidity: 68, altitude: 12 },
-                { id: 'DEMO_CNX01', shortName: 'CNX-01', longName: 'สาธิต เชียงใหม่', lat: 18.7883, lng: 98.9853, battery: 95, snr: 12.0, rssi: -72, temperature: 28.5, humidity: 58, altitude: 310 },
-                { id: 'DEMO_HKT01', shortName: 'HKT-01', longName: 'สาธิต ภูเก็ต', lat: 7.8804, lng: 98.3923, battery: 32, snr: 3.1, rssi: -105, temperature: 31.8, humidity: 82, altitude: 8 },
-                { id: 'DEMO_KKN01', shortName: 'KKN-01', longName: 'สาธิต ขอนแก่น', lat: 16.4322, lng: 102.8236, battery: 71, snr: 7.8, rssi: -88, temperature: 35.0, humidity: 55, altitude: 165 },
-                { id: 'DEMO_NST01', shortName: 'NST-01', longName: 'สาธิต นครศรีธรรมราช (Solar Node)', lat: 8.4304, lng: 99.9631, battery: 100, snr: 11.5, rssi: -68, temperature: 30.2, humidity: 78, altitude: 15 },
-                { id: 'DEMO_UDN01', shortName: 'UDN-01', longName: 'สาธิต อุดรธานี', lat: 17.4156, lng: 102.7872, battery: 15, snr: 2.0, rssi: -110, temperature: 36.5, humidity: 45, altitude: 180 },
-                { id: 'DEMO_SRT01', shortName: 'SRT-01', longName: 'สาธิต สุราษฎร์ธานี', lat: 9.1382, lng: 99.3217, battery: 68, snr: 8.3, rssi: -79, temperature: 29.7, humidity: 80, altitude: 25 }
-            ];
-            demoData.forEach(function (d) {
-                d.lastSeen = Date.now() - Math.floor(Math.random() * 300000);
-                meshNodes[d.id] = d;
-                updateOrCreateMeshEntity(d);
-            });
-            updateDTPanel();
+            loadRealMeshtasticNodes();
+        }
+
+        async function loadRealMeshtasticNodes() {
+            meshDataSource = '';
+            var loaded = false;
+
+            // 1) ลองดึงข้อมูล Meshtastic จริงจาก meshmap.net (ผ่าน CORS proxy)
+            try {
+                console.log('[MESH/DT] 🔄 กำลังดึงข้อมูล Meshtastic จริงจาก meshmap.net ...');
+                var proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent('https://meshmap.net/nodes.json');
+                var resp = await fetch(proxyUrl, { signal: AbortSignal.timeout(12000) });
+                if (resp.ok) {
+                    var raw = await resp.json();
+                    var keys = Object.keys(raw);
+                    var count = 0;
+                    for (var i = 0; i < keys.length && count < 200; i++) {
+                        var d = raw[keys[i]];
+                        if (!d.latitude || !d.longitude) continue;
+                        var lat = d.latitude / 1e7;
+                        var lng = d.longitude / 1e7;
+                        if (lat === 0 && lng === 0) continue;
+                        if (lat < -90 || lat > 90 || lng < -180 || lng > 180) continue;
+                        var nodeId = 'MESH_' + keys[i];
+                        meshNodes[nodeId] = {
+                            id: nodeId,
+                            shortName: d.shortName || keys[i].slice(-4),
+                            longName: d.longName || 'Meshtastic Node ' + keys[i],
+                            lat: lat,
+                            lng: lng,
+                            battery: (d.batteryLevel != null && d.batteryLevel <= 100) ? d.batteryLevel : null,
+                            snr: d.snr || null,
+                            rssi: d.rssi || null,
+                            temperature: d.temperature || null,
+                            humidity: d.relativeHumidity || null,
+                            altitude: d.altitude || null,
+                            lastSeen: (d.lastDeviceMetrics || d.lastMapReport) ? (d.lastDeviceMetrics || d.lastMapReport) * 1000 : Date.now(),
+                            hwModel: d.hwModel || null,
+                            role: d.role || null,
+                            voltage: d.voltage || null,
+                            uptime: d.uptime || null,
+                            source: 'meshmap.net (Meshtastic LoRa)'
+                        };
+                        updateOrCreateMeshEntity(meshNodes[nodeId]);
+                        count++;
+                    }
+                    if (count > 0) {
+                        meshDataSource = 'meshmap.net — ข้อมูล Meshtastic Node จริง (' + count + '/' + keys.length + ' nodes)';
+                        loaded = true;
+                        console.log('[MESH/DT] ✅ โหลด Meshtastic จริง ' + count + ' nodes จาก meshmap.net (ทั้งหมด ' + keys.length + ')');
+                    }
+                }
+            } catch (e) {
+                console.warn('[MESH/DT] ⚠️ meshmap.net ล้มเหลว:', e.message);
+            }
+
+            // 2) เสริมด้วย openSenseMap — IoT sensor จริงในประเทศไทย
+            try {
+                console.log('[MESH/DT] 🔄 กำลังดึงข้อมูล IoT sensor จาก openSenseMap (ประเทศไทย) ...');
+                var osmUrl = 'https://api.opensensemap.org/boxes?bbox=97.5,5.6,105.6,20.5&format=json&exposure=outdoor';
+                var osmResp = await fetch(osmUrl, { signal: AbortSignal.timeout(10000) });
+                if (osmResp.ok) {
+                    var boxes = await osmResp.json();
+                    var osmCount = 0;
+                    boxes.forEach(function (box) {
+                        if (!box.currentLocation || !box.currentLocation.coordinates) return;
+                        var coords = box.currentLocation.coordinates;
+                        var nodeId = 'OSM_' + box._id;
+                        var temp = null, hum = null, pm25 = null, pressure = null;
+                        if (box.sensors) {
+                            box.sensors.forEach(function (s) {
+                                var val = s.lastMeasurement ? parseFloat(s.lastMeasurement.value) : null;
+                                if (val == null || isNaN(val)) return;
+                                var t = (s.title || '').toLowerCase();
+                                if (t.includes('temp') || t.includes('temperatur')) temp = val;
+                                else if (t.includes('humid') || t.includes('feucht')) hum = val;
+                                else if (t.includes('pm2')) pm25 = val;
+                                else if (t.includes('druck') || t.includes('press')) pressure = val;
+                            });
+                        }
+                        meshNodes[nodeId] = {
+                            id: nodeId,
+                            shortName: (box.name || '').substring(0, 8),
+                            longName: box.name || 'openSenseMap Box',
+                            lat: coords[1],
+                            lng: coords[0],
+                            battery: null,
+                            snr: null,
+                            rssi: null,
+                            temperature: temp,
+                            humidity: hum,
+                            altitude: coords[2] || null,
+                            lastSeen: box.lastMeasurementAt ? new Date(box.lastMeasurementAt).getTime() : null,
+                            pm25: pm25,
+                            pressure: pressure,
+                            model: box.model || null,
+                            exposure: box.exposure || null,
+                            source: 'openSenseMap.org (IoT Sensor)'
+                        };
+                        updateOrCreateMeshEntity(meshNodes[nodeId]);
+                        osmCount++;
+                    });
+                    if (osmCount > 0) {
+                        meshDataSource += (meshDataSource ? ' + ' : '') + 'openSenseMap.org — IoT Sensor จริง (' + osmCount + ' สถานี ในประเทศไทย)';
+                        loaded = true;
+                        console.log('[MESH/DT] ✅ โหลด openSenseMap ' + osmCount + ' สถานี');
+                    }
+                }
+            } catch (e) {
+                console.warn('[MESH/DT] ⚠️ openSenseMap ล้มเหลว:', e.message);
+            }
+
+            if (!loaded) {
+                meshDataSource = 'ไม่สามารถเชื่อมต่อแหล่งข้อมูลได้ — กรุณาลองใหม่';
+            }
+            if (currentSource === 'MESH_DT') updateDTPanel();
         }
 
         function updateDTPanel() {
@@ -4178,9 +4280,9 @@
             var avgSnr = snrCount ? (snrSum / snrCount).toFixed(1) : '-';
 
             var html = '';
-            html += '<div class="dt-status"><div class="dt-dot ' + (meshConnected ? 'online' : '') + '"></div>';
-            html += '<span style="font-size:12px;color:' + (meshConnected ? '#00e676' : '#f44336') + '">';
-            html += meshConnected ? '🟢 เชื่อมต่อ MQTT สำเร็จ (mqtt.meshtastic.org)' : (total > 0 ? '🟡 ข้อมูลสาธิต (Demo Mode) — ไม่ได้เชื่อมต่อ MQTT จริง' : '🔴 กำลังเชื่อมต่อ MQTT ...');
+            html += '<div class="dt-status"><div class="dt-dot ' + (total > 0 ? 'online' : '') + '"></div>';
+            html += '<span style="font-size:11px;color:' + (total > 0 ? '#00e676' : '#f44336') + '">';
+            html += total > 0 ? '🟢 ' + meshDataSource : '🔴 กำลังโหลดข้อมูล ...';
             html += '</span></div>';
 
             html += '<div class="dt-summary">';
@@ -4212,23 +4314,21 @@
             html += '<div style="margin-top:10px;font-size:10.5px;color:#666">ข้อความ MQTT ที่ประมวลผล: <b style="color:#00e5ff">' + meshMsgCount + '</b></div>';
 
             html += '<div class="dt-learn">';
-            html += '<b>🌐 Digital Twin คืออะไร?</b><br><br>';
-            html += 'Digital Twin คือ <b>"แบบจำลองดิจิทัล"</b> ที่สะท้อนสถานะของอุปกรณ์จริงแบบ real-time<br><br>';
-            html += '🔹 <b>ทำงานอย่างไร:</b><br>';
-            html += '&nbsp;&nbsp;1. อุปกรณ์จริง (Meshtastic LoRa Radio) ส่งข้อมูลตำแหน่ง, แบตเตอรี่, เซ็นเซอร์<br>';
-            html += '&nbsp;&nbsp;2. ข้อมูลเดินทางผ่าน <b>MQTT Protocol</b> (Message Queue Telemetry Transport)<br>';
-            html += '&nbsp;&nbsp;3. ระบบนี้รับข้อมูลผ่าน <b>WebSocket</b> แล้วแสดงเป็น entity บน 3D Globe<br>';
-            html += '&nbsp;&nbsp;4. ทุกการเปลี่ยนแปลง (ตำแหน่ง, แบต, สัญญาณ) สะท้อนในโลกดิจิทัลทันที<br><br>';
-            html += '🔹 <b>ประโยชน์ร่วมกับ Solar:</b><br>';
-            html += '&nbsp;&nbsp;• ตรวจสอบ node ที่ใช้พลังงานแสงอาทิตย์ว่าแบตเตอรี่เพียงพอหรือไม่<br>';
-            html += '&nbsp;&nbsp;• เปรียบเทียบข้อมูล Solar Radiation กับประสิทธิภาพการชาร์จจริง<br>';
-            html += '&nbsp;&nbsp;• วางแผนตำแหน่ง node IoT ให้ได้รับแสงอาทิตย์เต็มที่<br><br>';
-            html += '🔹 <b>เทคโนโลยีที่ใช้:</b><br>';
-            html += '&nbsp;&nbsp;• <b>MQTT</b> — โปรโตคอลส่งข้อมูล IoT น้ำหนักเบา<br>';
-            html += '&nbsp;&nbsp;• <b>Meshtastic</b> — เครือข่าย Mesh LoRa ระยะไกล ไม่ต้องใช้อินเทอร์เน็ต<br>';
-            html += '&nbsp;&nbsp;• <b>WebSocket</b> — เชื่อมต่อ MQTT จากเว็บเบราว์เซอร์โดยตรง<br>';
-            html += '&nbsp;&nbsp;• <b>CesiumJS</b> — แสดงผลบน 3D Globe พร้อมข้อมูลภูมิสารสนเทศ<br><br>';
-            html += '<span style="color:#00e5ff">💡 คลิกที่ node บนแผนที่เพื่อดูรายละเอียดอุปกรณ์จริง</span>';
+            html += '<b>🌐 Digital Twin — แบบจำลองดิจิทัลของอุปกรณ์จริง</b><br><br>';
+            html += '<b style="color:#00e5ff">แหล่งข้อมูลที่นำเข้า:</b><br>';
+            html += '&nbsp;&nbsp;📡 <b>meshmap.net</b> — ข้อมูล Meshtastic LoRa Node จริงทั่วโลก<br>';
+            html += '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;• GPS ตำแหน่ง, แบตเตอรี่, SNR, RSSI, อุณหภูมิ, ความชื้น<br>';
+            html += '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;• รุ่นฮาร์ดแวร์ (Heltec, T-Beam, RAK), บทบาทใน Mesh<br>';
+            html += '&nbsp;&nbsp;🌡️ <b>openSenseMap.org</b> — IoT Sensor Box จริงในประเทศไทย<br>';
+            html += '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;• อุณหภูมิ, ความชื้น, PM2.5, ความดันอากาศ<br>';
+            html += '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;• ข้อมูลจากเซ็นเซอร์ BME280, SDS011 ติดตั้งจริง<br><br>';
+            html += '<b style="color:#00e5ff">พารามิเตอร์สำคัญ:</b><br>';
+            html += '&nbsp;&nbsp;• <b>SNR</b> (Signal-to-Noise Ratio) — คุณภาพสัญญาณ LoRa (dB)<br>';
+            html += '&nbsp;&nbsp;• <b>RSSI</b> (Received Signal Strength) — ความแรงสัญญาณ (dBm)<br>';
+            html += '&nbsp;&nbsp;• <b>Battery</b> — ระดับแบตเตอรี่ (%)<br>';
+            html += '&nbsp;&nbsp;• <b>PM2.5</b> — ฝุ่นละอองขนาดเล็ก (µg/m³)<br>';
+            html += '&nbsp;&nbsp;• <b>Uptime</b> — เวลาทำงานต่อเนื่อง<br><br>';
+            html += '<span style="color:#00e5ff">💡 คลิกที่ชื่อ node ด้านบนเพื่อดูรายละเอียดทั้งหมดพร้อมคำอธิบาย</span>';
             html += '</div>';
 
             body.innerHTML = html;
@@ -4268,30 +4368,48 @@
                 ['ชื่อย่อ', n.shortName || '-'],
                 ['ชื่อเต็ม', n.longName || '-'],
                 ['ตำแหน่ง (Lat, Lng)', n.lat != null ? n.lat.toFixed(6) + ', ' + n.lng.toFixed(6) : '-'],
-                ['ความสูงจากระดับน้ำทะเล', n.altitude != null ? n.altitude + ' เมตร' : '-']
+                ['ความสูงจากระดับน้ำทะเล', n.altitude != null ? n.altitude + ' เมตร' : '-'],
+                ['แหล่งข้อมูล', n.source || '-']
             ];
+            if (n.hwModel) rows.push(['รุ่นฮาร์ดแวร์', n.hwModel]);
+            if (n.role) rows.push(['บทบาทใน Mesh', n.role]);
+            if (n.model) rows.push(['รุ่นเซ็นเซอร์', n.model]);
+            if (n.voltage) rows.push(['แรงดันไฟฟ้า', n.voltage.toFixed(2) + ' V']);
+            if (n.uptime) rows.push(['เวลาทำงานต่อเนื่อง', Math.floor(n.uptime / 3600) + ' ชม. ' + Math.floor((n.uptime % 3600) / 60) + ' นาที']);
             rows.forEach(function(r) {
                 html += '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #222;font-size:12px">';
                 html += '<span style="color:#888">' + r[0] + '</span>';
-                html += '<span style="color:#eee">' + r[1] + '</span></div>';
+                html += '<span style="color:#eee;text-align:right;max-width:60%">' + r[1] + '</span></div>';
             });
             html += '</div>';
 
             html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">';
-            html += '<div class="dt-card"><div class="dt-val" style="color:' + (n.battery != null ? batColor(n.battery) : '#999') + '">' + (n.battery != null ? n.battery + '%' : '-') + '</div><div class="dt-label">🔋 แบตเตอรี่</div></div>';
-            html += '<div class="dt-card"><div class="dt-val" style="color:#40c4ff">' + (n.snr != null ? n.snr + ' dB' : '-') + '</div><div class="dt-label">📶 SNR (คุณภาพสัญญาณ)</div></div>';
-            html += '<div class="dt-card"><div class="dt-val" style="color:#ff9800">' + (n.rssi != null ? n.rssi + ' dBm' : '-') + '</div><div class="dt-label">📡 RSSI (ความแรงสัญญาณ)</div></div>';
-            html += '<div class="dt-card"><div class="dt-val" style="color:#fff">' + (n.temperature != null ? n.temperature.toFixed(1) + '°C' : '-') + '</div><div class="dt-label">🌡️ อุณหภูมิ</div></div>';
-            html += '<div class="dt-card"><div class="dt-val" style="color:#29b6f6">' + (n.humidity != null ? n.humidity.toFixed(0) + '%' : '-') + '</div><div class="dt-label">💧 ความชื้นสัมพัทธ์</div></div>';
+            if (n.battery != null) html += '<div class="dt-card"><div class="dt-val" style="color:' + batColor(n.battery) + '">' + n.battery + '%</div><div class="dt-label">🔋 แบตเตอรี่</div></div>';
+            if (n.snr != null) html += '<div class="dt-card"><div class="dt-val" style="color:#40c4ff">' + n.snr + ' dB</div><div class="dt-label">📶 SNR (คุณภาพสัญญาณ)</div></div>';
+            if (n.rssi != null) html += '<div class="dt-card"><div class="dt-val" style="color:#ff9800">' + n.rssi + ' dBm</div><div class="dt-label">📡 RSSI (ความแรงสัญญาณ)</div></div>';
+            if (n.temperature != null) html += '<div class="dt-card"><div class="dt-val" style="color:#fff">' + n.temperature.toFixed(1) + '°C</div><div class="dt-label">🌡️ อุณหภูมิ</div></div>';
+            if (n.humidity != null) html += '<div class="dt-card"><div class="dt-val" style="color:#29b6f6">' + n.humidity.toFixed(0) + '%</div><div class="dt-label">💧 ความชื้นสัมพัทธ์</div></div>';
+            if (n.pm25 != null) html += '<div class="dt-card"><div class="dt-val" style="color:' + (n.pm25 > 50 ? '#f44336' : n.pm25 > 25 ? '#ffc107' : '#00e676') + '">' + n.pm25.toFixed(1) + '</div><div class="dt-label">🌫️ PM2.5 (µg/m³)</div></div>';
+            if (n.pressure != null) html += '<div class="dt-card"><div class="dt-val" style="color:#ce93d8">' + (n.pressure > 10000 ? (n.pressure/100).toFixed(0) : n.pressure.toFixed(0)) + '</div><div class="dt-label">🌀 ความดันอากาศ (hPa)</div></div>';
             html += '<div class="dt-card"><div class="dt-val" style="color:#aaa;font-size:11px">' + ts + '</div><div class="dt-label">🕐 อัปเดตล่าสุด</div></div>';
             html += '</div>';
 
             html += '<div class="dt-learn" style="font-size:11px">';
-            html += '<b>💡 อธิบายข้อมูลแต่ละค่า:</b><br><br>';
-            html += '<b style="color:#00e5ff">SNR (Signal-to-Noise Ratio)</b> — อัตราส่วนสัญญาณต่อสัญญาณรบกวน ยิ่งสูงยิ่งดี (>10 dB = ดีมาก)<br>';
-            html += '<b style="color:#ff9800">RSSI (Received Signal Strength)</b> — ความแรงสัญญาณที่รับได้ ยิ่งเข้าใกล้ 0 ยิ่งแรง (-70 = ดี, -110 = อ่อนมาก)<br>';
-            html += '<b style="color:#00e676">แบตเตอรี่</b> — ระดับพลังงาน สำหรับ node พลังงานแสงอาทิตย์ ค่านี้สะท้อนประสิทธิภาพการชาร์จ<br>';
-            html += '<b style="color:#fff">อุณหภูมิ/ความชื้น</b> — ข้อมูลจากเซ็นเซอร์ในอุปกรณ์ (ถ้ามี)';
+            html += '<b>💡 คำอธิบายพารามิเตอร์แต่ละค่า:</b><br><br>';
+            if (n.source && n.source.includes('Meshtastic')) {
+                html += '<b style="color:#00e5ff">SNR (Signal-to-Noise Ratio)</b> — อัตราส่วนสัญญาณต่อสัญญาณรบกวนของคลื่น LoRa ยิ่งสูงยิ่งดี (>10 dB = ดีมาก, <0 = แย่มาก)<br>';
+                html += '<b style="color:#ff9800">RSSI (Received Signal Strength Indicator)</b> — ความแรงสัญญาณที่รับได้ หน่วย dBm ยิ่งเข้าใกล้ 0 ยิ่งแรง (-70 = ดี, -110 = อ่อนมาก)<br>';
+                html += '<b style="color:#00e676">แบตเตอรี่</b> — ระดับพลังงานคงเหลือ สำหรับ node พลังงานแสงอาทิตย์ค่านี้สะท้อนประสิทธิภาพการชาร์จ<br>';
+                html += '<b style="color:#ce93d8">แรงดันไฟฟ้า (Voltage)</b> — แรงดันของแบตเตอรี่ ค่า <3.3V อาจดับได้<br>';
+                html += '<b style="color:#999">Uptime</b> — เวลาที่อุปกรณ์ทำงานต่อเนื่องนับจากเปิดเครื่อง<br>';
+                html += '<b style="color:#999">hwModel</b> — รุ่นฮาร์ดแวร์ เช่น HELTEC_V3, TBEAM, RAK4631<br>';
+            } else {
+                html += '<b style="color:#fff">อุณหภูมิ (Temperature)</b> — วัดจากเซ็นเซอร์ BME280/DHT22 ติดตั้งในกล่อง IoT<br>';
+                html += '<b style="color:#29b6f6">ความชื้นสัมพัทธ์ (Relative Humidity)</b> — ร้อยละของไอน้ำในอากาศ<br>';
+                html += '<b style="color:#ffc107">PM2.5</b> — ฝุ่นละอองขนาดเล็ก < 2.5 ไมครอน (เกณฑ์ปลอดภัย < 25 µg/m³)<br>';
+                html += '<b style="color:#ce93d8">ความดันอากาศ (Barometric Pressure)</b> — หน่วย hPa ปกติ ~1013 hPa ที่ระดับน้ำทะเล<br>';
+            }
+            html += '<br><b style="color:#00e5ff">แหล่งข้อมูล:</b> ' + (n.source || '-');
             html += '</div>';
 
             body.innerHTML = html;
