@@ -4349,8 +4349,8 @@
             var n = meshNodes[nodeId];
             if (!n || n.lat == null) return;
             viewer.camera.flyTo({
-                destination: Cesium.Cartesian3.fromDegrees(n.lng, n.lat, 50000),
-                orientation: { heading: 0, pitch: Cesium.Math.toRadians(-45), roll: 0 },
+                destination: Cesium.Cartesian3.fromDegrees(n.lng, n.lat, 5000),
+                orientation: { heading: 0, pitch: Cesium.Math.toRadians(-60), roll: 0 },
                 duration: 1.5
             });
             showNodeDetail(nodeId);
@@ -4392,7 +4392,12 @@
             var ts = n.lastSeen ? new Date(n.lastSeen).toLocaleString('th-TH') : 'ไม่ทราบ';
             var isOnline = n.lastSeen && (Date.now() - n.lastSeen < 600000);
 
-            var html = '<div style="margin-bottom:10px"><button onclick="updateDTPanel()" style="background:rgba(0,229,255,.15);border:1px solid #00e5ff;color:#00e5ff;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:12px">← กลับไปหน้า Dashboard</button></div>';
+            var html = '<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">';
+            html += '<button onclick="updateDTPanel()" style="background:rgba(0,229,255,.15);border:1px solid #00e5ff;color:#00e5ff;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:12px">← กลับไปหน้า Dashboard</button>';
+            if (n.lat != null && n.lng != null) {
+                html += '<button onclick="flyToMeshNodeOnly(\'' + nodeId + '\')" style="background:rgba(0,230,118,.15);border:1px solid #00e676;color:#00e676;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:12px">🛩️ บินไปยังเซ็นเซอร์</button>';
+            }
+            html += '</div>';
 
             // รูปภาพเซ็นเซอร์ (ถ้ามี)
             if (extraInfo.image) {
@@ -4504,6 +4509,31 @@
             document.getElementById('panelTitle').innerText = '📡 รายละเอียด Node: ' + (n.shortName || n.id);
         }
         window.showNodeDetail = showNodeDetail;
+
+        // บินไปยังเซ็นเซอร์โดยไม่โหลดรายละเอียดซ้ำ (ใช้กับปุ่มในหน้ารายละเอียด)
+        function flyToMeshNodeOnly(nodeId) {
+            var n = meshNodes[nodeId];
+            if (!n || n.lat == null) return;
+            viewer.camera.flyTo({
+                destination: Cesium.Cartesian3.fromDegrees(n.lng, n.lat, 5000),
+                orientation: { heading: 0, pitch: Cesium.Math.toRadians(-60), roll: 0 },
+                duration: 1.5
+            });
+        }
+        window.flyToMeshNodeOnly = flyToMeshNodeOnly;
+
+        // 2-way: คลิก entity บนแผนที่ → แสดงรายละเอียดในเมนู
+        viewer.selectedEntityChanged.addEventListener(function(entity) {
+            if (!entity) return;
+            var eid = entity.id;
+            if (typeof eid === 'string' && eid.startsWith('mesh_')) {
+                var nodeId = eid.replace('mesh_', '');
+                if (meshNodes[nodeId]) {
+                    // เปิด panel แสดงรายละเอียด node ที่คลิกจากแผนที่
+                    showNodeDetail(nodeId);
+                }
+            }
+        });
         window.updateDTPanel = updateDTPanel;
 
         function startMeshDigitalTwin() {
