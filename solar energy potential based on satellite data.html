@@ -4242,10 +4242,63 @@
                 orientation: { heading: 0, pitch: Cesium.Math.toRadians(-45), roll: 0 },
                 duration: 1.5
             });
-            var ent = viewer.entities.getById('mesh_' + nodeId);
-            if (ent) viewer.selectedEntity = ent;
+            showNodeDetail(nodeId);
         }
         window.flyToMeshNode = flyToMeshNode;
+
+        function showNodeDetail(nodeId) {
+            var n = meshNodes[nodeId];
+            if (!n) return;
+            var body = document.getElementById('panelBody');
+            var ts = n.lastSeen ? new Date(n.lastSeen).toLocaleString('th-TH') : 'ไม่ทราบ';
+            var isOnline = n.lastSeen && (Date.now() - n.lastSeen < 600000);
+
+            var html = '<div style="margin-bottom:10px"><button onclick="updateDTPanel()" style="background:rgba(0,229,255,.15);border:1px solid #00e5ff;color:#00e5ff;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:12px">← กลับไปหน้า Dashboard</button></div>';
+            html += '<div style="text-align:center;margin-bottom:14px">';
+            html += '<div style="font-size:36px">📡</div>';
+            html += '<div style="font-size:18px;font-weight:700;color:#00e5ff;margin-top:4px">' + (n.longName || n.shortName || n.id) + '</div>';
+            html += '<div style="font-size:11px;color:' + (isOnline ? '#00e676' : '#f44336') + ';margin-top:4px">' + (isOnline ? '● ออนไลน์' : '● ออฟไลน์') + '</div>';
+            html += '</div>';
+
+            html += '<div style="background:rgba(255,255,255,.04);border-radius:6px;padding:12px;margin-bottom:12px">';
+            html += '<div style="font-size:12px;font-weight:700;color:#ccc;margin-bottom:10px;border-bottom:1px solid #333;padding-bottom:6px">📊 ข้อมูลอุปกรณ์ (Device Telemetry)</div>';
+
+            var rows = [
+                ['รหัส Node (ID)', n.id],
+                ['ชื่อย่อ', n.shortName || '-'],
+                ['ชื่อเต็ม', n.longName || '-'],
+                ['ตำแหน่ง (Lat, Lng)', n.lat != null ? n.lat.toFixed(6) + ', ' + n.lng.toFixed(6) : '-'],
+                ['ความสูงจากระดับน้ำทะเล', n.altitude != null ? n.altitude + ' เมตร' : '-']
+            ];
+            rows.forEach(function(r) {
+                html += '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #222;font-size:12px">';
+                html += '<span style="color:#888">' + r[0] + '</span>';
+                html += '<span style="color:#eee">' + r[1] + '</span></div>';
+            });
+            html += '</div>';
+
+            html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">';
+            html += '<div class="dt-card"><div class="dt-val" style="color:' + (n.battery != null ? batColor(n.battery) : '#999') + '">' + (n.battery != null ? n.battery + '%' : '-') + '</div><div class="dt-label">🔋 แบตเตอรี่</div></div>';
+            html += '<div class="dt-card"><div class="dt-val" style="color:#40c4ff">' + (n.snr != null ? n.snr + ' dB' : '-') + '</div><div class="dt-label">📶 SNR (คุณภาพสัญญาณ)</div></div>';
+            html += '<div class="dt-card"><div class="dt-val" style="color:#ff9800">' + (n.rssi != null ? n.rssi + ' dBm' : '-') + '</div><div class="dt-label">📡 RSSI (ความแรงสัญญาณ)</div></div>';
+            html += '<div class="dt-card"><div class="dt-val" style="color:#fff">' + (n.temperature != null ? n.temperature.toFixed(1) + '°C' : '-') + '</div><div class="dt-label">🌡️ อุณหภูมิ</div></div>';
+            html += '<div class="dt-card"><div class="dt-val" style="color:#29b6f6">' + (n.humidity != null ? n.humidity.toFixed(0) + '%' : '-') + '</div><div class="dt-label">💧 ความชื้นสัมพัทธ์</div></div>';
+            html += '<div class="dt-card"><div class="dt-val" style="color:#aaa;font-size:11px">' + ts + '</div><div class="dt-label">🕐 อัปเดตล่าสุด</div></div>';
+            html += '</div>';
+
+            html += '<div class="dt-learn" style="font-size:11px">';
+            html += '<b>💡 อธิบายข้อมูลแต่ละค่า:</b><br><br>';
+            html += '<b style="color:#00e5ff">SNR (Signal-to-Noise Ratio)</b> — อัตราส่วนสัญญาณต่อสัญญาณรบกวน ยิ่งสูงยิ่งดี (>10 dB = ดีมาก)<br>';
+            html += '<b style="color:#ff9800">RSSI (Received Signal Strength)</b> — ความแรงสัญญาณที่รับได้ ยิ่งเข้าใกล้ 0 ยิ่งแรง (-70 = ดี, -110 = อ่อนมาก)<br>';
+            html += '<b style="color:#00e676">แบตเตอรี่</b> — ระดับพลังงาน สำหรับ node พลังงานแสงอาทิตย์ ค่านี้สะท้อนประสิทธิภาพการชาร์จ<br>';
+            html += '<b style="color:#fff">อุณหภูมิ/ความชื้น</b> — ข้อมูลจากเซ็นเซอร์ในอุปกรณ์ (ถ้ามี)';
+            html += '</div>';
+
+            body.innerHTML = html;
+            document.getElementById('panelTitle').innerText = '📡 รายละเอียด Node: ' + (n.shortName || n.id);
+        }
+        window.showNodeDetail = showNodeDetail;
+        window.updateDTPanel = updateDTPanel;
 
         function startMeshDigitalTwin() {
             openPanel('📡 Digital Twin — Meshtastic Mesh Network');
