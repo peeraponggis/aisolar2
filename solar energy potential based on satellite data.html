@@ -176,6 +176,23 @@
         .tab-btn.water-active.active { color: #29b6f6; }
         .tab-btn.dam-active.active { color: #26a69a; }
         .tab-btn.rain-active.active { color: #5c6bc0; }
+        .tab-btn.mesh-active.active { color: #00e5ff; text-shadow: 0 0 8px rgba(0,229,255,.5); }
+
+        /* ================= Digital Twin MQTT Panel ================= */
+        .dt-status { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+        .dt-dot { width:10px; height:10px; border-radius:50%; background:#f44336; flex-shrink:0; }
+        .dt-dot.online { background:#00e676; box-shadow:0 0 6px #00e676; }
+        .dt-summary { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px; }
+        .dt-card { background:rgba(0,229,255,.08); border:1px solid rgba(0,229,255,.25); border-radius:6px; padding:10px; text-align:center; }
+        .dt-card .dt-val { font-size:22px; font-weight:700; color:#00e5ff; }
+        .dt-card .dt-label { font-size:10.5px; color:#999; margin-top:2px; }
+        .dt-node-list { max-height:200px; overflow-y:auto; font-size:11.5px; }
+        .dt-node-row { display:flex; justify-content:space-between; align-items:center; padding:5px 6px; border-bottom:1px solid #2a2a2a; }
+        .dt-node-row:hover { background:rgba(0,229,255,.06); }
+        .dt-bat { display:inline-block; width:32px; height:12px; border:1px solid #555; border-radius:2px; position:relative; overflow:hidden; }
+        .dt-bat-fill { height:100%; border-radius:1px; }
+        .dt-learn { background:rgba(0,229,255,.06); border:1px solid rgba(0,229,255,.18); border-radius:6px; padding:12px; margin-top:12px; font-size:11.5px; line-height:1.7; color:#bbb; }
+        .dt-learn b { color:#00e5ff; }
 
         /* ตารางเปรียบเทียบค่ามลสารกับค่ามาตรฐาน */
         .std-table { width: 100%; border-collapse: collapse; font-size: 11.5px; margin-top: 6px; }
@@ -536,6 +553,7 @@
             <button class="tab-btn" id="tab-water" onclick="switchSource('WATER')">🌊 น้ำท่า/ลุ่มน้ำ</button>
             <button class="tab-btn" id="tab-dam" onclick="switchSource('DAM')">🏞️ เขื่อน/อ่างเก็บน้ำ</button>
             <button class="tab-btn" id="tab-rain" onclick="switchSource('RAIN')">🌧️ ปริมาณฝน</button>
+            <button class="tab-btn" id="tab-mesh" onclick="switchSource('MESH_DT')">📡 MESH/DT</button>
         </div>
 
         <div class="form-group">
@@ -1078,6 +1096,7 @@
             rainEntities.forEach(ent => ent.show = false);
             osmWaterEntities.forEach(ent => ent.show = false);
             vectorWaterEntities.forEach(ent => ent.show = false);
+            if (typeof meshEntities !== 'undefined') meshEntities.forEach(ent => ent.show = false);
             clearHighlightLabel();
             if (satelliteLayerInstance) satelliteLayerInstance.show = false;
 
@@ -1296,6 +1315,17 @@
                 currentSource = sourceName;
                 if (!rainEntities.length) loadRainfall();
                 else { rainEntities.forEach(e => e.show = true); openPanel('🌧️ ปริมาณฝนสะสม 24 ชั่วโมง รายสถานี'); }
+                return;
+            }
+
+            // --- 📡 MESH / Digital Twin (Meshtastic MQTT) ---
+            if (sourceName === 'MESH_DT') {
+                var bm = document.getElementById('tab-mesh');
+                bm.classList.add('active');
+                bm.classList.add('mesh-active');
+                currentSource = sourceName;
+                meshEntities.forEach(function(e) { e.show = true; });
+                startMeshDigitalTwin();
                 return;
             }
 
@@ -3929,13 +3959,304 @@
             var cartesian = viewer.scene.pickPosition(click.position) ||
                 viewer.camera.pickEllipsoid(click.position, viewer.scene.globe.ellipsoid);
             if (!cartesian) return;
-            if (viewer.scene.pick(click.position)) return;   // แตะโดนหมุด/กริดให้แสดง InfoBox ตามปกติ
+            if (viewer.scene.pick(click.position)) return;
             var carto = Cesium.Cartographic.fromCartesian(cartesian);
             var la = Cesium.Math.toDegrees(carto.latitude);
             var lo = Cesium.Math.toDegrees(carto.longitude);
             document.getElementById('coords').value = la.toFixed(7) + ', ' + lo.toFixed(7);
         }, Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
 
+        /* =========================================================
+           15) 📡 MESH / Digital Twin — Meshtastic MQTT Real-Time
+           แนวคิด Digital Twin: สะท้อนสถานะอุปกรณ์จริงบน 3D Globe
+           ========================================================= */
+        var meshEntities = [];
+        var meshNodes = {};
+        var mqttClient = null;
+        var meshConnected = false;
+        var meshStarted = false;
+        var meshMsgCount = 0;
+
+        function batColor(pct) {
+            if (pct > 60) return '#00e676';
+            if (pct > 30) return '#ffc107';
+            return '#f44336';
+        }
+
+        function createNodeCanvas(battery, isOnline) {
+            var c = document.createElement('canvas');
+            c.width = 48; c.height = 48;
+            var ctx = c.getContext('2d');
+            ctx.beginPath();
+            ctx.arc(24, 24, 20, 0, Math.PI * 2);
+            ctx.fillStyle = isOnline ? 'rgba(0,229,255,0.15)' : 'rgba(100,100,100,0.15)';
+            ctx.fill();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = isOnline ? '#00e5ff' : '#666';
+            ctx.stroke();
+            ctx.font = '20px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('📡', 24, 22);
+            if (typeof battery === 'number') {
+                ctx.fillStyle = batColor(battery);
+                ctx.font = 'bold 10px sans-serif';
+                ctx.fillText(battery + '%', 24, 42);
+            }
+            return c.toDataURL();
+        }
+
+        function buildNodeDescription(node) {
+            var ts = node.lastSeen ? new Date(node.lastSeen).toLocaleString('th-TH') : 'ไม่ทราบ';
+            var html = '<table style="width:100%;font-size:13px;border-collapse:collapse;">';
+            html += '<tr style="background:rgba(0,229,255,.1)"><td style="padding:6px" colspan="2"><b>📡 Digital Twin — ข้อมูล Node</b></td></tr>';
+            html += '<tr><td style="padding:4px;color:#999">รหัส Node</td><td style="padding:4px">' + (node.id || '-') + '</td></tr>';
+            html += '<tr><td style="padding:4px;color:#999">ชื่อ</td><td style="padding:4px">' + (node.longName || node.shortName || '-') + '</td></tr>';
+            html += '<tr><td style="padding:4px;color:#999">แบตเตอรี่</td><td style="padding:4px;color:' + batColor(node.battery) + '">' + (node.battery != null ? node.battery + '%' : '-') + '</td></tr>';
+            html += '<tr><td style="padding:4px;color:#999">SNR</td><td style="padding:4px">' + (node.snr != null ? node.snr + ' dB' : '-') + '</td></tr>';
+            html += '<tr><td style="padding:4px;color:#999">RSSI</td><td style="padding:4px">' + (node.rssi != null ? node.rssi + ' dBm' : '-') + '</td></tr>';
+            html += '<tr><td style="padding:4px;color:#999">อุณหภูมิ</td><td style="padding:4px">' + (node.temperature != null ? node.temperature.toFixed(1) + ' °C' : '-') + '</td></tr>';
+            html += '<tr><td style="padding:4px;color:#999">ความชื้น</td><td style="padding:4px">' + (node.humidity != null ? node.humidity.toFixed(0) + '%' : '-') + '</td></tr>';
+            html += '<tr><td style="padding:4px;color:#999">ความสูง</td><td style="padding:4px">' + (node.altitude != null ? node.altitude + ' m' : '-') + '</td></tr>';
+            html += '<tr><td style="padding:4px;color:#999">เวลาอัปเดตล่าสุด</td><td style="padding:4px">' + ts + '</td></tr>';
+            html += '</table>';
+            html += '<div style="margin-top:8px;padding:8px;background:rgba(0,229,255,.06);border-radius:4px;font-size:11px;color:#aaa;">';
+            html += '<b style="color:#00e5ff">Digital Twin:</b> ข้อมูลนี้สะท้อนสถานะจริงของอุปกรณ์ LoRa (Meshtastic) ที่ส่งผ่าน MQTT แบบ real-time';
+            html += '</div>';
+            return html;
+        }
+
+        function updateOrCreateMeshEntity(node) {
+            if (node.lat == null || node.lng == null) return;
+            if (node.lat === 0 && node.lng === 0) return;
+            var entId = 'mesh_' + node.id;
+            var isOnline = node.lastSeen && (Date.now() - node.lastSeen < 600000);
+            var existing = viewer.entities.getById(entId);
+            if (existing) {
+                existing.position = Cesium.Cartesian3.fromDegrees(node.lng, node.lat, node.altitude || 0);
+                existing.billboard.image = createNodeCanvas(node.battery, isOnline);
+                existing.label.text = (node.shortName || node.id) + (node.battery != null ? '\n🔋' + node.battery + '%' : '');
+                existing.description = buildNodeDescription(node);
+                existing.show = true;
+            } else {
+                var ent = viewer.entities.add({
+                    id: entId,
+                    position: Cesium.Cartesian3.fromDegrees(node.lng, node.lat, node.altitude || 0),
+                    billboard: {
+                        image: createNodeCanvas(node.battery, isOnline),
+                        width: 40, height: 40,
+                        verticalOrigin: Cesium.VerticalOrigin.CENTER,
+                        disableDepthTestDistance: Number.POSITIVE_INFINITY
+                    },
+                    label: {
+                        text: (node.shortName || node.id) + (node.battery != null ? '\n🔋' + node.battery + '%' : ''),
+                        font: '12px "Segoe UI", sans-serif',
+                        fillColor: Cesium.Color.fromCssColorString('#00e5ff'),
+                        outlineColor: Cesium.Color.BLACK,
+                        outlineWidth: 2,
+                        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+                        pixelOffset: new Cesium.Cartesian2(0, -28),
+                        disableDepthTestDistance: Number.POSITIVE_INFINITY
+                    },
+                    description: buildNodeDescription(node)
+                });
+                meshEntities.push(ent);
+            }
+        }
+
+        function processMqttMessage(topic, payload) {
+            meshMsgCount++;
+            try {
+                var str = payload.toString();
+                var data;
+                try { data = JSON.parse(str); } catch (e) { return; }
+
+                var nodeId = data.from || data.sender || topic.split('/').pop() || ('unknown_' + meshMsgCount);
+                nodeId = String(nodeId);
+
+                if (!meshNodes[nodeId]) {
+                    meshNodes[nodeId] = { id: nodeId, lat: null, lng: null, battery: null, snr: null, rssi: null, temperature: null, humidity: null, altitude: null, shortName: null, longName: null, lastSeen: Date.now() };
+                }
+                var n = meshNodes[nodeId];
+                n.lastSeen = Date.now();
+
+                if (data.snr != null) n.snr = data.snr;
+                if (data.rssi != null) n.rssi = data.rssi;
+                if (data.sender) n.id = String(data.sender);
+
+                var payload_decoded = data.payload || data;
+                if (payload_decoded.latitude_i) {
+                    n.lat = payload_decoded.latitude_i / 1e7;
+                    n.lng = payload_decoded.longitude_i / 1e7;
+                    if (payload_decoded.altitude) n.altitude = payload_decoded.altitude;
+                }
+                if (payload_decoded.latitude) {
+                    n.lat = payload_decoded.latitude;
+                    n.lng = payload_decoded.longitude;
+                    if (payload_decoded.altitude) n.altitude = payload_decoded.altitude;
+                }
+                if (payload_decoded.battery_level != null) n.battery = payload_decoded.battery_level;
+                if (payload_decoded.temperature != null) n.temperature = payload_decoded.temperature;
+                if (payload_decoded.relative_humidity != null) n.humidity = payload_decoded.relative_humidity;
+                if (payload_decoded.long_name) n.longName = payload_decoded.long_name;
+                if (payload_decoded.short_name) n.shortName = payload_decoded.short_name;
+
+                if (data.type === 'position' || n.lat != null) {
+                    updateOrCreateMeshEntity(n);
+                }
+                if (currentSource === 'MESH_DT') updateDTPanel();
+            } catch (err) {
+                console.warn('[MESH/DT] parse error:', err);
+            }
+        }
+
+        function connectMqtt() {
+            if (mqttClient) return;
+            if (typeof mqtt === 'undefined') {
+                console.warn('[MESH/DT] mqtt.js ยังไม่โหลด — ใช้ข้อมูลสาธิตแทน');
+                loadDemoNodes();
+                return;
+            }
+            console.log('[MESH/DT] เริ่มโหลด Digital Twin — สาธิตข้อมูล Meshtastic node ในประเทศไทย');
+            loadDemoNodes();
+            try {
+                mqttClient = mqtt.connect('wss://mqtt.meshtastic.org:443/mqtt', {
+                    connectTimeout: 5000,
+                    reconnectPeriod: 0,
+                    clean: true,
+                    clientId: 'aiSolar_dt_' + Math.random().toString(36).slice(2, 8)
+                });
+                mqttClient.on('connect', function () {
+                    meshConnected = true;
+                    console.log('[MESH/DT] ✅ เชื่อมต่อ MQTT จริงสำเร็จ');
+                    mqttClient.subscribe('msh/+/2/json/#');
+                    mqttClient.subscribe('msh/2/json/#');
+                    if (currentSource === 'MESH_DT') updateDTPanel();
+                });
+                mqttClient.on('message', function (topic, payload) {
+                    processMqttMessage(topic, payload);
+                });
+                mqttClient.on('error', function () {
+                    mqttClient.end(true);
+                    mqttClient = null;
+                });
+            } catch (e) { }
+        }
+
+        function loadDemoNodes() {
+            var demoData = [
+                { id: 'DEMO_BKK01', shortName: 'BKK-01', longName: 'สาธิต กรุงเทพฯ 1', lat: 13.7563, lng: 100.5018, battery: 87, snr: 9.5, rssi: -85, temperature: 33.2, humidity: 72, altitude: 5 },
+                { id: 'DEMO_BKK02', shortName: 'BKK-02', longName: 'สาธิต กรุงเทพฯ 2', lat: 13.7300, lng: 100.5230, battery: 54, snr: 6.2, rssi: -92, temperature: 34.1, humidity: 68, altitude: 12 },
+                { id: 'DEMO_CNX01', shortName: 'CNX-01', longName: 'สาธิต เชียงใหม่', lat: 18.7883, lng: 98.9853, battery: 95, snr: 12.0, rssi: -72, temperature: 28.5, humidity: 58, altitude: 310 },
+                { id: 'DEMO_HKT01', shortName: 'HKT-01', longName: 'สาธิต ภูเก็ต', lat: 7.8804, lng: 98.3923, battery: 32, snr: 3.1, rssi: -105, temperature: 31.8, humidity: 82, altitude: 8 },
+                { id: 'DEMO_KKN01', shortName: 'KKN-01', longName: 'สาธิต ขอนแก่น', lat: 16.4322, lng: 102.8236, battery: 71, snr: 7.8, rssi: -88, temperature: 35.0, humidity: 55, altitude: 165 },
+                { id: 'DEMO_NST01', shortName: 'NST-01', longName: 'สาธิต นครศรีธรรมราช (Solar Node)', lat: 8.4304, lng: 99.9631, battery: 100, snr: 11.5, rssi: -68, temperature: 30.2, humidity: 78, altitude: 15 },
+                { id: 'DEMO_UDN01', shortName: 'UDN-01', longName: 'สาธิต อุดรธานี', lat: 17.4156, lng: 102.7872, battery: 15, snr: 2.0, rssi: -110, temperature: 36.5, humidity: 45, altitude: 180 },
+                { id: 'DEMO_SRT01', shortName: 'SRT-01', longName: 'สาธิต สุราษฎร์ธานี', lat: 9.1382, lng: 99.3217, battery: 68, snr: 8.3, rssi: -79, temperature: 29.7, humidity: 80, altitude: 25 }
+            ];
+            demoData.forEach(function (d) {
+                d.lastSeen = Date.now() - Math.floor(Math.random() * 300000);
+                meshNodes[d.id] = d;
+                updateOrCreateMeshEntity(d);
+            });
+            updateDTPanel();
+        }
+
+        function updateDTPanel() {
+            var body = document.getElementById('panelBody');
+            var keys = Object.keys(meshNodes);
+            var total = keys.length;
+            var now = Date.now();
+            var active = 0, batSum = 0, batCount = 0, snrSum = 0, snrCount = 0;
+            keys.forEach(function (k) {
+                var n = meshNodes[k];
+                if (n.lastSeen && (now - n.lastSeen < 600000)) active++;
+                if (n.battery != null) { batSum += n.battery; batCount++; }
+                if (n.snr != null) { snrSum += n.snr; snrCount++; }
+            });
+            var avgBat = batCount ? (batSum / batCount).toFixed(0) : '-';
+            var avgSnr = snrCount ? (snrSum / snrCount).toFixed(1) : '-';
+
+            var html = '';
+            html += '<div class="dt-status"><div class="dt-dot ' + (meshConnected ? 'online' : '') + '"></div>';
+            html += '<span style="font-size:12px;color:' + (meshConnected ? '#00e676' : '#f44336') + '">';
+            html += meshConnected ? '🟢 เชื่อมต่อ MQTT สำเร็จ (mqtt.meshtastic.org)' : (total > 0 ? '🟡 ข้อมูลสาธิต (Demo Mode) — ไม่ได้เชื่อมต่อ MQTT จริง' : '🔴 กำลังเชื่อมต่อ MQTT ...');
+            html += '</span></div>';
+
+            html += '<div class="dt-summary">';
+            html += '<div class="dt-card"><div class="dt-val">' + total + '</div><div class="dt-label">จำนวน Node ทั้งหมด</div></div>';
+            html += '<div class="dt-card"><div class="dt-val" style="color:#00e676">' + active + '</div><div class="dt-label">Active (10 นาทีล่าสุด)</div></div>';
+            html += '<div class="dt-card"><div class="dt-val" style="color:' + (batCount ? batColor(parseInt(avgBat)) : '#999') + '">' + avgBat + (avgBat !== '-' ? '%' : '') + '</div><div class="dt-label">แบตเตอรี่เฉลี่ย</div></div>';
+            html += '<div class="dt-card"><div class="dt-val" style="color:#40c4ff">' + avgSnr + (avgSnr !== '-' ? ' dB' : '') + '</div><div class="dt-label">SNR เฉลี่ย</div></div>';
+            html += '</div>';
+
+            html += '<div style="font-size:11px;color:#999;margin-bottom:6px;border-bottom:1px solid #333;padding-bottom:4px"><b style="color:#ccc">📋 รายการ Node (' + total + ')</b></div>';
+            html += '<div class="dt-node-list">';
+            keys.sort(function (a, b) { return (meshNodes[b].lastSeen || 0) - (meshNodes[a].lastSeen || 0); });
+            keys.forEach(function (k) {
+                var n = meshNodes[k];
+                var isOn = n.lastSeen && (now - n.lastSeen < 600000);
+                var batW = n.battery != null ? Math.max(2, Math.min(100, n.battery)) : 0;
+                html += '<div class="dt-node-row" onclick="flyToMeshNode(\'' + k + '\')" style="cursor:pointer">';
+                html += '<div><span style="color:' + (isOn ? '#00e5ff' : '#666') + '">📡</span> ';
+                html += '<span style="color:' + (isOn ? '#eee' : '#888') + '">' + (n.shortName || n.id) + '</span></div>';
+                html += '<div style="display:flex;align-items:center;gap:6px">';
+                if (n.battery != null) {
+                    html += '<div class="dt-bat"><div class="dt-bat-fill" style="width:' + batW + '%;background:' + batColor(n.battery) + '"></div></div>';
+                    html += '<span style="font-size:10px;color:' + batColor(n.battery) + '">' + n.battery + '%</span>';
+                }
+                html += '</div></div>';
+            });
+            html += '</div>';
+
+            html += '<div style="margin-top:10px;font-size:10.5px;color:#666">ข้อความ MQTT ที่ประมวลผล: <b style="color:#00e5ff">' + meshMsgCount + '</b></div>';
+
+            html += '<div class="dt-learn">';
+            html += '<b>🌐 Digital Twin คืออะไร?</b><br><br>';
+            html += 'Digital Twin คือ <b>"แบบจำลองดิจิทัล"</b> ที่สะท้อนสถานะของอุปกรณ์จริงแบบ real-time<br><br>';
+            html += '🔹 <b>ทำงานอย่างไร:</b><br>';
+            html += '&nbsp;&nbsp;1. อุปกรณ์จริง (Meshtastic LoRa Radio) ส่งข้อมูลตำแหน่ง, แบตเตอรี่, เซ็นเซอร์<br>';
+            html += '&nbsp;&nbsp;2. ข้อมูลเดินทางผ่าน <b>MQTT Protocol</b> (Message Queue Telemetry Transport)<br>';
+            html += '&nbsp;&nbsp;3. ระบบนี้รับข้อมูลผ่าน <b>WebSocket</b> แล้วแสดงเป็น entity บน 3D Globe<br>';
+            html += '&nbsp;&nbsp;4. ทุกการเปลี่ยนแปลง (ตำแหน่ง, แบต, สัญญาณ) สะท้อนในโลกดิจิทัลทันที<br><br>';
+            html += '🔹 <b>ประโยชน์ร่วมกับ Solar:</b><br>';
+            html += '&nbsp;&nbsp;• ตรวจสอบ node ที่ใช้พลังงานแสงอาทิตย์ว่าแบตเตอรี่เพียงพอหรือไม่<br>';
+            html += '&nbsp;&nbsp;• เปรียบเทียบข้อมูล Solar Radiation กับประสิทธิภาพการชาร์จจริง<br>';
+            html += '&nbsp;&nbsp;• วางแผนตำแหน่ง node IoT ให้ได้รับแสงอาทิตย์เต็มที่<br><br>';
+            html += '🔹 <b>เทคโนโลยีที่ใช้:</b><br>';
+            html += '&nbsp;&nbsp;• <b>MQTT</b> — โปรโตคอลส่งข้อมูล IoT น้ำหนักเบา<br>';
+            html += '&nbsp;&nbsp;• <b>Meshtastic</b> — เครือข่าย Mesh LoRa ระยะไกล ไม่ต้องใช้อินเทอร์เน็ต<br>';
+            html += '&nbsp;&nbsp;• <b>WebSocket</b> — เชื่อมต่อ MQTT จากเว็บเบราว์เซอร์โดยตรง<br>';
+            html += '&nbsp;&nbsp;• <b>CesiumJS</b> — แสดงผลบน 3D Globe พร้อมข้อมูลภูมิสารสนเทศ<br><br>';
+            html += '<span style="color:#00e5ff">💡 คลิกที่ node บนแผนที่เพื่อดูรายละเอียดอุปกรณ์จริง</span>';
+            html += '</div>';
+
+            body.innerHTML = html;
+        }
+
+        function flyToMeshNode(nodeId) {
+            var n = meshNodes[nodeId];
+            if (!n || n.lat == null) return;
+            viewer.camera.flyTo({
+                destination: Cesium.Cartesian3.fromDegrees(n.lng, n.lat, 50000),
+                orientation: { heading: 0, pitch: Cesium.Math.toRadians(-45), roll: 0 },
+                duration: 1.5
+            });
+            var ent = viewer.entities.getById('mesh_' + nodeId);
+            if (ent) viewer.selectedEntity = ent;
+        }
+        window.flyToMeshNode = flyToMeshNode;
+
+        function startMeshDigitalTwin() {
+            openPanel('📡 Digital Twin — Meshtastic Mesh Network');
+            updateDTPanel();
+            if (!meshStarted) {
+                meshStarted = true;
+                connectMqtt();
+            }
+        }
+
     </script>
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js" async></script>
 </body>
 </html>
