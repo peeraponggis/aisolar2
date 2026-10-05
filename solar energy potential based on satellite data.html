@@ -758,6 +758,17 @@
         });
         viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString('#0b1622');
 
+        // ปรับตั้งค่ากล้องให้ซูม/ลาก/หมุนได้อิสระอย่างเสถียร
+        var ctrl = viewer.scene.screenSpaceCameraController;
+        ctrl.minimumZoomDistance = 200;          // ซูมเข้าใกล้สุด 200 เมตร (ไม่ทะลุพื้น)
+        ctrl.maximumZoomDistance = 50000000;     // ซูมออกไกลสุด 50,000 กม.
+        ctrl.enableCollisionDetection = true;    // ป้องกันกล้องทะลุพื้นโลก
+        ctrl.minimumCollisionTerrainHeight = 100;
+        ctrl.inertiaSpin = 0.5;                  // ลดความหน่วงหมุน (ค่าต่ำ=หยุดเร็ว)
+        ctrl.inertiaTranslate = 0.5;             // ลดความหน่วงลาก
+        ctrl.inertiaZoom = 0.5;                  // ลดความหน่วงซูม
+        viewer.scene.globe.depthTestAgainstTerrain = true; // ป้องกันวัตถุทะลุพื้น
+
         function buildProvider(cfg) {
             return new Cesium.UrlTemplateImageryProvider({
                 url: cfg.url,
