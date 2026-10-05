@@ -4346,36 +4346,82 @@
         }
         window.flyToMeshNode = flyToMeshNode;
 
-        function showNodeDetail(nodeId) {
+        async function showNodeDetail(nodeId) {
             var n = meshNodes[nodeId];
             if (!n) return;
             var body = document.getElementById('panelBody');
+            document.getElementById('panelTitle').innerText = '📡 กำลังโหลดข้อมูล...';
+            body.innerHTML = '<div style="text-align:center;padding:40px;color:#999">⏳ กำลังดึงข้อมูลละเอียด...</div>';
+            openPanel('📡 รายละเอียด Node');
+
+            var extraInfo = {};
+            // ดึงข้อมูลเพิ่มเติมจาก openSenseMap API (รูปภาพ, วันที่ติดตั้ง, คำอธิบาย)
+            if (nodeId.startsWith('OSM_')) {
+                var boxId = nodeId.replace('OSM_', '');
+                try {
+                    var resp = await fetch('https://api.opensensemap.org/boxes/' + boxId);
+                    if (resp.ok) {
+                        extraInfo = await resp.json();
+                    }
+                } catch (e) { console.warn('[MESH/DT] ไม่สามารถดึงข้อมูลเพิ่มเติม:', e.message); }
+            }
+
+            // reverse geocode เพื่อหาชื่อตำแหน่ง
+            var locationName = '';
+            if (n.lat && n.lng) {
+                try {
+                    var geoResp = await fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=' + n.lat + '&lon=' + n.lng + '&accept-language=th');
+                    if (geoResp.ok) {
+                        var geoData = await geoResp.json();
+                        locationName = geoData.display_name || '';
+                    }
+                } catch (e) { }
+            }
+
             var ts = n.lastSeen ? new Date(n.lastSeen).toLocaleString('th-TH') : 'ไม่ทราบ';
             var isOnline = n.lastSeen && (Date.now() - n.lastSeen < 600000);
 
             var html = '<div style="margin-bottom:10px"><button onclick="updateDTPanel()" style="background:rgba(0,229,255,.15);border:1px solid #00e5ff;color:#00e5ff;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:12px">← กลับไปหน้า Dashboard</button></div>';
+
+            // รูปภาพเซ็นเซอร์ (ถ้ามี)
+            if (extraInfo.image) {
+                html += '<div style="text-align:center;margin-bottom:12px">';
+                html += '<img src="https://opensensemap.org/userimages/' + extraInfo.image + '" style="max-width:100%;max-height:180px;border-radius:6px;border:1px solid #333" onerror="this.style.display=\'none\'" alt="รูปภาพสถานี">';
+                html += '</div>';
+            }
+
             html += '<div style="text-align:center;margin-bottom:14px">';
-            html += '<div style="font-size:36px">📡</div>';
+            html += '<div style="font-size:36px">' + (nodeId.startsWith('OSM_') ? '🌡️' : '📡') + '</div>';
             html += '<div style="font-size:18px;font-weight:700;color:#00e5ff;margin-top:4px">' + (n.longName || n.shortName || n.id) + '</div>';
-            html += '<div style="font-size:11px;color:' + (isOnline ? '#00e676' : '#f44336') + ';margin-top:4px">' + (isOnline ? '● ออนไลน์' : '● ออฟไลน์') + '</div>';
+            html += '<div style="font-size:11px;color:' + (isOnline ? '#00e676' : '#f44336') + ';margin-top:4px">' + (isOnline ? '● ออนไลน์ (ส่งข้อมูลภายใน 10 นาทีล่าสุด)' : '● ออฟไลน์') + '</div>';
+            if (locationName) html += '<div style="font-size:11px;color:#aaa;margin-top:4px">📍 ' + locationName + '</div>';
             html += '</div>';
 
             html += '<div style="background:rgba(255,255,255,.04);border-radius:6px;padding:12px;margin-bottom:12px">';
             html += '<div style="font-size:12px;font-weight:700;color:#ccc;margin-bottom:10px;border-bottom:1px solid #333;padding-bottom:6px">📊 ข้อมูลอุปกรณ์ (Device Telemetry)</div>';
 
+            // ข้อมูลวันที่ติดตั้งและคำอธิบาย
+            var installedDate = '-';
+            if (extraInfo.createdAt) {
+                var d = new Date(extraInfo.createdAt);
+                installedDate = d.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+            }
+
             var rows = [
-                ['รหัส Node (ID)', n.id],
-                ['ชื่อย่อ', n.shortName || '-'],
-                ['ชื่อเต็ม', n.longName || '-'],
+                ['ชื่อสถานี', n.longName || n.shortName || '-'],
                 ['ตำแหน่ง (Lat, Lng)', n.lat != null ? n.lat.toFixed(6) + ', ' + n.lng.toFixed(6) : '-'],
-                ['ความสูงจากระดับน้ำทะเล', n.altitude != null ? n.altitude + ' เมตร' : '-'],
-                ['แหล่งข้อมูล', n.source || '-']
+                ['ความสูงจากระดับน้ำทะเล', n.altitude != null ? n.altitude + ' เมตร' : '-']
             ];
-            if (n.hwModel) rows.push(['รุ่นฮาร์ดแวร์', n.hwModel]);
-            if (n.role) rows.push(['บทบาทใน Mesh', n.role]);
-            if (n.model) rows.push(['รุ่นเซ็นเซอร์', n.model]);
-            if (n.voltage) rows.push(['แรงดันไฟฟ้า', n.voltage.toFixed(2) + ' V']);
-            if (n.uptime) rows.push(['เวลาทำงานต่อเนื่อง', Math.floor(n.uptime / 3600) + ' ชม. ' + Math.floor((n.uptime % 3600) / 60) + ' นาที']);
+            if (extraInfo.createdAt) rows.push(['📅 วันที่ลงทะเบียน/ติดตั้ง', installedDate]);
+            if (extraInfo.updatedAt) rows.push(['🔄 อัปเดตข้อมูลล่าสุด', new Date(extraInfo.updatedAt).toLocaleString('th-TH')]);
+            if (extraInfo.exposure) rows.push(['🏠 สภาพแวดล้อม', extraInfo.exposure === 'outdoor' ? 'กลางแจ้ง (outdoor)' : extraInfo.exposure === 'indoor' ? 'ภายในอาคาร (indoor)' : extraInfo.exposure]);
+            if (extraInfo.model) rows.push(['🔧 รุ่นอุปกรณ์', extraInfo.model]);
+            else if (n.model) rows.push(['🔧 รุ่นอุปกรณ์', n.model]);
+            rows.push(['📡 แหล่งข้อมูล', n.source || '-']);
+            if (n.hwModel) rows.push(['🖥️ รุ่นฮาร์ดแวร์', n.hwModel]);
+            if (n.role) rows.push(['🔗 บทบาทใน Mesh', n.role]);
+            if (n.voltage) rows.push(['⚡ แรงดันไฟฟ้า', n.voltage.toFixed(2) + ' V']);
+            if (n.uptime) rows.push(['⏱️ เวลาทำงานต่อเนื่อง', Math.floor(n.uptime / 3600) + ' ชม. ' + Math.floor((n.uptime % 3600) / 60) + ' นาที']);
             rows.forEach(function(r) {
                 html += '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #222;font-size:12px">';
                 html += '<span style="color:#888">' + r[0] + '</span>';
@@ -4393,6 +4439,37 @@
             if (n.pressure != null) html += '<div class="dt-card"><div class="dt-val" style="color:#ce93d8">' + (n.pressure > 10000 ? (n.pressure/100).toFixed(0) : n.pressure.toFixed(0)) + '</div><div class="dt-label">🌀 ความดันอากาศ (hPa)</div></div>';
             html += '<div class="dt-card"><div class="dt-val" style="color:#aaa;font-size:11px">' + ts + '</div><div class="dt-label">🕐 อัปเดตล่าสุด</div></div>';
             html += '</div>';
+
+            // คำอธิบายอุปกรณ์ (description จาก openSenseMap)
+            if (extraInfo.description) {
+                html += '<div style="background:rgba(255,255,255,.04);border-radius:6px;padding:12px;margin-bottom:12px">';
+                html += '<div style="font-size:12px;font-weight:700;color:#ccc;margin-bottom:8px">📋 คำอธิบายจากผู้ติดตั้ง</div>';
+                html += '<div style="font-size:11.5px;color:#bbb;white-space:pre-wrap;line-height:1.6">' + extraInfo.description + '</div>';
+                html += '</div>';
+            }
+
+            // รายการเซ็นเซอร์ทั้งหมด (จาก API)
+            if (extraInfo.sensors && extraInfo.sensors.length) {
+                html += '<div style="background:rgba(255,255,255,.04);border-radius:6px;padding:12px;margin-bottom:12px">';
+                html += '<div style="font-size:12px;font-weight:700;color:#ccc;margin-bottom:8px">🔬 เซ็นเซอร์ที่ติดตั้ง (' + extraInfo.sensors.length + ' ตัว)</div>';
+                extraInfo.sensors.forEach(function(s) {
+                    var val = s.lastMeasurement ? s.lastMeasurement.value : '-';
+                    var valTime = s.lastMeasurement ? new Date(s.lastMeasurement.createdAt).toLocaleString('th-TH') : '-';
+                    var sensorName = s.title || '-';
+                    // แปลชื่อเซ็นเซอร์เป็นไทย
+                    if (sensorName.toLowerCase().includes('temperatur')) sensorName = '🌡️ อุณหภูมิ (Temperature)';
+                    else if (sensorName.toLowerCase().includes('feucht') || sensorName.toLowerCase().includes('humid')) sensorName = '💧 ความชื้นสัมพัทธ์ (Humidity)';
+                    else if (sensorName.includes('PM2.5')) sensorName = '🌫️ ฝุ่น PM2.5';
+                    else if (sensorName.includes('PM10')) sensorName = '🌫️ ฝุ่น PM10';
+                    else if (sensorName.toLowerCase().includes('druck') || sensorName.toLowerCase().includes('press')) sensorName = '🌀 ความดันอากาศ (Pressure)';
+                    else if (sensorName.toLowerCase().includes('licht') || sensorName.toLowerCase().includes('light')) sensorName = '☀️ ความเข้มแสง (Light)';
+                    html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #222;font-size:11.5px">';
+                    html += '<div><span style="color:#eee">' + sensorName + '</span><br><span style="color:#666;font-size:10px">ประเภท: ' + (s.sensorType || '-') + '</span></div>';
+                    html += '<div style="text-align:right"><span style="color:#00e5ff;font-weight:700">' + val + ' ' + (s.unit || '') + '</span><br><span style="color:#666;font-size:10px">' + valTime + '</span></div>';
+                    html += '</div>';
+                });
+                html += '</div>';
+            }
 
             html += '<div class="dt-learn" style="font-size:11px">';
             html += '<b>💡 คำอธิบายพารามิเตอร์แต่ละค่า:</b><br><br>';
