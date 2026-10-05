@@ -4571,8 +4571,13 @@
             if (typeof eid === 'string' && eid.startsWith('mesh_')) {
                 var nodeId = eid.replace('mesh_', '');
                 if (meshNodes[nodeId]) {
-                    // เปิด panel แสดงรายละเอียด node ที่คลิกจากแผนที่
                     showNodeDetail(nodeId);
+                }
+            }
+            if (typeof eid === 'string' && eid.startsWith('pvo_')) {
+                var pvoIdx = parseInt(eid.replace('pvo_', ''));
+                if (pvoSystemsCache[pvoIdx]) {
+                    showPVODetail(encodeURIComponent(JSON.stringify(pvoSystemsCache[pvoIdx])));
                 }
             }
         });
@@ -4821,6 +4826,7 @@
                         power:power, seen:seen, panels:panels, inverter:inverter, orient:orient, tilt:tilt, isThailand:isThailand, rank:idx});
                 });
 
+                addPVOEntitiesToMap(systems);
                 renderPVOutputPanel(systems);
             } catch (e) {
                 body.innerHTML = '<div style="color:#f44336;padding:20px;text-align:center">❌ ไม่สามารถดึงข้อมูลได้: ' + e.message + '<br><br><span style="color:#888;font-size:11px">ลองรีเฟรชอีกครั้ง — เซิร์ฟเวอร์ CORS proxy อาจชั่วคราว</span></div>';
@@ -4851,27 +4857,53 @@
             html += '<div class="dt-card"><div class="dt-val" style="color:#69f0ae;font-size:14px">' + (totalPower/1000).toFixed(0) + ' kW</div><div class="dt-label">🔌 กำลังผลิตรวม</div></div>';
             html += '</div>';
             if (thaiCount > 0) {
-                html += '<div style="margin-top:8px;padding:6px;background:rgba(255,215,64,.1);border-radius:4px;font-size:11px;color:#ffd740;text-align:center">🇹🇭 พบระบบโซลาร์ในประเทศไทย ' + thaiCount + ' ระบบ!</div>';
+                html += '<div style="margin-top:8px;padding:6px;background:rgba(255,215,64,.1);border-radius:4px;font-size:11px;color:#ffd740;text-align:center;cursor:pointer" onclick="filterPVOByRegion(\'thai\')">🇹🇭 พบระบบโซลาร์ในประเทศไทย ' + thaiCount + ' ระบบ! (คลิกเพื่อดู)</div>';
             }
+            html += '</div>';
+
+            // ช่องค้นหา
+            html += '<div style="margin-bottom:8px">';
+            html += '<input type="text" id="pvoSearch" placeholder="🔍 ค้นหาชื่อระบบ / ประเทศ..." oninput="searchPVOSystems(this.value)" style="width:100%;box-sizing:border-box;padding:8px 12px;background:rgba(255,255,255,.06);border:1px solid #444;border-radius:6px;color:#eee;font-size:12px;outline:none">';
+            html += '</div>';
+
+            // ปุ่มกรองภูมิภาค
+            html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px">';
+            var regions = [
+                {key:'all',label:'🌍 ทั้งหมด'},
+                {key:'thai',label:'🇹🇭 ไทย'},
+                {key:'asia',label:'🌏 เอเชีย'},
+                {key:'oceania',label:'🦘 โอเชียเนีย'},
+                {key:'europe',label:'🇪🇺 ยุโรป'},
+                {key:'americas',label:'🌎 อเมริกา'},
+                {key:'africa',label:'🌍 แอฟริกา'}
+            ];
+            regions.forEach(function(r) {
+                html += '<button onclick="filterPVOByRegion(\'' + r.key + '\')" style="background:rgba(255,110,64,.12);border:1px solid rgba(255,110,64,.3);color:#ff6e40;padding:4px 8px;border-radius:12px;cursor:pointer;font-size:10px;white-space:nowrap">' + r.label + '</button>';
+            });
             html += '</div>';
 
             // List
             html += '<div style="background:rgba(255,255,255,.04);border-radius:6px;overflow:hidden;margin-bottom:12px">';
-            html += '<div style="padding:10px 12px;font-size:12px;font-weight:700;color:#ccc;border-bottom:1px solid #333">📋 อันดับกำลังผลิตสูงสุด (Live)</div>';
+            html += '<div style="padding:10px 12px;font-size:12px;font-weight:700;color:#ccc;border-bottom:1px solid #333">📋 อันดับกำลังผลิตสูงสุด (Live) — ' + systems.length + ' ระบบ</div>';
 
             systems.forEach(function(s) {
                 var thaiFlag = s.isThailand ? ' 🇹🇭' : '';
                 var bgExtra = s.isThailand ? 'background:rgba(255,215,64,.06);' : '';
-                html += '<div class="pvo-row" style="' + bgExtra + '" onclick="showPVODetail(\'' + encodeURIComponent(JSON.stringify(s)) + '\')">';
-                html += '<div class="pvo-rank">#' + s.rank + '</div>';
-                html += '<div style="flex:1;min-width:0">';
+                var sysIdx = pvoSystemsCache.indexOf(s);
+                if (sysIdx < 0) sysIdx = s.rank - 1;
+                html += '<div class="pvo-row" style="' + bgExtra + '">';
+                html += '<div class="pvo-rank" style="cursor:pointer" onclick="flyToPVOSystemAndDetail(' + sysIdx + ')" title="บินไปยังที่ตั้ง">#' + s.rank + '</div>';
+                html += '<div style="flex:1;min-width:0;cursor:pointer" onclick="showPVODetail(\'' + encodeURIComponent(JSON.stringify(s)) + '\')">';
                 html += '<div style="font-size:12px;color:#eee;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + s.name + thaiFlag + '</div>';
                 html += '<div style="font-size:10px;color:#888;margin-top:2px">' + s.size + ' | ' + (s.country || s.loc) + '</div>';
                 html += '</div>';
+                html += '<div style="display:flex;align-items:center;gap:6px">';
                 html += '<div style="text-align:right;min-width:75px">';
                 html += '<div style="font-size:13px;font-weight:700;color:#ff6e40">' + s.energy + '</div>';
                 html += '<div style="font-size:10px;color:#69f0ae">' + s.power + '</div>';
                 html += '<div style="font-size:9px;color:#666">' + s.seen + '</div>';
+                html += '</div>';
+                html += '<div onclick="flyToPVOSystem(' + sysIdx + ')" style="cursor:pointer;font-size:16px;padding:4px" title="บินไปยังที่ตั้ง">🛩️</div>';
                 html += '</div>';
                 html += '</div>';
             });
@@ -4896,7 +4928,12 @@
         function showPVODetail(encoded) {
             var s = JSON.parse(decodeURIComponent(encoded));
             var body = document.getElementById('panelBody');
-            var html = '<div style="margin-bottom:10px"><button onclick="loadPVOutputLive()" style="background:rgba(255,110,64,.15);border:1px solid #ff6e40;color:#ff6e40;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:12px">← กลับไปหน้ารายการ</button></div>';
+            var sysIdx = pvoSystemsCache.findIndex(function(ps){return ps.name===s.name && ps.rank===s.rank;});
+            if (sysIdx < 0) sysIdx = s.rank - 1;
+            var html = '<div style="margin-bottom:10px;display:flex;gap:6px;flex-wrap:wrap">';
+            html += '<button onclick="loadPVOutputLive()" style="background:rgba(255,110,64,.15);border:1px solid #ff6e40;color:#ff6e40;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:12px">← กลับไปหน้ารายการ</button>';
+            html += '<button onclick="flyToPVOSystem(' + sysIdx + ')" style="background:rgba(0,191,255,.15);border:1px solid #00bfff;color:#00bfff;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:12px">🛩️ บินไปยังที่ตั้ง</button>';
+            html += '</div>';
 
             html += '<div style="text-align:center;margin-bottom:14px">';
             html += '<div style="font-size:36px">☀️</div>';
@@ -4952,6 +4989,152 @@
         }
         window.showPVODetail = showPVODetail;
         window.loadPVOutputLive = loadPVOutputLive;
+
+        // พิกัดกลางประเทศ สำหรับวาง pin บนแผนที่
+        var pvoCountryCoords = {
+            'Australia':[-25.27,133.78],'Thailand':[13.76,100.50],'Maldives':[3.20,73.22],
+            'Japan':[36.20,138.25],'India':[20.59,78.96],'Germany':[51.17,10.45],
+            'USA':[37.09,-95.71],'UK':[55.38,-3.44],'France':[46.60,1.89],
+            'Italy':[41.87,12.57],'Spain':[40.46,-3.75],'Netherlands':[52.13,5.29],
+            'Belgium':[50.50,4.47],'Austria':[47.52,14.55],'Switzerland':[46.82,8.23],
+            'Brazil':[-14.24,-51.93],'South Africa':[-30.56,22.94],'New Zealand':[-40.90,174.89],
+            'Canada':[56.13,-106.35],'Singapore':[1.35,103.82],'Malaysia':[4.21,101.98],
+            'Indonesia':[-0.79,113.92],'Philippines':[12.88,121.77],'Vietnam':[14.06,108.28],
+            'Korea':[35.91,127.77],'Taiwan':[23.70,120.96],'China':[35.86,104.20],
+            'Israel':[31.05,34.85],'UAE':[23.42,53.85]
+        };
+        var pvoCountryRegion = {
+            'Australia':'oceania','New Zealand':'oceania','Maldives':'asia',
+            'Thailand':'asia','Japan':'asia','India':'asia','Singapore':'asia',
+            'Malaysia':'asia','Indonesia':'asia','Philippines':'asia','Vietnam':'asia',
+            'Korea':'asia','Taiwan':'asia','China':'asia','UAE':'asia','Israel':'asia',
+            'Germany':'europe','UK':'europe','France':'europe','Italy':'europe',
+            'Spain':'europe','Netherlands':'europe','Belgium':'europe','Austria':'europe',
+            'Switzerland':'europe',
+            'USA':'americas','Canada':'americas','Brazil':'americas',
+            'South Africa':'africa'
+        };
+        var pvoSystemsCache = [];
+
+        function addPVOEntitiesToMap(systems) {
+            pvoSystemsCache = systems;
+            viewer.entities.values.filter(function(e){return e.id && e.id.startsWith('pvo_');}).forEach(function(e){viewer.entities.remove(e);});
+            var countryOffset = {};
+            systems.forEach(function(s, idx) {
+                var c = s.country || s.loc || '';
+                var coords = null;
+                Object.keys(pvoCountryCoords).forEach(function(k) {
+                    if (c.toLowerCase().includes(k.toLowerCase())) coords = pvoCountryCoords[k];
+                });
+                if (!coords) return;
+                if (!countryOffset[c]) countryOffset[c] = 0;
+                countryOffset[c]++;
+                var offsetLng = (countryOffset[c] - 1) * 0.8;
+                var offsetLat = ((countryOffset[c] - 1) % 3) * 0.5;
+                var pw = parseFloat(s.power.replace(/[^\d.]/g,'')) || 0;
+                var color = pw > 100000 ? Cesium.Color.fromCssColorString('#ff6e40') :
+                            pw > 10000 ? Cesium.Color.fromCssColorString('#ffd740') :
+                            Cesium.Color.fromCssColorString('#69f0ae');
+                viewer.entities.add({
+                    id: 'pvo_' + idx,
+                    position: Cesium.Cartesian3.fromDegrees(coords[1] + offsetLng, coords[0] + offsetLat, 100),
+                    billboard: {
+                        image: createPVOIcon(s.isThailand),
+                        width: 28, height: 28,
+                        verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+                        disableDepthTestDistance: Number.POSITIVE_INFINITY
+                    },
+                    label: {
+                        text: s.name.substring(0, 18),
+                        font: '10px sans-serif',
+                        fillColor: color,
+                        outlineColor: Cesium.Color.BLACK,
+                        outlineWidth: 2,
+                        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+                        pixelOffset: new Cesium.Cartesian2(0, -32),
+                        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+                        scaleByDistance: new Cesium.NearFarScalar(1e4, 1, 5e6, 0.3)
+                    }
+                });
+            });
+        }
+
+        function createPVOIcon(isThailand) {
+            var c = document.createElement('canvas');
+            c.width = 32; c.height = 32;
+            var ctx = c.getContext('2d');
+            ctx.beginPath(); ctx.arc(16, 16, 14, 0, Math.PI * 2);
+            ctx.fillStyle = isThailand ? '#ffd740' : '#ff6e40';
+            ctx.fill();
+            ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.fillStyle = '#fff'; ctx.font = 'bold 16px sans-serif';
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText('☀', 16, 17);
+            return c.toDataURL();
+        }
+
+        function flyToPVOSystem(idx) {
+            var s = pvoSystemsCache[idx];
+            if (!s) return;
+            var c = s.country || s.loc || '';
+            var coords = null;
+            Object.keys(pvoCountryCoords).forEach(function(k) {
+                if (c.toLowerCase().includes(k.toLowerCase())) coords = pvoCountryCoords[k];
+            });
+            if (!coords) { alert('ไม่พบพิกัดของระบบนี้'); return; }
+            viewer.camera.flyTo({
+                destination: Cesium.Cartesian3.fromDegrees(coords[1], coords[0], 500000),
+                orientation: { heading: 0, pitch: Cesium.Math.toRadians(-60), roll: 0 },
+                duration: 1.5
+            });
+        }
+        window.flyToPVOSystem = flyToPVOSystem;
+
+        function flyToPVOSystemAndDetail(idx) {
+            flyToPVOSystem(idx);
+            var s = pvoSystemsCache[idx];
+            if (s) showPVODetail(encodeURIComponent(JSON.stringify(s)));
+        }
+        window.flyToPVOSystemAndDetail = flyToPVOSystemAndDetail;
+
+        function filterPVOByRegion(region) {
+            if (!pvoSystemsCache.length) return;
+            if (region === 'all') {
+                renderPVOutputPanel(pvoSystemsCache);
+                return;
+            }
+            var filtered = pvoSystemsCache.filter(function(s) {
+                var c = s.country || s.loc || '';
+                if (region === 'thai') return s.isThailand;
+                var r = '';
+                Object.keys(pvoCountryRegion).forEach(function(k) {
+                    if (c.toLowerCase().includes(k.toLowerCase())) r = pvoCountryRegion[k];
+                });
+                return r === region;
+            });
+            if (filtered.length === 0) {
+                var body = document.getElementById('panelBody');
+                body.innerHTML = '<div style="padding:20px;text-align:center;color:#999">ไม่พบระบบในภูมิภาคนี้<br><br><button onclick="renderPVOutputPanel(pvoSystemsCache)" style="background:#ff6e40;color:#fff;border:none;padding:8px 16px;border-radius:4px;cursor:pointer">← กลับดูทั้งหมด</button></div>';
+                return;
+            }
+            renderPVOutputPanel(filtered);
+        }
+        window.filterPVOByRegion = filterPVOByRegion;
+        window.pvoSystemsCache = pvoSystemsCache;
+
+        function searchPVOSystems(query) {
+            if (!pvoSystemsCache.length) return;
+            if (!query || query.trim() === '') { renderPVOutputPanel(pvoSystemsCache); return; }
+            var q = query.toLowerCase().trim();
+            var filtered = pvoSystemsCache.filter(function(s) {
+                return s.name.toLowerCase().includes(q) || (s.country||'').toLowerCase().includes(q) || (s.loc||'').toLowerCase().includes(q);
+            });
+            renderPVOutputPanel(filtered.length > 0 ? filtered : []);
+            if (filtered.length === 0) {
+                document.getElementById('panelBody').innerHTML += '<div style="padding:10px;text-align:center;color:#999">ไม่พบผลลัพธ์สำหรับ "' + query + '"<br><button onclick="renderPVOutputPanel(pvoSystemsCache)" style="background:#ff6e40;color:#fff;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;margin-top:8px">← ดูทั้งหมด</button></div>';
+            }
+        }
+        window.searchPVOSystems = searchPVOSystems;
 
         /* =========================================================
            17) ⚡ Grid Monitor — รังสีดวงอาทิตย์ + สภาพอากาศสำหรับโซลาร์
