@@ -4798,10 +4798,14 @@
                     if (cells.length < 8) return;
                     var nameEl = cells[1].querySelector('a');
                     var name = nameEl ? nameEl.textContent.trim() : cells[1].textContent.trim();
+                    var nameHref = nameEl ? (nameEl.getAttribute('href') || '') : '';
                     var locRaw = cells[2].textContent.trim();
                     var sizeA = cells[3].querySelector('a');
                     var titleAttr = sizeA ? (sizeA.getAttribute('title') || '') : '';
                     var sizeText = sizeA ? sizeA.textContent.trim() : cells[3].textContent.trim();
+                    var sizeHref = sizeA ? (sizeA.getAttribute('href') || '') : '';
+                    var sidMatch = sizeHref.match(/sid=(\d+)/);
+                    var sid = sidMatch ? sidMatch[1] : '';
                     var energy = cells[4].textContent.trim();
                     var eff = cells[5].textContent.trim();
                     var power = cells[6].textContent.trim();
@@ -4833,7 +4837,7 @@
 
                     systems.push({name:name, loc:locRaw, country:country, size:sizeText, energy:energy, eff:eff,
                         power:power, seen:seen, panels:panels, inverter:inverter, orient:orient, tilt:tilt,
-                        isThailand:isThailand, rank:idx, installDate:installDate, shading:shading, postcode:postcode, numPanels:numPanels});
+                        isThailand:isThailand, rank:idx, installDate:installDate, shading:shading, postcode:postcode, numPanels:numPanels, sid:sid});
                 });
 
                 addPVOEntitiesToMap(systems);
@@ -4950,6 +4954,22 @@
             html += '<div style="font-size:18px;font-weight:700;color:#ff6e40;margin-top:4px">' + s.name + '</div>';
             html += '<div style="font-size:12px;color:#aaa;margin-top:4px">📍 ' + (s.country || s.loc) + (s.isThailand ? ' 🇹🇭' : '') + '</div>';
             html += '</div>';
+
+            // ภาพดาวเทียม + ลิงก์ PVOutput
+            var coords = pvoCountryCoords[s.country] || pvoCountryCoords[s.loc];
+            if (coords) {
+                var satLat = coords[0], satLng = coords[1];
+                var satUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=' + (satLng-0.01) + ',' + (satLat-0.01) + ',' + (satLng+0.01) + ',' + (satLat+0.01) + '&size=400,250&format=jpg&f=image';
+                html += '<div style="margin-bottom:12px;border-radius:8px;overflow:hidden;border:1px solid #333">';
+                html += '<img src="' + satUrl + '" style="width:100%;height:160px;object-fit:cover;display:block" alt="Satellite view" onerror="this.parentElement.style.display=\'none\'">';
+                html += '<div style="background:rgba(0,0,0,.6);padding:6px 10px;font-size:10px;color:#aaa">🛰️ ภาพดาวเทียม ESRI — บริเวณ ' + (s.country || s.loc) + ' (' + satLat.toFixed(2) + '°, ' + satLng.toFixed(2) + '°)</div>';
+                html += '</div>';
+            }
+            if (s.sid) {
+                html += '<div style="text-align:center;margin-bottom:12px">';
+                html += '<a href="https://pvoutput.org/display.jsp?sid=' + s.sid + '" target="_blank" rel="noopener" style="display:inline-block;background:rgba(255,110,64,.15);border:1px solid #ff6e40;color:#ff6e40;padding:8px 18px;border-radius:6px;text-decoration:none;font-size:12px;font-weight:600">🔗 ดูภาพและข้อมูลเพิ่มเติมบน PVOutput.org</a>';
+                html += '</div>';
+            }
 
             // สรุปข้อมูลหลัก
             html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">';
