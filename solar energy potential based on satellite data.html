@@ -180,6 +180,7 @@
         .tab-btn.solar-fc-active.active { color: #ffd740; text-shadow: 0 0 8px rgba(255,215,64,.4); }
         .tab-btn.grid-active.active { color: #69f0ae; text-shadow: 0 0 8px rgba(105,240,174,.4); }
         .tab-btn.pvout-active.active { color: #ff6e40; text-shadow: 0 0 8px rgba(255,110,64,.4); }
+        .tab-btn.ieat-active.active { color: #26c6da; text-shadow: 0 0 8px rgba(38,198,218,.4); }
         .pvo-row { display:flex; gap:8px; padding:10px; border-bottom:1px solid #222; cursor:pointer; transition:background .2s; align-items:center; }
         .pvo-row:hover { background:rgba(255,110,64,.08); }
         .pvo-rank { min-width:28px; font-size:16px; font-weight:800; color:#ff6e40; text-align:center; }
@@ -202,6 +203,17 @@
         .dt-bat-fill { height:100%; border-radius:1px; }
         .dt-learn { background:rgba(0,229,255,.06); border:1px solid rgba(0,229,255,.18); border-radius:6px; padding:12px; margin-top:12px; font-size:11.5px; line-height:1.7; color:#bbb; }
         .dt-learn b { color:#00e5ff; }
+        .ieat-flow { display:flex; flex-wrap:wrap; gap:6px; align-items:center; justify-content:center; margin:12px 0; }
+        .ieat-flow-node { background:rgba(38,198,218,.1); border:1px solid rgba(38,198,218,.35); border-radius:8px; padding:8px 12px; text-align:center; font-size:11px; color:#e0e0e0; cursor:pointer; transition:all .2s; min-width:80px; }
+        .ieat-flow-node:hover { background:rgba(38,198,218,.25); transform:scale(1.05); }
+        .ieat-flow-node b { color:#26c6da; display:block; font-size:16px; margin-bottom:2px; }
+        .ieat-flow-arrow { color:#26c6da; font-size:18px; font-weight:700; }
+        .ieat-expand { cursor:pointer; transition:all .2s; }
+        .ieat-expand:hover { background:rgba(38,198,218,.12) !important; }
+        .ieat-compare-table { width:100%; border-collapse:collapse; font-size:10.5px; }
+        .ieat-compare-table th { background:rgba(38,198,218,.15); color:#26c6da; padding:6px 4px; text-align:left; border-bottom:1px solid #333; }
+        .ieat-compare-table td { padding:5px 4px; border-bottom:1px solid #222; color:#ccc; }
+        .ieat-compare-table tr:hover td { background:rgba(38,198,218,.06); }
 
         /* ตารางเปรียบเทียบค่ามลสารกับค่ามาตรฐาน */
         .std-table { width: 100%; border-collapse: collapse; font-size: 11.5px; margin-top: 6px; }
@@ -566,6 +578,7 @@
             <button class="tab-btn" id="tab-solar-fc" onclick="switchSource('SOLAR_FORECAST')">☀️ พยากรณ์โซลาร์</button>
             <button class="tab-btn" id="tab-grid" onclick="switchSource('GRID_MONITOR')">⚡ Grid Monitor</button>
             <button class="tab-btn" id="tab-pvoutput" onclick="switchSource('PVOUTPUT')">🔌 PVOutput Live</button>
+            <button class="tab-btn" id="tab-ieat" onclick="switchSource('IEAT_DT')">🏭 กนอ./IEAT DT</button>
         </div>
 
         <div class="form-group">
@@ -1005,6 +1018,18 @@
                     <div class="legend-item">💨 Wind — ความเร็วลม (ช่วยระบายความร้อนหลังแผง)</div>
                 `,
                 borderColor: '#40c4ff'
+            },
+            ieat: {
+                text: "<b>Digital Twin กนอ. — นิคมอุตสาหกรรมสมุทรสาคร:</b> แบบจำลองดิจิทัลระบบน้ำประปาและบำบัดน้ำเสียส่วนกลาง พัฒนาโดย DITTO Technology ร่วมกับ กนอ. (143 ล้านบาท Phase 2) บูรณาการ BIM + IoT + AI เปรียบเทียบกับ AMATA Smart City และ PUB สิงคโปร์",
+                legend: `
+                    <div style="font-weight:bold; font-size:11px; margin-bottom:5px; color:#26c6da;">สถาปัตยกรรมระบบ:</div>
+                    <div class="legend-item"><span class="legend-color" style="background:#26c6da"></span> 🏭 นิคมอุตสาหกรรมสมุทรสาคร</div>
+                    <div class="legend-item"><span class="legend-color" style="background:#29b6f6"></span> 💧 สถานีสูบน้ำเสีย (3 แห่ง)</div>
+                    <div class="legend-item"><span class="legend-color" style="background:#00e676"></span> 🔬 โรงบำบัดน้ำเสียส่วนกลาง</div>
+                    <div class="legend-item"><span class="legend-color" style="background:#ff9800"></span> 🌊 จุดปล่อยน้ำทิ้ง (แม่น้ำท่าจีน)</div>
+                    <div style="font-size:10px; color:#888; margin-top:5px;">ดำเนินการโดย GUSCO · Activated Sludge · 21,000 m³/วัน</div>
+                `,
+                borderColor: '#26c6da'
             }
         };
 
@@ -1120,6 +1145,7 @@
             osmWaterEntities.forEach(ent => ent.show = false);
             vectorWaterEntities.forEach(ent => ent.show = false);
             if (typeof meshEntities !== 'undefined') meshEntities.forEach(ent => ent.show = false);
+            if (typeof ieatEntities !== 'undefined') ieatEntities.forEach(ent => ent.show = false);
             clearHighlightLabel();
             if (satelliteLayerInstance) satelliteLayerInstance.show = false;
 
@@ -1379,6 +1405,18 @@
                 currentSource = sourceName;
                 meshEntities.forEach(function(e) { e.show = true; });
                 startMeshDigitalTwin();
+                return;
+            }
+
+            // --- 🏭 กนอ./IEAT Digital Twin ---
+            if (sourceName === 'IEAT_DT') {
+                var bi = document.getElementById('tab-ieat');
+                bi.classList.add('active');
+                bi.classList.add('ieat-active');
+                setLocalInfo('ieat');
+                currentSource = sourceName;
+                ieatEntities.forEach(function(e) { e.show = true; });
+                loadIEATDigitalTwin();
                 return;
             }
 
@@ -4563,6 +4601,266 @@
             });
         }
         window.flyToMeshNodeOnly = flyToMeshNodeOnly;
+
+        /* =================================================================
+           16) กนอ./IEAT Digital Twin — ระบบบำบัดน้ำเสีย นิคมสมุทรสาคร
+           ================================================================= */
+        var ieatEntities = [];
+        var ieatLoaded = false;
+
+        function loadIEATDigitalTwin() {
+            openPanel('🏭 Digital Twin กนอ. — นิคมอุตสาหกรรมสมุทรสาคร');
+            var body = document.getElementById('panelBody');
+
+            // สร้าง entities บน globe (ครั้งเดียว)
+            if (!ieatLoaded) {
+                ieatLoaded = true;
+                var points = [
+                    {id:'ieat_main', name:'นิคมอุตสาหกรรมสมุทรสาคร', lat:13.5476, lng:100.2741, icon:'🏭', color:'#26c6da', desc:'พื้นที่ ~1,539 ไร่ · 103+ โรงงาน · 21,000+ คน'},
+                    {id:'ieat_pump1', name:'สถานีสูบน้ำเสีย #1', lat:13.5510, lng:100.2710, icon:'💧', color:'#29b6f6', desc:'สูบน้ำเสียจากโรงงานโซนเหนือ'},
+                    {id:'ieat_pump2', name:'สถานีสูบน้ำเสีย #2', lat:13.5470, lng:100.2780, icon:'💧', color:'#29b6f6', desc:'สูบน้ำเสียจากโรงงานโซนกลาง'},
+                    {id:'ieat_pump3', name:'สถานีสูบน้ำเสีย #3', lat:13.5430, lng:100.2720, icon:'💧', color:'#29b6f6', desc:'สูบน้ำเสียจากโรงงานโซนใต้'},
+                    {id:'ieat_wwtp', name:'โรงบำบัดน้ำเสียส่วนกลาง (GUSCO)', lat:13.5450, lng:100.2650, icon:'🔬', color:'#00e676', desc:'Activated Sludge · 21,000 m³/วัน · ดำเนินการโดย GUSCO'},
+                    {id:'ieat_discharge', name:'จุดปล่อยน้ำทิ้ง — แม่น้ำท่าจีน', lat:13.5440, lng:100.2580, icon:'🌊', color:'#ff9800', desc:'ปล่อยน้ำที่ผ่านการบำบัดแล้วลงแม่น้ำท่าจีน'},
+                    {id:'ieat_amata_chon', name:'AMATA City Chonburi', lat:13.22, lng:101.07, icon:'🏗️', color:'#ab47bc', desc:'AMATA Smart City · 1,400 โรงงาน · 35,700 m³/วัน'},
+                    {id:'ieat_amata_ray', name:'AMATA City Rayong', lat:12.71, lng:101.14, icon:'🏗️', color:'#ab47bc', desc:'AMATA Industrial Estate · RO Membrane 43%'},
+                    {id:'ieat_pub_changi', name:'Changi WRP — PUB Singapore', lat:1.33, lng:103.98, icon:'🇸🇬', color:'#42a5f5', desc:'Digital Twin by Jacobs · NEWater · 500,000+ m³/วัน'}
+                ];
+                points.forEach(function(p) {
+                    var ent = viewer.entities.add({
+                        id: p.id, name: p.name,
+                        position: Cesium.Cartesian3.fromDegrees(p.lng, p.lat, 50),
+                        billboard: { image: createTextPin(p.icon, p.color), width:36, height:36, verticalOrigin: Cesium.VerticalOrigin.BOTTOM },
+                        label: { text: p.name, font:'11px sans-serif', fillColor: Cesium.Color.fromCssColorString(p.color), style: Cesium.LabelStyle.FILL_AND_OUTLINE, outlineWidth:2, outlineColor: Cesium.Color.BLACK, pixelOffset: new Cesium.Cartesian2(0,-40), distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 80000) },
+                        description: '<div style="padding:10px;font-family:sans-serif"><h3 style="color:'+p.color+'">'+p.icon+' '+p.name+'</h3><p>'+p.desc+'</p></div>'
+                    });
+                    ieatEntities.push(ent);
+                });
+                // Polylines: pump stations → WWTP → discharge
+                var pumpCoords = [[100.2710,13.5510],[100.2780,13.5470],[100.2720,13.5430]];
+                var wwtpCoord = [100.2650,13.5450];
+                var dischargeCoord = [100.2580,13.5440];
+                pumpCoords.forEach(function(pc) {
+                    var line = viewer.entities.add({
+                        polyline: { positions: Cesium.Cartesian3.fromDegreesArray([pc[0],pc[1],wwtpCoord[0],wwtpCoord[1]]), width:3, material: new Cesium.PolylineDashMaterialProperty({color: Cesium.Color.fromCssColorString('#29b6f6'), dashLength:12}) }
+                    });
+                    ieatEntities.push(line);
+                });
+                var outLine = viewer.entities.add({
+                    polyline: { positions: Cesium.Cartesian3.fromDegreesArray([wwtpCoord[0],wwtpCoord[1],dischargeCoord[0],dischargeCoord[1]]), width:4, material: new Cesium.PolylineGlowMaterialProperty({color: Cesium.Color.fromCssColorString('#00e676'), glowPower:0.15}) }
+                });
+                ieatEntities.push(outLine);
+            }
+
+            // Fly to สมุทรสาคร
+            viewer.camera.flyTo({
+                destination: Cesium.Cartesian3.fromDegrees(100.268, 13.547, 4000),
+                orientation: { heading: 0, pitch: Cesium.Math.toRadians(-50), roll: 0 },
+                duration: 2
+            });
+
+            // สร้าง Dashboard HTML
+            var html = '';
+
+            // A. Header
+            html += '<div style="text-align:center;margin-bottom:14px">';
+            html += '<div style="font-size:36px">🏭</div>';
+            html += '<div style="font-size:16px;font-weight:700;color:#26c6da;margin-top:4px">Digital Twin กนอ.</div>';
+            html += '<div style="font-size:11px;color:#aaa;margin-top:2px">นิคมอุตสาหกรรมสมุทรสาคร · พัฒนาโดย DITTO Technology / DTX</div>';
+            html += '<div style="font-size:10px;color:#666;margin-top:2px">มูลค่า Phase 2: 143 ล้านบาท (13 นิคม) · พื้นที่ ~1,539 ไร่ · 103+ โรงงาน</div>';
+            html += '</div>';
+
+            // B. Flow Diagram
+            html += '<div style="background:rgba(38,198,218,.06);border:1px solid rgba(38,198,218,.2);border-radius:8px;padding:12px;margin-bottom:12px">';
+            html += '<div style="font-size:12px;font-weight:700;color:#26c6da;margin-bottom:10px;border-bottom:1px solid #333;padding-bottom:6px">🔄 Flow สถาปัตยกรรมระบบบำบัดน้ำเสีย</div>';
+            html += '<div class="ieat-flow">';
+            var flowNodes = [
+                {icon:'🏭',label:'โรงงาน 103+',detail:'น้ำเสียจากกระบวนการผลิตของโรงงาน 103+ แห่ง ภายในนิคม'},
+                {icon:'💧',label:'สถานีสูบ ×3',detail:'สถานีสูบน้ำเสีย 3 แห่ง รวบรวมน้ำเสียจาก 3 โซนหลัก ส่งต่อไปยังโรงบำบัด'},
+                {icon:'🫧',label:'บ่อรวมน้ำเสีย',detail:'บ่อรวบรวมน้ำเสียก่อนเข้ากระบวนการบำบัด ตรวจวัดคุณภาพน้ำจุดที่ 1'},
+                {icon:'🌀',label:'เติมอากาศ',detail:'Activated Sludge — เติมอากาศเพื่อให้จุลินทรีย์ย่อยสลายสารอินทรีย์ กำลังการบำบัด 21,000 m³/วัน'},
+                {icon:'⬇️',label:'ตกตะกอน',detail:'บ่อตกตะกอน — แยกตะกอนจุลินทรีย์ออกจากน้ำใส ตะกอนส่วนหนึ่งหมุนเวียนกลับ'},
+                {icon:'🧪',label:'ฆ่าเชื้อ Cl₂',detail:'Chlorination — ฆ่าเชื้อโรคด้วยคลอรีน ก่อนปล่อยออกสู่ภายนอก'},
+                {icon:'🏊',label:'บ่อพักน้ำทิ้ง',detail:'พักน้ำที่ผ่านการบำบัดแล้ว ตรวจวัดคุณภาพน้ำจุดที่ 2 (ก่อนปล่อย)'},
+                {icon:'🌊',label:'แม่น้ำท่าจีน',detail:'ปล่อยน้ำทิ้งที่ผ่านมาตรฐานลงแม่น้ำท่าจีน'}
+            ];
+            flowNodes.forEach(function(fn, i) {
+                html += '<div class="ieat-flow-node" onclick="showIEATFlowDetail('+i+')" title="คลิกดูรายละเอียด"><b>'+fn.icon+'</b>'+fn.label+'</div>';
+                if (i < flowNodes.length - 1) html += '<span class="ieat-flow-arrow">→</span>';
+            });
+            html += '</div>';
+            html += '<div id="ieatFlowDetail" style="display:none;background:rgba(0,0,0,.3);border-radius:6px;padding:10px;margin-top:8px;font-size:11px;color:#ccc"></div>';
+            html += '</div>';
+
+            // C. Dashboard Summary Cards
+            html += '<div class="dt-summary" style="margin-bottom:12px">';
+            html += '<div class="dt-card" style="border-color:rgba(38,198,218,.3);background:rgba(38,198,218,.08)"><div class="dt-val" style="color:#26c6da">21,000</div><div class="dt-label">💧 กำลังบำบัด (m³/วัน)</div></div>';
+            html += '<div class="dt-card" style="border-color:rgba(38,198,218,.3);background:rgba(38,198,218,.08)"><div class="dt-val" style="color:#69f0ae">~11,000</div><div class="dt-label">📊 ปริมาณเฉลี่ย (m³/วัน)</div></div>';
+            html += '<div class="dt-card" style="border-color:rgba(38,198,218,.3);background:rgba(38,198,218,.08)"><div class="dt-val" style="color:#ff9800">103+</div><div class="dt-label">🏭 โรงงาน</div></div>';
+            html += '<div class="dt-card" style="border-color:rgba(38,198,218,.3);background:rgba(38,198,218,.08)"><div class="dt-val" style="color:#ffd740">3</div><div class="dt-label">⚡ สถานีสูบ</div></div>';
+            html += '<div class="dt-card" style="border-color:rgba(38,198,218,.3);background:rgba(38,198,218,.08)"><div class="dt-val" style="color:#ef5350">2</div><div class="dt-label">🔬 จุดตรวจคุณภาพ</div></div>';
+            html += '<div class="dt-card" style="border-color:rgba(38,198,218,.3);background:rgba(38,198,218,.08)"><div class="dt-val" style="color:#ce93d8;font-size:14px">Activated<br>Sludge</div><div class="dt-label">♻️ วิธีบำบัด</div></div>';
+            html += '</div>';
+
+            // D. Architecture 4-Layer Diagram
+            html += '<div style="background:rgba(38,198,218,.06);border:1px solid rgba(38,198,218,.2);border-radius:8px;padding:12px;margin-bottom:12px">';
+            html += '<div style="font-size:12px;font-weight:700;color:#26c6da;margin-bottom:10px;border-bottom:1px solid #333;padding-bottom:6px">📐 สถาปัตยกรรม Digital Twin 4 ชั้น</div>';
+            var layers = [
+                {color:'#ef5350',name:'1. Field Layer',items:'IoT sensors · CCTV · เซ็นเซอร์คุณภาพน้ำ · PM2.5 · ทิศทางลม'},
+                {color:'#ff9800',name:'2. Communication',items:'IoT connectivity · e-PP · GIS · DSS · CEMs · Cloud (Thailand DC)'},
+                {color:'#26c6da',name:'3. Digital Twin Platform',items:'BIM 3D Model · Real-time overlay · AI Analysis · Drone/Radar scanning'},
+                {color:'#69f0ae',name:'4. Dashboard & Decision',items:'Command Center · Real-time alerts · ลดเวลา 95% (1-2 วัน → 1-5 นาที)'}
+            ];
+            layers.forEach(function(l) {
+                html += '<div style="border-left:3px solid '+l.color+';padding:6px 10px;margin-bottom:6px;background:rgba(255,255,255,.03);border-radius:0 4px 4px 0">';
+                html += '<div style="font-size:11px;font-weight:700;color:'+l.color+'">'+l.name+'</div>';
+                html += '<div style="font-size:10px;color:#999;margin-top:2px">'+l.items+'</div>';
+                html += '</div>';
+            });
+            html += '</div>';
+
+            // E. Real-Time Data Cards (placeholder, filled by fetch)
+            html += '<div style="background:rgba(105,240,174,.06);border:1px solid rgba(105,240,174,.2);border-radius:8px;padding:12px;margin-bottom:12px">';
+            html += '<div style="font-size:12px;font-weight:700;color:#69f0ae;margin-bottom:8px;border-bottom:1px solid #333;padding-bottom:6px">📡 ข้อมูลสภาพแวดล้อมรอบนิคม (Real-Time)</div>';
+            html += '<div id="ieatRealtimeData" style="font-size:11px;color:#888;text-align:center;padding:10px">⏳ กำลังโหลดข้อมูล...</div>';
+            html += '</div>';
+
+            // F. คำอธิบาย Digital Twin
+            html += '<div class="dt-learn">';
+            html += '<b style="color:#26c6da">🌐 Digital Twin คืออะไร? (ในบริบทนิคมอุตสาหกรรม)</b><br>';
+            html += 'Digital Twin คือ "แฝดดิจิทัล" — แบบจำลอง 3D ที่สะท้อนสถานะโครงสร้างพื้นฐานจริงแบบ real-time<br><br>';
+            html += '<b>กนอ. + DITTO Technology:</b><br>';
+            html += '• ใช้ <b>Drone + Radar scanning</b> สร้างแบบจำลอง BIM ของนิคมทั้งหมด<br>';
+            html += '• เซ็นเซอร์ IoT ตรวจจับ PM2.5, คุณภาพน้ำเสีย, ระบบไฟฟ้า แบบ real-time<br>';
+            html += '• AI วิเคราะห์แหล่งมลพิษ — แยกแยะว่ามาจากภายในหรือภายนอกนิคม<br>';
+            html += '• ลดเวลาแลกเปลี่ยนข้อมูลระหว่างแผนก <b style="color:#69f0ae">95%</b> (จาก 1-2 วัน เหลือ 1-5 นาที)<br>';
+            html += '• บูรณาการกับระบบเดิม: e-PP, GIS, DSS, CEMs<br>';
+            html += '• Phase 2 ขยายไป <b>13 นิคม</b> ทั่วประเทศ (งบ 143 ล้านบาท, ปี 2566-2569)';
+            html += '</div>';
+
+            // G. เปรียบเทียบ 3 ระบบ
+            html += '<div style="background:rgba(171,71,188,.06);border:1px solid rgba(171,71,188,.2);border-radius:8px;padding:12px;margin-bottom:12px;margin-top:12px">';
+            html += '<div style="font-size:12px;font-weight:700;color:#ce93d8;margin-bottom:10px;border-bottom:1px solid #333;padding-bottom:6px">🏆 เปรียบเทียบ Command Center ชั้นนำ</div>';
+            html += '<table class="ieat-compare-table"><thead><tr><th></th><th style="color:#26c6da">กนอ. สมุทรสาคร</th><th style="color:#ab47bc">AMATA Smart City</th><th style="color:#42a5f5">PUB สิงคโปร์</th></tr></thead><tbody>';
+            html += '<tr><td style="color:#888">ขนาด</td><td>1,539 ไร่ · 103 โรงงาน</td><td>5 นิคม · 1,400 โรงงาน</td><td>ทั้งประเทศ · 6,000 km</td></tr>';
+            html += '<tr><td style="color:#888">บำบัดน้ำ</td><td>21,000 m³/วัน</td><td>35,700 m³/วัน + RO 43%</td><td>500,000+ m³/วัน (NEWater)</td></tr>';
+            html += '<tr><td style="color:#888">Digital Twin</td><td style="color:#ffd740">นำร่อง (DITTO 143 ลบ.)</td><td style="color:#ff9800">วางแผน (FPT MoU 2026)</td><td style="color:#69f0ae">ใช้งานจริง (Jacobs)</td></tr>';
+            html += '<tr><td style="color:#888">เทคโนโลยี</td><td>BIM + IoT + AI</td><td>IoT + RO + Smart Grid</td><td>SCADA + ML + WaterWise</td></tr>';
+            html += '<tr><td style="color:#888">Command Center</td><td>Dashboard ลดเวลา 95%</td><td>ACC (security/lighting)</td><td>ICC + IWMS (360°)</td></tr>';
+            html += '<tr><td style="color:#888">NRW Rate</td><td>ไม่เปิดเผย</td><td>ไม่เปิดเผย</td><td style="color:#69f0ae;font-weight:700">4.1% (ต่ำสุดโลก)</td></tr>';
+            html += '</tbody></table>';
+
+            // Expandable cards
+            html += '<div style="margin-top:10px">';
+
+            // AMATA card
+            html += '<div class="ieat-expand" style="background:rgba(171,71,188,.08);border:1px solid rgba(171,71,188,.25);border-radius:6px;padding:10px;margin-bottom:8px" onclick="this.querySelector(\'.ieat-expand-body\').style.display=this.querySelector(\'.ieat-expand-body\').style.display===\'none\'?\'block\':\'none\'">';
+            html += '<div style="font-size:11px;font-weight:700;color:#ab47bc">🏗️ AMATA Smart City <span style="color:#666;font-weight:400">— คลิกเพื่อดูรายละเอียด</span></div>';
+            html += '<div class="ieat-expand-body" style="display:none;margin-top:8px;font-size:10.5px;color:#bbb;line-height:1.6">';
+            html += '• <b style="color:#ab47bc">Command Center (ACC):</b> ควบคุมไฟถนนอัจฉริยะ แจ้งเตือนผ่าน LINE<br>';
+            html += '• <b style="color:#ab47bc">AMATA Water Company:</b> บริหารน้ำประปา/น้ำเสียทุกนิคม<br>';
+            html += '• <b style="color:#ab47bc">RO Membrane:</b> reclaim 43% น้ำเสียกลับเป็นน้ำประปา<br>';
+            html += '• <b style="color:#ab47bc">Zero Discharge:</b> ไม่ปล่อยน้ำเสียสู่คลองสาธารณะ<br>';
+            html += '• <b style="color:#ab47bc">Floating Solar:</b> ผลิตไฟฟ้าพลังงานแสงอาทิตย์ลอยน้ำ<br>';
+            html += '• เป้าหมาย Carbon Neutral ปี 2040<br>';
+            html += '• MoU กับ FPT (มิ.ย. 2026): AI + Digital Twin สำหรับนิคมทั่ว SEA';
+            html += '</div></div>';
+
+            // PUB card
+            html += '<div class="ieat-expand" style="background:rgba(66,165,245,.08);border:1px solid rgba(66,165,245,.25);border-radius:6px;padding:10px;margin-bottom:8px" onclick="this.querySelector(\'.ieat-expand-body\').style.display=this.querySelector(\'.ieat-expand-body\').style.display===\'none\'?\'block\':\'none\'">';
+            html += '<div style="font-size:11px;font-weight:700;color:#42a5f5">🇸🇬 PUB สิงคโปร์ (NEWater) <span style="color:#666;font-weight:400">— คลิกเพื่อดูรายละเอียด</span></div>';
+            html += '<div class="ieat-expand-body" style="display:none;margin-top:8px;font-size:10.5px;color:#bbb;line-height:1.6">';
+            html += '• <b style="color:#42a5f5">Smart Water Grid:</b> 450+ sensor stations, 300 WaterWise probes, 6,000 km เครือข่าย<br>';
+            html += '• <b style="color:#42a5f5">NEWater:</b> Microfiltration → RO → UV — 30% ของน้ำทั้งประเทศ (เป้า 55% ปี 2060)<br>';
+            html += '• <b style="color:#42a5f5">Digital Twin Changi WRP:</b> Jacobs Replica Platform — whole-plant simulation + ML auto-calibration<br>';
+            html += '• <b style="color:#42a5f5">ICC + IWMS:</b> 360° situational awareness, flood prediction, ตอบสนองทันที<br>';
+            html += '• <b style="color:#42a5f5">NRW 4.1%:</b> อัตราน้ำสูญเสียต่ำที่สุดในโลก<br>';
+            html += '• 65,000+ การทดสอบทางวิทยาศาสตร์ยืนยันคุณภาพเกิน WHO standards<br>';
+            html += '• <a href="https://app.pub.gov.sg/waterlevel/pages/WaterLevelSensors.aspx" target="_blank" rel="noopener" style="color:#42a5f5">📊 Live Water Level Dashboard (เปิดได้จริง)</a>';
+            html += '</div></div>';
+
+            html += '</div></div>';
+
+            // H. ลิงก์อ้างอิง
+            html += '<div class="dt-learn" style="font-size:10.5px;margin-top:12px">';
+            html += '<b style="color:#26c6da">📚 แหล่งข้อมูลอ้างอิง:</b><br>';
+            html += '<b>กนอ.:</b> <a href="https://siamrath.co.th/n/531514" target="_blank" rel="noopener" style="color:#26c6da">siamrath.co.th</a> · ';
+            html += '<a href="https://www.thansettakij.com/special-pr/technology/622310" target="_blank" rel="noopener" style="color:#26c6da">thansettakij.com</a> · ';
+            html += '<a href="https://www.infoquest.co.th/2023/339815" target="_blank" rel="noopener" style="color:#26c6da">infoquest.co.th</a> · ';
+            html += '<a href="https://env.ieat.go.th" target="_blank" rel="noopener" style="color:#26c6da">env.ieat.go.th</a><br>';
+            html += '<b>AMATA:</b> <a href="https://amata.com/sustainability/environmental-stewardship/sustainable-water-management" target="_blank" rel="noopener" style="color:#ab47bc">amata.com</a> · ';
+            html += '<a href="https://www.businesswire.com/news/home/20260609262410/en/" target="_blank" rel="noopener" style="color:#ab47bc">FPT MoU (BusinessWire)</a><br>';
+            html += '<b>PUB:</b> <a href="https://www.pub.gov.sg/Public/WaterLoop/OurWaterStory/NEWater" target="_blank" rel="noopener" style="color:#42a5f5">pub.gov.sg</a> · ';
+            html += '<a href="https://www.jacobs.com/newsroom/press-release/jacobs-creating-first-digital-twin-pubs-changi-water-reclamation-plant" target="_blank" rel="noopener" style="color:#42a5f5">Jacobs Digital Twin</a> · ';
+            html += '<a href="https://data.gov.sg/datasets/d_31333fa5cf0834f012d840365b336610/view" target="_blank" rel="noopener" style="color:#42a5f5">Open Data SG</a>';
+            html += '</div>';
+
+            body.innerHTML = html;
+            document.getElementById('panelTitle').innerText = '🏭 Digital Twin กนอ. — สมุทรสาคร';
+
+            // โหลด real-time data
+            fetchIEATRealtimeData();
+        }
+
+        // Flow detail popup
+        var ieatFlowDetails = [
+            'น้ำเสียจากกระบวนการผลิตของโรงงาน 103+ แห่ง ภายในนิคมอุตสาหกรรมสมุทรสาคร ประกอบด้วยสารอินทรีย์ สารเคมี และของแข็งแขวนลอย',
+            'สถานีสูบน้ำเสีย 3 แห่ง กระจายใน 3 โซนหลัก — รวบรวมน้ำเสียจากทุกโรงงานผ่านท่อรวม แล้วสูบส่งไปยังโรงบำบัดส่วนกลาง',
+            'บ่อรวบรวมน้ำเสียก่อนเข้ากระบวนการ — จุดตรวจวัดคุณภาพน้ำจุดที่ 1 (pre-treatment) ตรวจ BOD, COD, SS, pH',
+            'Activated Sludge (เติมอากาศ) — จุลินทรีย์ย่อยสลายสารอินทรีย์ กำลังการบำบัด 21,000 m³/วัน ปริมาณเฉลี่ย ~11,000 m³/วัน ดำเนินการโดย GUSCO',
+            'บ่อตกตะกอน — แยกตะกอนจุลินทรีย์ออกจากน้ำใส ตะกอนส่วนหนึ่งหมุนเวียนกลับไปบ่อเติมอากาศ (Return Activated Sludge)',
+            'Chlorination (ฆ่าเชื้อด้วยคลอรีน) — กำจัดเชื้อโรคที่เหลือก่อนปล่อยน้ำออกสู่ภายนอก',
+            'บ่อพักน้ำทิ้ง — จุดตรวจวัดคุณภาพน้ำจุดที่ 2 (post-treatment) ก่อนปล่อย ต้องผ่านมาตรฐานน้ำทิ้งของ กนอ.',
+            'ปล่อยน้ำทิ้งที่ผ่านมาตรฐานลงแม่น้ำท่าจีน — ติดตามผลกระทบต่อระบบนิเวศอย่างต่อเนื่อง'
+        ];
+        function showIEATFlowDetail(idx) {
+            var el = document.getElementById('ieatFlowDetail');
+            if (el) { el.style.display = 'block'; el.innerHTML = '<b style="color:#26c6da">ขั้นตอนที่ ' + (idx+1) + ':</b> ' + ieatFlowDetails[idx]; }
+        }
+        window.showIEATFlowDetail = showIEATFlowDetail;
+
+        // Real-time data from Open APIs
+        function fetchIEATRealtimeData() {
+            var container = document.getElementById('ieatRealtimeData');
+            if (!container) return;
+            var weatherUrl = 'https://api.open-meteo.com/v1/forecast?latitude=13.55&longitude=100.28&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weathercode';
+            var aqiUrl = 'https://api.waqi.info/feed/geo:13.55;100.28/?token=demo';
+            Promise.all([
+                fetch(weatherUrl).then(function(r){return r.json()}).catch(function(){return null}),
+                fetch(aqiUrl).then(function(r){return r.json()}).catch(function(){return null})
+            ]).then(function(results) {
+                var wx = results[0], aqi = results[1];
+                var html = '<div class="dt-summary">';
+                if (wx && wx.current) {
+                    html += '<div class="dt-card" style="border-color:rgba(105,240,174,.3);background:rgba(105,240,174,.08)"><div class="dt-val" style="color:#69f0ae;font-size:18px">' + wx.current.temperature_2m + '°C</div><div class="dt-label">🌡️ อุณหภูมิ</div></div>';
+                    html += '<div class="dt-card" style="border-color:rgba(105,240,174,.3);background:rgba(105,240,174,.08)"><div class="dt-val" style="color:#29b6f6;font-size:18px">' + wx.current.relative_humidity_2m + '%</div><div class="dt-label">💧 ความชื้น</div></div>';
+                    html += '<div class="dt-card" style="border-color:rgba(105,240,174,.3);background:rgba(105,240,174,.08)"><div class="dt-val" style="color:#ffd740;font-size:18px">' + wx.current.wind_speed_10m + '</div><div class="dt-label">💨 ลม (km/h)</div></div>';
+                }
+                if (aqi && aqi.data && aqi.data.aqi) {
+                    var aqiVal = aqi.data.aqi;
+                    var aqiColor = aqiVal <= 50 ? '#69f0ae' : aqiVal <= 100 ? '#ffd740' : aqiVal <= 150 ? '#ff9800' : '#ef5350';
+                    html += '<div class="dt-card" style="border-color:rgba(105,240,174,.3);background:rgba(105,240,174,.08)"><div class="dt-val" style="color:'+aqiColor+';font-size:18px">' + aqiVal + '</div><div class="dt-label">🌫️ AQI (คุณภาพอากาศ)</div></div>';
+                } else {
+                    html += '<div class="dt-card" style="border-color:rgba(105,240,174,.3);background:rgba(105,240,174,.08)"><div class="dt-val" style="color:#888;font-size:14px">N/A</div><div class="dt-label">🌫️ AQI</div></div>';
+                }
+                html += '</div>';
+                html += '<div style="font-size:9px;color:#555;text-align:center;margin-top:4px">ข้อมูลจาก Open-Meteo + WAQI · อัปเดตอัตโนมัติทุก 10 นาที · พิกัด 13.55°N 100.28°E</div>';
+                container.innerHTML = html;
+            });
+            setTimeout(function(){ fetchIEATRealtimeData(); }, 600000);
+        }
+
+        function createTextPin(text, color) {
+            var c = document.createElement('canvas');
+            c.width = 48; c.height = 48;
+            var ctx = c.getContext('2d');
+            ctx.beginPath(); ctx.arc(24,24,22,0,Math.PI*2);
+            ctx.fillStyle = color || '#26c6da'; ctx.globalAlpha = 0.25; ctx.fill();
+            ctx.globalAlpha = 1; ctx.strokeStyle = color || '#26c6da'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.font = '22px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillStyle = '#fff'; ctx.fillText(text, 24, 24);
+            return c.toDataURL();
+        }
 
         // 2-way: คลิก entity บนแผนที่ → แสดงรายละเอียดในเมนู
         viewer.selectedEntityChanged.addEventListener(function(entity) {
