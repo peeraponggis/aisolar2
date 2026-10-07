@@ -181,6 +181,21 @@
         .tab-btn.grid-active.active { color: #69f0ae; text-shadow: 0 0 8px rgba(105,240,174,.4); }
         .tab-btn.pvout-active.active { color: #ff6e40; text-shadow: 0 0 8px rgba(255,110,64,.4); }
         .tab-btn.ieat-active.active { color: #26c6da; text-shadow: 0 0 8px rgba(38,198,218,.4); }
+        .tab-btn.terrain3d-active.active { color: #8d6e63; text-shadow: 0 0 8px rgba(141,110,99,.4); }
+        .terrain-overlay-btn { display:inline-block; padding:6px 12px; margin:3px; border-radius:6px; border:1px solid #555; background:rgba(141,110,99,.1); color:#ccc; font-size:11px; cursor:pointer; transition:all .2s; }
+        .terrain-overlay-btn:hover { background:rgba(141,110,99,.25); }
+        .terrain-overlay-btn.active { background:rgba(141,110,99,.3); border-color:#8d6e63; color:#fff; }
+        .terrain-elev-result { background:rgba(141,110,99,.12); border:1px solid rgba(141,110,99,.3); border-radius:8px; padding:12px; margin-top:10px; text-align:center; }
+        .terrain-elev-result .elev-val { font-size:28px; font-weight:700; color:#d7ccc8; }
+        .terrain-elev-result .elev-src { font-size:10px; color:#999; margin-top:4px; }
+        .terrain-stat-cards { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:12px 0; }
+        .terrain-stat-card { background:rgba(141,110,99,.08); border:1px solid rgba(141,110,99,.25); border-radius:6px; padding:10px; text-align:center; }
+        .terrain-stat-card .tval { font-size:20px; font-weight:700; color:#bcaaa4; }
+        .terrain-stat-card .tlbl { font-size:10px; color:#999; margin-top:2px; }
+        .terrain-slope-table { width:100%; border-collapse:collapse; font-size:11px; margin-top:10px; }
+        .terrain-slope-table th, .terrain-slope-table td { padding:6px 8px; border:1px solid #333; text-align:center; }
+        .terrain-slope-table th { background:rgba(141,110,99,.15); color:#bcaaa4; }
+        .terrain-slope-table td { color:#ccc; }
         .pvo-row { display:flex; gap:8px; padding:10px; border-bottom:1px solid #222; cursor:pointer; transition:background .2s; align-items:center; }
         .pvo-row:hover { background:rgba(255,110,64,.08); }
         .pvo-rank { min-width:28px; font-size:16px; font-weight:800; color:#ff6e40; text-align:center; }
@@ -579,6 +594,7 @@
             <button class="tab-btn" id="tab-grid" onclick="switchSource('GRID_MONITOR')">⚡ Grid Monitor</button>
             <button class="tab-btn" id="tab-pvoutput" onclick="switchSource('PVOUTPUT')">🔌 PVOutput Live</button>
             <button class="tab-btn" id="tab-ieat" onclick="switchSource('IEAT_DT')">🏭 กนอ./IEAT DT</button>
+            <button class="tab-btn" id="tab-terrain3d" onclick="switchSource('TERRAIN_3D')">🏔️ 3D ภูมิประเทศ</button>
         </div>
 
         <div class="form-group">
@@ -762,6 +778,16 @@
                 label: '🔵 NASA GIBS Blue Marble',
                 url: 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_ShadedRelief_Bathymetry/default/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpeg',
                 credit: 'NASA EOSDIS GIBS', maximumLevel: 8
+            },
+            usgs_topo: {
+                label: '🏔️ USGS US Topo Map (3DEP)',
+                url: 'https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}',
+                credit: 'USGS National Map', maximumLevel: 16
+            },
+            usgs_shaded: {
+                label: '⛰️ USGS 3DEP Shaded Relief',
+                url: 'https://basemap.nationalmap.gov/arcgis/rest/services/USGSShadedReliefOnly/MapServer/tile/{z}/{y}/{x}',
+                credit: 'USGS 3DEP Shaded Relief', maximumLevel: 16
             }
         };
 
@@ -793,6 +819,15 @@
         ctrl.inertiaTranslate = 0.5;             // ลดความหน่วงลาก
         ctrl.inertiaZoom = 0.5;                  // ลดความหน่วงซูม
         viewer.scene.globe.depthTestAgainstTerrain = true; // ป้องกันวัตถุทะลุพื้น
+
+        // เปิดใช้ 3D Terrain จริงจาก ArcGIS (ฟรี, ไม่ต้อง token, ครอบคลุมทั่วโลก)
+        Cesium.ArcGISTiledElevationTerrainProvider.fromUrl(
+            'https://elevation3d.arcgis.com/arcgis/rest/services/WorldElevation3D/Terrain3D/ImageServer'
+        ).then(function(tp) {
+            viewer.terrainProvider = tp;
+        }).catch(function(e) {
+            console.warn('ArcGIS terrain unavailable, using ellipsoid:', e);
+        });
 
         function buildProvider(cfg) {
             return new Cesium.UrlTemplateImageryProvider({
@@ -1030,6 +1065,18 @@
                     <div style="font-size:10px; color:#888; margin-top:5px;">ดำเนินการโดย GUSCO · Activated Sludge · 21,000 m³/วัน</div>
                 `,
                 borderColor: '#26c6da'
+            },
+            terrain_3dntm: {
+                text: "<b>USGS 3D National Topography Model (3DNTM) + ภูมิประเทศ 3 มิติ:</b> แสดงข้อมูลระดับความสูงภูมิประเทศจาก USGS 3DEP (สหรัฐฯ — ความละเอียดสูงสุด 1 เมตร) และ Copernicus GLO-30 (ทั่วโลก — 30 เมตร) พร้อมวิเคราะห์ความชันพื้นที่สำหรับติดตั้งแผงโซลาร์เซลล์",
+                legend: `
+                    <div style="font-weight:bold; font-size:11px; margin-bottom:5px; color:#8d6e63;">ชั้นข้อมูลภูมิประเทศ:</div>
+                    <div class="legend-item"><span class="legend-color" style="background:#8d6e63"></span> 🏔️ Hillshade — เงาแสงบนภูมิประเทศ</div>
+                    <div class="legend-item"><span class="legend-color" style="background:#a1887f"></span> 📐 Slope Map — ความชันพื้นผิว</div>
+                    <div class="legend-item"><span class="legend-color" style="background:#bcaaa4"></span> 📏 Contour — เส้นชั้นความสูง</div>
+                    <div class="legend-item"><span class="legend-color" style="background:#d7ccc8"></span> 🎨 Elevation Tinted — สีระดับความสูง</div>
+                    <div style="font-size:10px; color:#888; margin-top:5px;">คลิกบน Globe เพื่อดูค่าความสูง · USGS 3DEP (US) / Copernicus (ทั่วโลก)</div>
+                `,
+                borderColor: '#8d6e63'
             }
         };
 
@@ -1146,6 +1193,10 @@
             vectorWaterEntities.forEach(ent => ent.show = false);
             if (typeof meshEntities !== 'undefined') meshEntities.forEach(ent => ent.show = false);
             if (typeof ieatEntities !== 'undefined') ieatEntities.forEach(ent => ent.show = false);
+            if (typeof terrain3dLayer !== 'undefined' && terrain3dLayer) { terrain3dLayer.show = false; }
+            if (typeof terrain3dClickHandler !== 'undefined' && terrain3dClickHandler) {
+                terrain3dClickHandler.destroy(); terrain3dClickHandler = null;
+            }
             clearHighlightLabel();
             if (satelliteLayerInstance) satelliteLayerInstance.show = false;
 
@@ -1417,6 +1468,17 @@
                 currentSource = sourceName;
                 ieatEntities.forEach(function(e) { e.show = true; });
                 loadIEATDigitalTwin();
+                return;
+            }
+
+            // --- 🏔️ 3D ภูมิประเทศ / USGS 3DNTM ---
+            if (sourceName === 'TERRAIN_3D') {
+                var tb = document.getElementById('tab-terrain3d');
+                tb.classList.add('active');
+                tb.classList.add('terrain3d-active');
+                setLocalInfo('terrain_3dntm');
+                currentSource = sourceName;
+                loadTerrain3D();
                 return;
             }
 
@@ -4860,6 +4922,189 @@
             ctx.font = '22px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
             ctx.fillStyle = '#fff'; ctx.fillText(text, 24, 24);
             return c.toDataURL();
+        }
+
+        /* =========================================================
+           17) 3D ภูมิประเทศ / USGS 3DNTM Module
+           ========================================================= */
+        var terrain3dLayer = null;
+        var terrain3dClickHandler = null;
+        var currentTerrainOverlay = '';
+
+        function loadTerrain3D() {
+            openPanel('🏔️ 3D ภูมิประเทศ — USGS 3DNTM + Copernicus DEM');
+
+            var html = '';
+            html += '<div style="text-align:center; margin-bottom:12px;">';
+            html += '<span style="font-size:13px; color:#bcaaa4; font-weight:600;">🌐 ข้อมูลระดับความสูงภูมิประเทศ 3 มิติ</span>';
+            html += '</div>';
+
+            // Overlay selector
+            html += '<div style="margin-bottom:10px;">';
+            html += '<div style="font-size:11px; color:#999; margin-bottom:6px;">📡 เลือก Overlay ภูมิประเทศ:</div>';
+            html += '<div style="text-align:center;">';
+            html += '<span class="terrain-overlay-btn" onclick="setTerrainOverlay(\'hillshade\')">🏔️ Hillshade</span>';
+            html += '<span class="terrain-overlay-btn" onclick="setTerrainOverlay(\'slope\')">📐 Slope</span>';
+            html += '<span class="terrain-overlay-btn" onclick="setTerrainOverlay(\'contour\')">📏 Contour</span>';
+            html += '<span class="terrain-overlay-btn" onclick="setTerrainOverlay(\'tinted\')">🎨 Elevation Tinted</span>';
+            html += '<span class="terrain-overlay-btn" onclick="setTerrainOverlay(\'none\')" style="border-color:#f44336;">❌ ปิด</span>';
+            html += '</div></div>';
+
+            // Elevation click instruction
+            html += '<div style="background:rgba(141,110,99,.1); border:1px solid rgba(141,110,99,.25); border-radius:6px; padding:8px 10px; margin-bottom:10px; font-size:11px; color:#bcaaa4; text-align:center;">';
+            html += '👆 <b>คลิกบน Globe</b> เพื่อดูค่าความสูง ณ จุดนั้น';
+            html += '</div>';
+
+            // Elevation result placeholder
+            html += '<div id="terrainElevResult" class="terrain-elev-result" style="display:none;"></div>';
+
+            // Key stats cards
+            html += '<div class="terrain-stat-cards">';
+            html += '<div class="terrain-stat-card"><div class="tval">1 m</div><div class="tlbl">ความละเอียดสูงสุด (US)</div></div>';
+            html += '<div class="terrain-stat-card"><div class="tval">30 m</div><div class="tlbl">ความละเอียด (ทั่วโลก)</div></div>';
+            html += '<div class="terrain-stat-card"><div class="tval">8M km²</div><div class="tlbl">พื้นที่ครอบคลุม 3DEP</div></div>';
+            html += '<div class="terrain-stat-card"><div class="tval">ฟรี</div><div class="tlbl">ไม่ต้อง API Key</div></div>';
+            html += '</div>';
+
+            // Slope-Solar analysis table
+            html += '<div style="margin-top:12px;">';
+            html += '<div style="font-size:12px; font-weight:600; color:#bcaaa4; margin-bottom:6px;">📐 วิเคราะห์ความชันสำหรับโซลาร์เซลล์:</div>';
+            html += '<table class="terrain-slope-table">';
+            html += '<tr><th>ความชัน</th><th>ความเหมาะสม</th><th>หมายเหตุ</th></tr>';
+            html += '<tr><td style="color:#00e676;">< 5°</td><td>✅ เหมาะมาก</td><td>Ground-mount ได้เลย</td></tr>';
+            html += '<tr><td style="color:#ffd740;">5° - 15°</td><td>⚠️ ติดตั้งได้</td><td>ต้องปรับโครงสร้างรองรับ</td></tr>';
+            html += '<tr><td style="color:#ff5252;">> 15°</td><td>❌ ไม่เหมาะ</td><td>ต้นทุนสูง/เสี่ยงดินถล่ม</td></tr>';
+            html += '</table></div>';
+
+            // Thai explanation
+            html += '<div style="background:rgba(141,110,99,.06); border:1px solid rgba(141,110,99,.18); border-radius:6px; padding:12px; margin-top:12px; font-size:11.5px; line-height:1.8; color:#bbb;">';
+            html += '<b style="color:#8d6e63;">📖 3DNTM คืออะไร?</b><br>';
+            html += '<b>3D National Topography Model (3DNTM)</b> คือโครงการของ USGS (สำรวจธรณีวิทยาสหรัฐฯ) ที่สร้างแบบจำลองภูมิประเทศ 3 มิติความละเอียดสูง โดยใช้ข้อมูลจากโปรแกรม <b>3DEP (3D Elevation Program)</b> ที่สแกนด้วยเทคโนโลยี <b>LiDAR</b> (Light Detection and Ranging)<br><br>';
+            html += '<b style="color:#8d6e63;">🛰️ แหล่งข้อมูลความสูง:</b><br>';
+            html += '• <b>USGS 3DEP / EPQS</b> — ครอบคลุมสหรัฐฯ ความละเอียด 1 เมตร (LiDAR)<br>';
+            html += '• <b>Copernicus GLO-30</b> — ครอบคลุมทั่วโลก (รวมประเทศไทย) ความละเอียด 30 เมตร (Sentinel/TanDEM-X)<br>';
+            html += '• <b>ArcGIS World Terrain</b> — ข้อมูล terrain 3D จริงบน Globe (ฟรี, ไม่ต้อง API Key)<br><br>';
+            html += '<b style="color:#8d6e63;">☀️ การนำไปใช้กับโซลาร์:</b><br>';
+            html += '• ข้อมูลความชัน (slope) → กำหนดมุมเอียงแผง (tilt angle)<br>';
+            html += '• ข้อมูลทิศทาง (aspect) → เลือกทิศหันแผง (azimuth)<br>';
+            html += '• แบบจำลอง 3D → วิเคราะห์เงาบัง (shadow analysis)<br>';
+            html += '• ระดับความสูง → ปรับค่าความกดอากาศ/อุณหภูมิ → ประสิทธิภาพแผง';
+            html += '</div>';
+
+            // Data source info
+            html += '<div style="font-size:10px; color:#666; margin-top:10px; text-align:center;">';
+            html += 'แหล่งข้อมูล: USGS 3DEP · Copernicus GLO-30 · ESRI ArcGIS World Terrain<br>';
+            html += '⚠️ Overlay ภูมิประเทศ (Hillshade/Slope/Contour) ครอบคลุมเฉพาะพื้นที่สหรัฐฯ';
+            html += '</div>';
+
+            document.getElementById('panelBody').innerHTML = html;
+
+            // Enable click handler for elevation query
+            terrain3dClickHandler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+            terrain3dClickHandler.setInputAction(function(click) {
+                var ray = viewer.camera.getPickRay(click.position);
+                var cartesian = viewer.scene.globe.pick(ray, viewer.scene);
+                if (cartesian) {
+                    var carto = Cesium.Cartographic.fromCartesian(cartesian);
+                    var lat = Cesium.Math.toDegrees(carto.latitude);
+                    var lng = Cesium.Math.toDegrees(carto.longitude);
+                    fetchElevationPoint(lat, lng);
+                }
+            }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+        }
+
+        function setTerrainOverlay(type) {
+            if (terrain3dLayer) {
+                viewer.imageryLayers.remove(terrain3dLayer, false);
+                terrain3dLayer = null;
+            }
+            currentTerrainOverlay = type;
+            document.querySelectorAll('.terrain-overlay-btn').forEach(function(b) { b.classList.remove('active'); });
+            if (type === 'none') return;
+
+            var tileUrl = '';
+            var cred = '';
+            if (type === 'hillshade') {
+                tileUrl = 'https://basemap.nationalmap.gov/arcgis/rest/services/USGSShadedReliefOnly/MapServer/tile/{z}/{y}/{x}';
+                cred = 'USGS 3DEP Shaded Relief';
+            } else if (type === 'slope') {
+                tileUrl = 'https://elevation.nationalmap.gov/arcgis/rest/services/3DEPElevation/ImageServer/exportImage?bbox={westProjected},{southProjected},{eastProjected},{northProjected}&bboxSR=3857&imageSR=3857&size=256,256&format=jpgpng&renderingRule={"rasterFunction":"SlopeMap"}&f=image';
+                cred = 'USGS 3DEP Slope';
+            } else if (type === 'contour') {
+                tileUrl = 'https://carto.nationalmap.gov/arcgis/rest/services/contours/MapServer/tile/{z}/{y}/{x}';
+                cred = 'USGS Contours';
+            } else if (type === 'tinted') {
+                tileUrl = 'https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryTopo/MapServer/tile/{z}/{y}/{x}';
+                cred = 'USGS Imagery Topo';
+            }
+
+            if (tileUrl && type !== 'slope') {
+                try {
+                    var prov = new Cesium.UrlTemplateImageryProvider({
+                        url: tileUrl,
+                        credit: cred,
+                        maximumLevel: 16,
+                        tilingScheme: new Cesium.WebMercatorTilingScheme()
+                    });
+                    terrain3dLayer = viewer.imageryLayers.addImageryProvider(prov);
+                    terrain3dLayer.alpha = 0.65;
+                } catch(e) { console.warn('Overlay error:', e); }
+            } else if (type === 'slope') {
+                try {
+                    var slopeProv = new Cesium.ArcGisMapServerImageryProvider({
+                        url: 'https://elevation.nationalmap.gov/arcgis/rest/services/3DEPElevation/ImageServer',
+                        credit: cred,
+                        enablePickFeatures: false,
+                        renderingRule: { rasterFunction: 'SlopeMap' }
+                    });
+                    terrain3dLayer = viewer.imageryLayers.addImageryProvider(slopeProv);
+                    terrain3dLayer.alpha = 0.65;
+                } catch(e) { console.warn('Slope overlay error:', e); }
+            }
+
+            if (event && event.target) event.target.classList.add('active');
+        }
+        window.setTerrainOverlay = setTerrainOverlay;
+
+        function fetchElevationPoint(lat, lng) {
+            var resultDiv = document.getElementById('terrainElevResult');
+            if (!resultDiv) return;
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '<div style="color:#999;">⏳ กำลังดึงค่าความสูง...</div>';
+
+            // Check if in US bounds (roughly)
+            var isUS = (lat >= 24.5 && lat <= 49.5 && lng >= -125 && lng <= -66.5) ||
+                       (lat >= 51 && lat <= 72 && lng >= -180 && lng <= -130) || // Alaska
+                       (lat >= 18 && lat <= 22.5 && lng >= -161 && lng <= -154); // Hawaii
+
+            if (isUS) {
+                // USGS EPQS — high resolution
+                var epqsUrl = 'https://epqs.nationalmap.gov/v1/json?x=' + lng + '&y=' + lat + '&wkid=4269&includeDate=true';
+                fetch(epqsUrl).then(function(r) { return r.json(); }).then(function(data) {
+                    var elev = data.value;
+                    var unit = data.unit || 'Meters';
+                    resultDiv.innerHTML = '<div class="elev-val">' + parseFloat(elev).toFixed(1) + ' m</div>' +
+                        '<div style="font-size:12px; color:#bcaaa4; margin-top:4px;">📍 ' + lat.toFixed(5) + ', ' + lng.toFixed(5) + '</div>' +
+                        '<div class="elev-src">🇺🇸 USGS 3DEP/EPQS · ≤1m resolution · ' + (data.date || 'N/A') + '</div>';
+                }).catch(function(e) {
+                    // Fallback to Open-Meteo
+                    fetchElevationOpenMeteo(lat, lng, resultDiv);
+                });
+            } else {
+                fetchElevationOpenMeteo(lat, lng, resultDiv);
+            }
+        }
+
+        function fetchElevationOpenMeteo(lat, lng, resultDiv) {
+            var omUrl = 'https://api.open-meteo.com/v1/elevation?latitude=' + lat + '&longitude=' + lng;
+            fetch(omUrl).then(function(r) { return r.json(); }).then(function(data) {
+                var elev = data.elevation ? data.elevation[0] : 'N/A';
+                resultDiv.innerHTML = '<div class="elev-val">' + (typeof elev === 'number' ? elev.toFixed(1) : elev) + ' m</div>' +
+                    '<div style="font-size:12px; color:#bcaaa4; margin-top:4px;">📍 ' + lat.toFixed(5) + ', ' + lng.toFixed(5) + '</div>' +
+                    '<div class="elev-src">🌐 Copernicus GLO-30 via Open-Meteo · 30m resolution</div>';
+            }).catch(function(e) {
+                resultDiv.innerHTML = '<div style="color:#f44336;">❌ ไม่สามารถดึงค่าความสูงได้</div>';
+            });
         }
 
         // 2-way: คลิก entity บนแผนที่ → แสดงรายละเอียดในเมนู
