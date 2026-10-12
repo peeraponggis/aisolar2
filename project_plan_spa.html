@@ -776,6 +776,24 @@ function recalcMainFromSubs(m){
   m.days=calDays(m.startDate,m.endDate);
   m.workDays=calcWorkDays(m.startDate,m.endDate);
 }
+function cascadeMainItems(fromIdx){
+  if(!currentProject||!currentProject.items) return;
+  const items=currentProject.items;
+  const start=Math.max(fromIdx||1,1);
+  for(let i=start;i<items.length;i++){
+    const prev=items[i-1], cur=items[i];
+    if(!prev.endDate) continue;
+    const newStart=nextWorkDay(prev.endDate);
+    if(cur.startDate===newStart) continue;
+    cur.startDate=newStart;
+    if(cur.subItems&&cur.subItems.length>0){
+      cascadeSubDates(cur);
+    } else if(cur.workDays>0){
+      cur.endDate=addWorkDays(newStart,cur.workDays);
+      cur.days=calDays(cur.startDate,cur.endDate);
+    }
+  }
+}
 function recalcProjectDatesFromItems(){
   if(!currentProject||!currentProject.items||currentProject.items.length===0) return;
   const allEnds=currentProject.items.map(m=>m.endDate).filter(Boolean).sort();
@@ -796,6 +814,16 @@ function recalcProjectDatesFromItems(){
 function validateDateContinuity(){
   if(!currentProject||!currentProject.items) return;
   const warnings=[];
+  // Check between main items
+  for(let i=1;i<currentProject.items.length;i++){
+    const prev=currentProject.items[i-1], cur=currentProject.items[i];
+    if(!prev.endDate||!cur.startDate) continue;
+    const expected=nextWorkDay(prev.endDate);
+    if(cur.startDate!==expected){
+      warnings.push(`ข้อ ${cur.itemNo}: วันเริ่ม ${thaiDate(cur.startDate)} ไม่ต่อเนื่องจากข้อ ${prev.itemNo} (ควรเป็น ${thaiDate(expected)})`);
+    }
+  }
+  // Check within sub-items
   currentProject.items.forEach(m=>{
     if(!m.subItems||m.subItems.length<2) return;
     for(let i=1;i<m.subItems.length;i++){
@@ -1789,6 +1817,7 @@ function renderTaskTable(){
   });
 
   initSortables();
+  cascadeMainItems();
   recalcProjectDatesFromItems();
   validateDateContinuity();
 }
