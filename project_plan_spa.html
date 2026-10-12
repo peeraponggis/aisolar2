@@ -155,6 +155,7 @@ button{cursor:pointer}
 .drag-handle{cursor:grab;color:var(--text-m);user-select:none;font-size:14px;padding:0 2px}
 .item-no{font-weight:700;color:var(--primary);white-space:nowrap;font-size:12px}
 .task-input{border:1px solid transparent;background:transparent;color:var(--text);padding:3px 5px;border-radius:4px;width:100%;transition:border-color .15s;font-size:12px}
+.task-desc{resize:vertical;min-height:26px;max-height:200px;overflow-y:auto;line-height:1.4;field-sizing:content}
 .task-input:hover,.task-input:focus{border-color:var(--border);background:var(--surface);outline:none}
 .task-input.num-input{width:55px;text-align:right}
 
@@ -1646,8 +1647,8 @@ function renderTaskTable(){
     mtr.innerHTML=`
       <td><span class="drag-handle">⠿</span></td>
       <td class="item-no">${m.itemNo}</td>
-      <td><input class="task-input" value="${esc(m.description)}" placeholder="คำอธิบายหัวข้อ"
-          onblur="updateField('main','${m.id}',null,'description',this.value)"/></td>
+      <td><textarea class="task-input task-desc" rows="1" placeholder="คำอธิบายหัวข้อ"
+          onblur="updateField('main','${m.id}',null,'description',this.value)">${esc(m.description)}</textarea></td>
       <td><select class="task-input" onchange="updateField('main','${m.id}',null,'lead',this.value)">
             <option value="">— เลือก —</option>
             ${m.lead&&!leads.includes(m.lead)?`<option value="${esc(m.lead)}" selected>${esc(m.lead)}</option>`:''}
@@ -1699,8 +1700,8 @@ function renderTaskTable(){
       str.innerHTML=`
         <td><span class="drag-handle">⠿</span></td>
         <td class="item-no" style="padding-left:12px">${s.itemNo}</td>
-        <td><input class="task-input" value="${esc(s.description)}" placeholder="คำอธิบาย"
-            onblur="updateField('sub','${m.id}','${s.id}','description',this.value)"/></td>
+        <td><textarea class="task-input task-desc" rows="1" placeholder="คำอธิบาย"
+            onblur="updateField('sub','${m.id}','${s.id}','description',this.value)">${esc(s.description)}</textarea></td>
         <td><select class="task-input" onchange="updateField('sub','${m.id}','${s.id}','lead',this.value)">
               <option value="">— เลือก —</option>
               ${leads.map(l=>`<option value="${esc(l)}" ${s.lead===l?'selected':''}>${esc(l)}</option>`).join('')}
