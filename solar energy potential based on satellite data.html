@@ -5372,6 +5372,10 @@
                         if (sm) shading = sm[1].replace(/<[^>]+>/g,'').trim();
                         var pcm = titleAttr.match(/Postcode:\s*(.+?)(?:<br|$)/i);
                         if (pcm) postcode = pcm[1].replace(/<[^>]+>/g,'').trim();
+                        if (!postcode) {
+                            var locMatch = titleAttr.match(/Location:\s*(?:<[^>]+>\s*)*(?:Australia|Thailand|Japan|India|Germany|USA|UK|France|Italy|Spain|Netherlands|Belgium|Austria|Switzerland|Brazil|South Africa|New Zealand|Canada|Singapore|Malaysia|Indonesia|Philippines|Vietnam|Korea|Taiwan|China|Israel|UAE|Maldives)\s+(\d{3,6})/i);
+                            if (locMatch) postcode = locMatch[1];
+                        }
                         var npm = titleAttr.match(/(\d+)\s*x\s*(\d+)W/);
                         if (npm) numPanels = npm[1] + ' แผง × ' + npm[2] + 'W';
                     }
