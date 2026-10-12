@@ -588,7 +588,7 @@
             <button class="tab-btn" id="tab-air4thai" onclick="switchSource('AIR4THAI')">🇹🇭 สถานีอากาศไทย</button>
             <button class="tab-btn" id="tab-satellite" onclick="switchSource('SATELLITE')">🛰️ ดาวเทียมอุตุฯ</button>
             <button class="tab-btn" id="tab-water" onclick="switchSource('WATER')">🌊 น้ำท่า/ลุ่มน้ำ</button>
-            <button class="tab-btn" id="tab-dam" onclick="switchSource('DAM')">🏞️ เขื่อน/อ่างเก็บน้ำ</button>
+            <!-- เขื่อน/อ่างเก็บน้ำ รวมอยู่ในแท็บ น้ำท่า/ลุ่มน้ำ แล้ว -->
             <button class="tab-btn" id="tab-rain" onclick="switchSource('RAIN')">🌧️ ปริมาณฝน</button>
             <button class="tab-btn" id="tab-mesh" onclick="switchSource('MESH_DT')">📡 MESH/DT</button>
             <button class="tab-btn" id="tab-solar-fc" onclick="switchSource('SOLAR_FORECAST')">☀️ พยากรณ์โซลาร์</button>
@@ -1390,28 +1390,9 @@
                     riverEntities.forEach(e => e.show = true);
                     osmWaterEntities.forEach(e => e.show = true);
                     vectorWaterEntities.forEach(e => e.show = true);
+                    damEntities.forEach(e => e.show = true);
                     openPanel('🌊 ระบบเฝ้าระวังน้ำท่า & ลุ่มน้ำ');
                 }
-                return;
-            }
-
-            // --- เขื่อนและอ่างเก็บน้ำ ---
-            if (sourceName === 'DAM') {
-                var bd2 = document.getElementById('tab-dam');
-                bd2.classList.add('active');
-                bd2.classList.add('dam-active');
-                setLocalInfo('dam');
-                document.getElementById('localLegendBox').innerHTML +=
-                    `<div style="margin-top:8px; padding-top:8px; border-top:1px dashed #333;">
-                        <label style="display:flex; align-items:center; gap:7px; font-size:11.5px; cursor:pointer;">
-                            <input type="checkbox" ${showMediumDam ? 'checked' : ''} onchange="toggleMediumDam(this.checked)"
-                                   style="accent-color:#26a69a; width:16px; height:16px;">
-                            <span>แสดงอ่างเก็บน้ำขนาดกลางด้วย</span>
-                        </label>
-                    </div>`;
-                currentSource = sourceName;
-                if (!damEntities.length) loadDams();
-                else { damEntities.forEach(e => e.show = true); openPanel('🏞️ สถานการณ์น้ำในเขื่อนและอ่างเก็บน้ำ'); }
                 return;
             }
 
@@ -3932,23 +3913,130 @@
             });
             html2 += '</div>';
 
+            // === เขื่อนและอ่างเก็บน้ำ (รวมในแท็บเดียวกัน) ===
+            html2 += '<div id="damSectionInWater" style="margin-top:16px;padding-top:12px;border-top:2px solid #0d47a1">';
+            html2 += '<div style="font-size:14px;font-weight:700;color:#26a69a;margin-bottom:10px">🏞️ สถานการณ์น้ำในเขื่อนและอ่างเก็บน้ำ</div>';
+            html2 += '<div id="damLoadingPlaceholder" style="text-align:center;padding:12px;color:#888">🔄 กำลังดึงข้อมูลเขื่อน...</div>';
+            html2 += '</div>';
+
             // Data sources
             html2 += '<div class="dt-learn" style="font-size:11px">';
             html2 += '<b style="color:#4fc3f7">📖 แหล่งข้อมูล:</b><br><br>';
             html2 += '<b>สถานีวัดระดับน้ำ:</b> ThaiWater API v3 — สถาบันสารสนเทศทรัพยากรน้ำ (สสน.) ร่วมกับกรมชลประทาน (ค่าจริงจากเซ็นเซอร์)<br><br>';
             html2 += '<b>อัตราการไหลรายลำน้ำ:</b> แบบจำลอง GloFAS (Copernicus) ผ่าน Open-Meteo Flood API — ค่าจากแบบจำลองความละเอียด 5 กม. (ไม่ใช่ค่าวัดจริง)<br><br>';
+            html2 += '<b>เขื่อน/อ่างเก็บน้ำ:</b> ThaiWater API v3 — กรมชลประทาน / กฟผ.<br><br>';
             html2 += '<b>เส้นลำน้ำบนแผนที่:</b> OpenStreetMap vector tiles — กดปุ่ม "แสดงลำน้ำจริง" ในแผงซ้ายมือ<br><br>';
             html2 += '<b style="color:#ffd740">สัญลักษณ์บนแผนที่:</b><br>';
             html2 += '• <b>หมุดกลมเล็ก</b> = สถานีวัดระดับน้ำ (แตะดูรายละเอียด)<br>';
             html2 += '• <b>◆ หมุดเพชร</b> = จุดตรวจวัดอัตราการไหลจาก GloFAS<br>';
+            html2 += '• <b>● หมุดใหญ่สี</b> = เขื่อนขนาดใหญ่ (สีตามระดับน้ำ)<br>';
             html2 += '• <b>เส้น →</b> = ลำน้ำจริง (ลูกศรชี้ทิศทางน้ำไหล)<br><br>';
             html2 += '<b style="color:#ff8a80">ข้อจำกัด:</b> ลำน้ำบางสายอาจแสดงไม่ต่อเนื่อง เนื่องจาก OSM ยังไม่ได้บันทึกครบทุกช่วง — ซูมเข้าจะเห็นรายละเอียดมากขึ้น<br><br>';
             html2 += '<b>ที่มา:</b> <a href="https://www.thaiwater.net/" target="_blank" style="color:#4fc3f7">thaiwater.net</a> · <a href="https://www.globalfloods.eu/" target="_blank" style="color:#4fc3f7">GloFAS (Copernicus)</a>';
             html2 += '</div>';
 
             body.innerHTML = html2;
+
+            // โหลดข้อมูลเขื่อนแบบ async แล้วใส่ในส่วนที่เตรียมไว้
+            loadDamsInline();
         }
         window.loadWaterNetwork = loadWaterNetwork;
+
+        async function loadDamsInline() {
+            var placeholder = document.getElementById('damLoadingPlaceholder');
+            if (!placeholder) return;
+            try {
+                var damApiUrl = 'https://api-v3.thaiwater.net/api/v1/thaiwater30/analyst/dam';
+                var j;
+                try {
+                    var res = await fetch(damApiUrl);
+                    var txt = await res.text();
+                    j = JSON.parse(txt);
+                } catch(e1) {
+                    var res2 = await fetch('https://cors-get-proxy.sirjosh.workers.dev/get?url=' + encodeURIComponent(damApiUrl));
+                    var txt2 = await res2.text();
+                    j = JSON.parse(txt2);
+                }
+                var dd = j.data || {};
+
+                function mapDamInline(x, type) {
+                    var dm = x.dam || {};
+                    var apiPct = parseFloat(x.dam_storage_percent);
+                    var calcPct = (dm.normal_storage && x.dam_storage !== null && !isNaN(x.dam_storage))
+                        ? (x.dam_storage / dm.normal_storage * 100) : NaN;
+                    return {
+                        type: type, name: (dm.dam_name && dm.dam_name.th) ? dm.dam_name.th : '-',
+                        lat: parseFloat(dm.dam_lat), lng: parseFloat(dm.dam_long),
+                        storage: x.dam_storage,
+                        pct: isNaN(calcPct) ? apiPct : calcPct,
+                        normalStorage: dm.normal_storage, maxStorage: dm.max_storage,
+                        province: (x.geocode && x.geocode.province_name) ? x.geocode.province_name.th : '',
+                        date: x.dam_date, selfConsistent: !isNaN(calcPct) && !isNaN(apiPct) && Math.abs(calcPct - apiPct) < 1.5,
+                        key: (type === 'large' ? 'damL-' : 'damM-') + (dm.id || Math.random()),
+                        id: dm.id, uses: x.dam_uses_water, usesPct: parseFloat(x.dam_uses_water_percent),
+                        inflow: x.dam_inflow, released: x.dam_released, level: x.dam_level,
+                        agency: (x.agency && x.agency.agency_shortname) ? x.agency.agency_shortname.th : '',
+                        basin: (x.basin && x.basin.basin_name) ? x.basin.basin_name.th : ''
+                    };
+                }
+
+                var seen = {};
+                damLarge = [];
+                (dd.dam_daily || []).map(function(x) { return mapDamInline(x, 'large'); })
+                    .filter(function(d) { return !isNaN(d.lat) && !isNaN(d.lng); })
+                    .forEach(function(d) {
+                        var prev = seen[d.name];
+                        if (!prev) { seen[d.name] = d; damLarge.push(d); return; }
+                        if (d.selfConsistent && !prev.selfConsistent) {
+                            damLarge[damLarge.indexOf(prev)] = d; seen[d.name] = d;
+                        }
+                    });
+                damMedium = (dd.dam_medium || []).map(function(x) { return mapDamInline(x, 'medium'); })
+                    .filter(function(d) { return !isNaN(d.lat) && !isNaN(d.lng); });
+
+                drawDams();
+
+                var sumStorage = damLarge.reduce(function(s, d) { return s + (d.storage || 0); }, 0);
+                var sumMax = damLarge.reduce(function(s, d) { return s + (d.normalStorage || d.maxStorage || 0); }, 0);
+                var natPct = sumMax ? (sumStorage / sumMax * 100) : 0;
+                var natSt = damStatus(natPct);
+                var byPct = damLarge.filter(function(d) { return !isNaN(d.pct) && d.pct > 0; }).sort(function(a, b) { return b.pct - a.pct; });
+                var fullest = byPct.slice(0, 5);
+                var lowest = byPct.slice(-5).reverse();
+                var overflow = damLarge.concat(damMedium).filter(function(d) { return !isNaN(d.pct) && d.pct > 100; });
+
+                var dh = '';
+                dh += '<div style="background:' + natSt.col + ';color:#111;padding:10px;border-radius:6px;text-align:center;font-weight:bold;margin-bottom:8px">';
+                dh += '<div style="font-size:10px">ปริมาณน้ำกักเก็บรวม (เขื่อนใหญ่)</div>';
+                dh += '<div style="font-size:26px;line-height:1.1">' + natPct.toFixed(1) + '%</div>';
+                dh += '<div style="font-size:11px">' + Math.round(sumStorage).toLocaleString() + ' / ' + Math.round(sumMax).toLocaleString() + ' ล้าน ลบ.ม. · ' + natSt.txt + '</div></div>';
+                dh += '<div style="font-size:10px;color:#aaa;margin-bottom:8px">เขื่อนใหญ่ ' + damLarge.length + ' แห่ง · อ่างกลาง ' + damMedium.length + ' แห่ง · ' + (damLarge[0] ? damLarge[0].date : '-') + '</div>';
+
+                if (overflow.length) {
+                    dh += '<div style="background:#2a0000;border:1px solid #b71c1c;padding:8px;border-radius:5px;font-size:11px;margin-bottom:8px">';
+                    dh += '🚨 <b style="color:#ff8a80">เกินความจุ ' + overflow.length + ' แห่ง:</b> ';
+                    dh += overflow.slice(0, 4).map(function(o) { return o.name + ' ' + o.pct.toFixed(0) + '%'; }).join(' · ');
+                    dh += '</div>';
+                }
+
+                function damRow(d) {
+                    var st = damStatus(d.pct);
+                    return '<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid #222;cursor:pointer" onclick="flyToFeature(' + d.lng + ',' + d.lat + ',\'' + d.key + '\')">' +
+                        '<span style="background:' + st.col + ';color:#111;font-size:10px;font-weight:700;padding:2px 6px;border-radius:3px;min-width:36px;text-align:center">' + (isNaN(d.pct) ? '-' : d.pct.toFixed(0) + '%') + '</span>' +
+                        '<span style="flex:1;font-size:11px;color:#ddd">' + d.name + '<br><small style="color:#777">' + (d.province ? 'จ.' + d.province : '') + '</small></span></div>';
+                }
+
+                dh += '<div style="font-size:12px;font-weight:600;color:#26a69a;margin:6px 0 4px">💧 5 เขื่อนน้ำมากสุด:</div>';
+                dh += fullest.map(damRow).join('');
+                dh += '<div style="font-size:12px;font-weight:600;color:#ffd740;margin:8px 0 4px">🏜️ 5 เขื่อนน้ำน้อยสุด:</div>';
+                dh += lowest.map(damRow).join('');
+                dh += '<label style="display:flex;align-items:center;gap:7px;font-size:11px;cursor:pointer;margin-top:8px"><input type="checkbox" ' + (showMediumDam ? 'checked' : '') + ' onchange="toggleMediumDam(this.checked)" style="accent-color:#26a69a;width:15px;height:15px"><span>แสดงอ่างเก็บน้ำขนาดกลางบนแผนที่</span></label>';
+
+                placeholder.innerHTML = dh;
+            } catch(e) {
+                placeholder.innerHTML = '<span style="color:#ffcc80">⚠️ โหลดข้อมูลเขื่อนไม่สำเร็จ: ' + e.message + '</span>';
+            }
+        }
 
         /* =========================================================
            12.8) โมดูล : เขื่อนและอ่างเก็บน้ำทั่วประเทศ
@@ -4042,15 +4130,9 @@
                     var txt = await res.text();
                     j = JSON.parse(txt);
                 } catch(e1) {
-                    try {
-                        var res2 = await fetch('https://api.allorigins.win/get?url=' + encodeURIComponent(damApiUrl));
-                        var wrap = await res2.json();
-                        j = JSON.parse(wrap.contents);
-                    } catch(e2) {
-                        var res3 = await fetch('https://corsproxy.io/?' + encodeURIComponent(damApiUrl));
-                        var txt3 = await res3.text();
-                        j = JSON.parse(txt3);
-                    }
+                    var res2 = await fetch('https://cors-get-proxy.sirjosh.workers.dev/get?url=' + encodeURIComponent(damApiUrl));
+                    var txt2 = await res2.text();
+                    j = JSON.parse(txt2);
                 }
                 var dd = j.data || {};
 
