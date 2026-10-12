@@ -1367,20 +1367,13 @@
                         <div style="font-weight:bold; font-size:11.5px; color:#4fc3f7; margin-bottom:6px;">
                             🗺️ เครื่องมือแผนที่ลำน้ำ
                         </div>
-                        <button class="btn-analyze" style="padding:8px; font-size:11.5px; background:#0288d1; color:#fff;"
-                                onclick="loadVectorWaterNetwork()">⬇️ แสดงลำน้ำจริงในพื้นที่นี้</button>
-                        <button class="btn-analyze" style="padding:8px; font-size:11.5px; background:#00695c; color:#fff; margin-top:4px"
+                        <button class="btn-analyze" style="padding:8px; font-size:11.5px; background:#00695c; color:#fff;"
                                 onclick="loadThailandRivers()">🇹🇭 โหลดแม่น้ำทั้งประเทศไทย</button>
+                        <button class="btn-analyze" style="padding:8px; font-size:11.5px; background:#0288d1; color:#fff; margin-top:4px"
+                                onclick="openWaterwayMapOverlay()">🗺️ เปิดแผนที่ลำน้ำละเอียด</button>
                         <button class="btn-goto" style="width:100%; margin-top:5px; padding:6px; font-size:11px;"
                                 onclick="clearVectorWater(); clearOsmWater();">🗑️ ล้างเส้นลำน้ำ</button>
                         <div id="osmStatus" style="font-size:10px; color:#aaa; margin-top:5px; line-height:1.4;"></div>
-                        <div style="font-size:10px; color:#666; margin-top:6px; line-height:1.4; border-top:1px dotted #333; padding-top:5px;">
-                            <span style="color:#00b0ff;">▬</span> แม่น้ำสายประธาน ·
-                            <span style="color:#29b6f6;">▬</span> แม่น้ำ ·
-                            <span style="color:#4dd0e1;">▬</span> คลอง ·
-                            <span style="color:#80deea;">▬</span> ลำธาร<br>
-                            ลูกศร → ชี้ทิศทางไหลของน้ำ
-                        </div>
                     </div>`;
                 currentSource = sourceName;
                 if (!waterEntities.length && !riverEntities.length) {
@@ -3445,19 +3438,19 @@
                                 }, show: true
                             }));
 
-                            if (nm && !labelled[nm] && isMain) {
+                            if (nm && !labelled[nm]) {
                                 labelled[nm] = 1;
                                 var midIdx = Math.floor(g.coordinates.length / 2);
                                 var mc = g.coordinates[midIdx];
                                 vectorWaterEntities.push(viewer.entities.add({
                                     position: Cesium.Cartesian3.fromDegrees(mc[0], mc[1]),
                                     label: {
-                                        text: nm, font: 'bold 12px sans-serif',
-                                        fillColor: Cesium.Color.fromCssColorString(col),
+                                        text: nm, font: (isMain ? 'bold 13px' : '11px') + ' sans-serif',
+                                        fillColor: Cesium.Color.fromCssColorString(isMain ? '#4fc3f7' : '#81d4fa'),
                                         outlineColor: Cesium.Color.BLACK, outlineWidth: 3,
                                         style: Cesium.LabelStyle.FILL_AND_OUTLINE,
                                         disableDepthTestDistance: Number.POSITIVE_INFINITY,
-                                        scaleByDistance: new Cesium.NearFarScalar(5e3, 1.0, 6e5, 0.0)
+                                        scaleByDistance: new Cesium.NearFarScalar(5e3, 1.0, isMain ? 8e5 : 2e5, 0.0)
                                     }, show: true
                                 }));
                                 totalLabels++;
@@ -3466,8 +3459,10 @@
                             var ring = g.coordinates[0];
                             if (ring.length < 3) continue;
                             var hArr = [];
+                            var cxSum = 0, cySum = 0;
                             for (var j = 0; j < ring.length; j++) {
                                 hArr.push(ring[j][0], ring[j][1]);
+                                cxSum += ring[j][0]; cySum += ring[j][1];
                             }
                             var bodyCol = tp === 'reservoir' ? '#0d47a1' : '#1565c0';
                             vectorWaterEntities.push(viewer.entities.add({
@@ -3479,6 +3474,23 @@
                                 }, show: true
                             }));
                             totalBodies++;
+                            if (nm && !labelled[nm]) {
+                                labelled[nm] = 1;
+                                var cx = cxSum / ring.length, cy = cySum / ring.length;
+                                vectorWaterEntities.push(viewer.entities.add({
+                                    position: Cesium.Cartesian3.fromDegrees(cx, cy),
+                                    label: {
+                                        text: (tp === 'reservoir' ? '💧 ' : '') + nm,
+                                        font: '11px sans-serif',
+                                        fillColor: Cesium.Color.fromCssColorString('#80cbc4'),
+                                        outlineColor: Cesium.Color.BLACK, outlineWidth: 3,
+                                        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+                                        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+                                        scaleByDistance: new Cesium.NearFarScalar(5e3, 1.0, 2e5, 0.0)
+                                    }, show: true
+                                }));
+                                totalLabels++;
+                            }
                         } else if (g.type === 'Point') {
                             if (tp === 'dam' || tp === 'weir') {
                                 var isDam = tp === 'dam';
