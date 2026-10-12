@@ -4705,9 +4705,29 @@
                 points.forEach(function(p) {
                     var ent = viewer.entities.add({
                         id: p.id, name: p.name,
-                        position: Cesium.Cartesian3.fromDegrees(p.lng, p.lat, 50),
-                        billboard: { image: createTextPin(p.icon, p.color), width:36, height:36, verticalOrigin: Cesium.VerticalOrigin.BOTTOM },
-                        label: { text: p.name, font:'11px sans-serif', fillColor: Cesium.Color.fromCssColorString(p.color), style: Cesium.LabelStyle.FILL_AND_OUTLINE, outlineWidth:2, outlineColor: Cesium.Color.BLACK, pixelOffset: new Cesium.Cartesian2(0,-40), distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 80000) },
+                        position: Cesium.Cartesian3.fromDegrees(p.lng, p.lat, 0),
+                        billboard: {
+                            image: createTextPin(p.icon, p.color),
+                            width: 48, height: 60,
+                            verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+                            heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+                            disableDepthTestDistance: Number.POSITIVE_INFINITY,
+                            scaleByDistance: new Cesium.NearFarScalar(500, 1.2, 50000, 0.5)
+                        },
+                        label: {
+                            text: p.name, font:'bold 13px sans-serif',
+                            fillColor: Cesium.Color.WHITE,
+                            backgroundColor: Cesium.Color.fromCssColorString(p.color).withAlpha(0.85),
+                            showBackground: true,
+                            backgroundPadding: new Cesium.Cartesian2(8, 4),
+                            style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+                            outlineWidth: 2, outlineColor: Cesium.Color.BLACK,
+                            pixelOffset: new Cesium.Cartesian2(0,-65),
+                            verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+                            heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+                            disableDepthTestDistance: Number.POSITIVE_INFINITY,
+                            scaleByDistance: new Cesium.NearFarScalar(500, 1.2, 50000, 0.5)
+                        },
                         description: '<div style="padding:10px;font-family:sans-serif"><h3 style="color:'+p.color+'">'+p.icon+' '+p.name+'</h3><p>'+p.desc+'</p></div>'
                     });
                     ieatEntities.push(ent);
@@ -4928,13 +4948,24 @@
 
         function createTextPin(text, color) {
             var c = document.createElement('canvas');
-            c.width = 48; c.height = 48;
+            c.width = 64; c.height = 80;
             var ctx = c.getContext('2d');
-            ctx.beginPath(); ctx.arc(24,24,22,0,Math.PI*2);
-            ctx.fillStyle = color || '#26c6da'; ctx.globalAlpha = 0.25; ctx.fill();
-            ctx.globalAlpha = 1; ctx.strokeStyle = color || '#26c6da'; ctx.lineWidth = 2; ctx.stroke();
-            ctx.font = '22px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            ctx.fillStyle = '#fff'; ctx.fillText(text, 24, 24);
+            color = color || '#26c6da';
+            // Pin shape (teardrop)
+            ctx.beginPath();
+            ctx.moveTo(32, 76);
+            ctx.bezierCurveTo(32, 76, 8, 44, 8, 28);
+            ctx.arc(32, 28, 24, Math.PI, 0, false);
+            ctx.bezierCurveTo(56, 44, 32, 76, 32, 76);
+            ctx.closePath();
+            ctx.fillStyle = color; ctx.globalAlpha = 0.9; ctx.fill();
+            ctx.globalAlpha = 1; ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.stroke();
+            // Inner circle
+            ctx.beginPath(); ctx.arc(32, 28, 15, 0, Math.PI * 2);
+            ctx.fillStyle = '#fff'; ctx.fill();
+            // Emoji
+            ctx.font = '18px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillStyle = color; ctx.fillText(text, 32, 29);
             return c.toDataURL();
         }
 
@@ -5345,22 +5376,30 @@
 
                     var ent = viewer.entities.add({
                         id: 'w2w_' + idx,
-                        position: Cesium.Cartesian3.fromDegrees(g.lon, g.lat, 50),
+                        position: Cesium.Cartesian3.fromDegrees(g.lon, g.lat, 0),
                         billboard: {
                             image: createW2WIcon(g.level),
-                            width: 36, height: 36,
+                            width: 48, height: 60,
                             verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-                            disableDepthTestDistance: Number.POSITIVE_INFINITY
+                            heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+                            disableDepthTestDistance: Number.POSITIVE_INFINITY,
+                            scaleByDistance: new Cesium.NearFarScalar(500, 1.2, 20000, 0.6)
                         },
                         label: {
                             text: g.name,
-                            font: 'bold 12px sans-serif',
-                            fillColor: Cesium.Color.fromCssColorString(levelColor),
+                            font: 'bold 14px sans-serif',
+                            fillColor: Cesium.Color.WHITE,
+                            backgroundColor: Cesium.Color.fromCssColorString(levelColor).withAlpha(0.85),
+                            showBackground: true,
+                            backgroundPadding: new Cesium.Cartesian2(8, 4),
                             outlineColor: Cesium.Color.BLACK,
                             outlineWidth: 2,
                             style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-                            pixelOffset: new Cesium.Cartesian2(0, -40),
-                            disableDepthTestDistance: Number.POSITIVE_INFINITY
+                            pixelOffset: new Cesium.Cartesian2(0, -65),
+                            verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+                            heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+                            disableDepthTestDistance: Number.POSITIVE_INFINITY,
+                            scaleByDistance: new Cesium.NearFarScalar(500, 1.2, 20000, 0.6)
                         }
                     });
                     waterWatchEntities.push(ent);
@@ -5468,16 +5507,26 @@
 
         function createW2WIcon(level) {
             var c = document.createElement('canvas');
-            c.width = 40; c.height = 40;
+            c.width = 64; c.height = 80;
             var ctx = c.getContext('2d');
             var color = level === 'flood' ? '#f44336' :
                         level === 'warning' ? '#ff9800' :
                         level === 'watch' ? '#fdd835' : '#4caf50';
-            ctx.beginPath(); ctx.arc(20, 20, 18, 0, Math.PI * 2);
-            ctx.fillStyle = color; ctx.globalAlpha = 0.3; ctx.fill();
-            ctx.globalAlpha = 1; ctx.strokeStyle = color; ctx.lineWidth = 2.5; ctx.stroke();
-            ctx.font = '20px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            ctx.fillStyle = '#fff'; ctx.fillText('💧', 20, 21);
+            // Pin shape (teardrop)
+            ctx.beginPath();
+            ctx.moveTo(32, 76);
+            ctx.bezierCurveTo(32, 76, 8, 44, 8, 28);
+            ctx.arc(32, 28, 24, Math.PI, 0, false);
+            ctx.bezierCurveTo(56, 44, 32, 76, 32, 76);
+            ctx.closePath();
+            ctx.fillStyle = color; ctx.globalAlpha = 0.9; ctx.fill();
+            ctx.globalAlpha = 1; ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.stroke();
+            // Inner circle
+            ctx.beginPath(); ctx.arc(32, 28, 15, 0, Math.PI * 2);
+            ctx.fillStyle = '#fff'; ctx.fill();
+            // Emoji
+            ctx.font = '18px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillStyle = color; ctx.fillText('💧', 32, 29);
             return c.toDataURL();
         }
 
