@@ -7384,31 +7384,65 @@
         async function loadOSMGrid() {
             openPanel('🔌 สายส่งไฟฟ้า — OpenStreetMap');
             var body = document.getElementById('panelBody');
-            body.innerHTML = '<div style="text-align:center;padding:40px;color:#aaa"><div class="spinner"></div><br>กำลังดึงข้อมูลสายส่งไฟฟ้า...</div>';
+
+            var cam = viewer.camera.positionCartographic;
+            var lat = Cesium.Math.toDegrees(cam.latitude);
+            var lng = Cesium.Math.toDegrees(cam.longitude);
+            var height = cam.height;
+
+            // ซูมไกล → แสดง panel พร้อม iframe OpenInfraMap + ปุ่มซูมเข้า
+            if (height > 150000) {
+                var html = '';
+                html += '<div style="background:rgba(255,152,0,.08);border:1px solid rgba(255,152,0,.25);border-radius:6px;padding:12px;margin-bottom:12px">';
+                html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">';
+                html += '<div style="font-size:28px">🔌</div>';
+                html += '<div><div style="font-size:14px;font-weight:700;color:#ff9800">สายส่งไฟฟ้า — OpenStreetMap</div>';
+                html += '<div style="font-size:11px;color:#aaa">ข้อมูลโครงข่ายไฟฟ้าจาก OSM Community</div></div></div></div>';
+
+                html += '<div style="background:rgba(255,152,0,.12);border:1px solid #ff9800;border-radius:6px;padding:12px;margin-bottom:12px;text-align:center">';
+                html += '<div style="font-size:13px;color:#ffd740;margin-bottom:8px">⚠️ ซูมเข้าใกล้แล้วกดปุ่มด้านล่างเพื่อโหลดสายส่งบนลูกโลก</div>';
+                html += '<div style="font-size:11px;color:#aaa;margin-bottom:10px">ซูมเข้าไปที่จังหวัด/อำเภอที่ต้องการดู แล้วกด "โหลดสายส่ง"</div>';
+                html += '<button onclick="loadOSMGridLocal()" style="width:100%;background:#ff9800;color:#000;border:none;padding:10px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:700">🔌 โหลดสายส่งบริเวณที่กำลังดู</button>';
+                html += '</div>';
+
+                html += '<div style="font-size:12px;font-weight:700;color:#ff9800;margin-bottom:6px">🗺️ แผนที่สายส่งทั่วประเทศ (OpenInfraMap)</div>';
+                html += '<iframe src="https://openinframap.org/#6/' + lat.toFixed(2) + '/' + lng.toFixed(2) + '/Power" style="width:100%;height:350px;border:1px solid #333;border-radius:6px;margin-bottom:12px" loading="lazy"></iframe>';
+
+                html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px">';
+                html += '<a href="https://openinframap.org/#8/' + lat.toFixed(2) + '/' + lng.toFixed(2) + '/Power" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;gap:4px;background:rgba(255,152,0,.12);border:1px solid #ff9800;color:#ff9800;padding:8px;border-radius:6px;text-decoration:none;font-size:11px;font-weight:600">🔗 OpenInfraMap</a>';
+                html += '<a href="https://www.egat.co.th/home/" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;gap:4px;background:rgba(244,67,54,.12);border:1px solid #f44336;color:#f44336;padding:8px;border-radius:6px;text-decoration:none;font-size:11px;font-weight:600">🏗️ EGAT</a>';
+                html += '</div>';
+
+                html += '<div style="font-size:12px;font-weight:700;color:#ff9800;margin-bottom:6px">🎨 สีสายส่งตามแรงดัน</div>';
+                html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:12px;font-size:11px">';
+                html += '<div style="color:#f44336">━━ 230+ kV (สายส่งหลัก)</div>';
+                html += '<div style="color:#ff9800">━━ 115 kV (สายจำหน่าย)</div>';
+                html += '<div style="color:#ffd740">━━ 22 kV (จำหน่ายย่อย)</div>';
+                html += '<div style="color:#69f0ae">━━ < 22 kV (แรงต่ำ)</div>';
+                html += '</div>';
+
+                html += '<div class="dt-learn" style="font-size:11px">';
+                html += '<b style="color:#ff9800">📖 เกี่ยวกับ OSM Power Grid:</b><br><br>';
+                html += '<b>เจ้าของข้อมูล:</b> OpenStreetMap Foundation (OSM Community)<br>';
+                html += '<b>ครอบคลุม:</b> ทั่วโลก — ข้อมูลไทยค่อนข้างสมบูรณ์ในเมืองใหญ่<br><br>';
+                html += '<b style="color:#ffd740">ประโยชน์สำหรับโซลาร์:</b><br>';
+                html += '🔹 หาสถานีไฟฟ้าใกล้ที่สุดสำหรับเชื่อมต่อ solar farm<br>';
+                html += '🔹 ดูแรงดันสายส่ง — กำหนดขนาดระบบที่เชื่อมต่อได้<br>';
+                html += '🔹 วิเคราะห์ระยะทางจากโซลาร์ฟาร์มถึง grid</div>';
+                body.innerHTML = html;
+                return;
+            }
+
+            // ซูมเข้าใกล้พอ → โหลดจาก Overpass API
+            body.innerHTML = '<div style="text-align:center;padding:40px;color:#aaa"><div class="spinner"></div><br>กำลังดึงข้อมูลสายส่งไฟฟ้า บริเวณนี้...</div>';
             try {
                 osmGridEntities.forEach(function(e) { viewer.entities.remove(e); });
                 osmGridEntities = [];
 
-                var cam = viewer.camera.positionCartographic;
-                var lat = Cesium.Math.toDegrees(cam.latitude);
-                var lng = Cesium.Math.toDegrees(cam.longitude);
-                var height = cam.height;
-
-                // ปรับรัศมีตามระดับ zoom — ซูมไกล=พื้นที่ใหญ่แต่เฉพาะสายหลัก, ซูมใกล้=พื้นที่เล็กแต่ทุกระดับ
-                var r, voltageFilter;
-                if (height > 500000) {
-                    r = 2.5; // ~250 กม.
-                    voltageFilter = '["voltage"~"[1-9][0-9]{5,}"]'; // 100kV+
-                } else if (height > 100000) {
-                    r = 1.0;
-                    voltageFilter = '["voltage"~"[1-9][0-9]{4,}"]'; // 10kV+
-                } else {
-                    r = 0.3;
-                    voltageFilter = ''; // ทุกระดับแรงดัน
-                }
+                var r = Math.max(0.1, Math.min(height / 300000, 0.5));
                 var bbox = (lat - r) + ',' + (lng - r) + ',' + (lat + r) + ',' + (lng + r);
 
-                var query = '[out:json][timeout:30];(way["power"="line"]' + voltageFilter + '(' + bbox + ');node["power"~"substation|plant"](' + bbox + ');way["power"~"substation|plant"](' + bbox + '););out center geom;';
+                var query = '[out:json][timeout:25];(way["power"="line"](' + bbox + ');node["power"~"substation|plant"](' + bbox + ');way["power"~"substation|plant"](' + bbox + '););out center geom;';
 
                 var overpassUrls = [
                     'https://overpass-api.de/api/interpreter',
@@ -7421,16 +7455,17 @@
                             method: 'POST',
                             body: 'data=' + encodeURIComponent(query),
                             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                            signal: AbortSignal.timeout(30000)
+                            signal: AbortSignal.timeout(25000)
                         });
                         data = await resp.json();
                         if (data && data.elements) break;
                     } catch(oe) { data = null; }
                 }
 
-                if (!data || !data.elements || data.elements.length === 0) throw new Error('ไม่พบสายส่งในบริเวณนี้ — ลองซูมเข้าใกล้หรือเลื่อนไปยังพื้นที่ที่มีสายส่ง');
+                if (!data || !data.elements || data.elements.length === 0) throw new Error('ไม่พบสายส่งในบริเวณนี้ — ลองเลื่อนไปยังพื้นที่ที่มีสายส่ง');
 
                 var lineCount = 0, substationCount = 0, plantCount = 0;
+                var voltageFilter = '';
 
                 data.elements.forEach(function(el) {
                     var isPower = el.tags && el.tags.power;
