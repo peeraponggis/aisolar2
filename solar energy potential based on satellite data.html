@@ -5806,7 +5806,7 @@
             if (!coords) { alert('ไม่พบพิกัดของระบบนี้'); return; }
             var hasExact = s.geocodeSource === 'pvoutput';
             var hasPostcode = hasExact || (s.geocodedLat && s.geocodedLng) || (s.postcode && pvoGeocodeCache[(s.postcode + '_').toLowerCase()]);
-            var altitude = hasExact ? 5000 : (hasPostcode ? 50000 : 500000);
+            var altitude = hasExact ? 800 : (hasPostcode ? 5000 : 100000);
             viewer.camera.flyTo({
                 destination: Cesium.Cartesian3.fromDegrees(coords[1], coords[0], altitude),
                 orientation: { heading: 0, pitch: Cesium.Math.toRadians(-60), roll: 0 },
