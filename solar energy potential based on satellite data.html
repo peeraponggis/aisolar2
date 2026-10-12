@@ -4035,8 +4035,23 @@
             body.innerHTML = `<div style="text-align:center; padding:25px;">🔄 กำลังดึงข้อมูลปริมาณน้ำในเขื่อนทั่วประเทศ...</div>`;
 
             try {
-                var res = await fetch('https://api-v3.thaiwater.net/api/v1/thaiwater30/analyst/dam');
-                var j = await res.json();
+                var damApiUrl = 'https://api-v3.thaiwater.net/api/v1/thaiwater30/analyst/dam';
+                var j;
+                try {
+                    var res = await fetch(damApiUrl);
+                    var txt = await res.text();
+                    j = JSON.parse(txt);
+                } catch(e1) {
+                    try {
+                        var res2 = await fetch('https://api.allorigins.win/get?url=' + encodeURIComponent(damApiUrl));
+                        var wrap = await res2.json();
+                        j = JSON.parse(wrap.contents);
+                    } catch(e2) {
+                        var res3 = await fetch('https://corsproxy.io/?' + encodeURIComponent(damApiUrl));
+                        var txt3 = await res3.text();
+                        j = JSON.parse(txt3);
+                    }
+                }
                 var dd = j.data || {};
 
                 /* หมายเหตุสำคัญเรื่องฐานการคิดเปอร์เซ็นต์:
