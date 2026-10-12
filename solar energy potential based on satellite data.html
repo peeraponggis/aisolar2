@@ -7384,7 +7384,7 @@
         async function loadOSMGrid() {
             openPanel('🔌 สายส่งไฟฟ้า — OpenStreetMap');
             var body = document.getElementById('panelBody');
-            body.innerHTML = '<div style="text-align:center;padding:40px;color:#aaa"><div class="spinner"></div><br>กำลังดึงข้อมูลสายส่งไฟฟ้า...<br><small>โหลดสายส่งหลัก 115-500 kV ทั่วประเทศไทย</small></div>';
+            body.innerHTML = '<div style="text-align:center;padding:40px;color:#aaa"><div class="spinner"></div><br>กำลังดึงข้อมูลสายส่งไฟฟ้า...</div>';
             try {
                 osmGridEntities.forEach(function(e) { viewer.entities.remove(e); });
                 osmGridEntities = [];
@@ -7392,54 +7392,47 @@
                 var cam = viewer.camera.positionCartographic;
                 var lat = Cesium.Math.toDegrees(cam.latitude);
                 var lng = Cesium.Math.toDegrees(cam.longitude);
+                var height = cam.height;
 
-                // โหลดสายส่งหลักทั่วประเทศไทย (115 kV ขึ้นไป) แบ่งเป็น 4 ส่วน
-                var thaiRegions = [
-                    { name: 'เหนือ+กลาง', bbox: '14.5,97.0,20.5,105.7' },
-                    { name: 'อีสาน', bbox: '14.0,101.5,18.5,106.0' },
-                    { name: 'กลาง+ตะวันออก', bbox: '12.0,99.0,14.5,103.0' },
-                    { name: 'ใต้', bbox: '5.5,98.0,12.0,102.0' }
-                ];
+                // ปรับรัศมีตามระดับ zoom — ซูมไกล=พื้นที่ใหญ่แต่เฉพาะสายหลัก, ซูมใกล้=พื้นที่เล็กแต่ทุกระดับ
+                var r, voltageFilter;
+                if (height > 500000) {
+                    r = 2.5; // ~250 กม.
+                    voltageFilter = '["voltage"~"[1-9][0-9]{5,}"]'; // 100kV+
+                } else if (height > 100000) {
+                    r = 1.0;
+                    voltageFilter = '["voltage"~"[1-9][0-9]{4,}"]'; // 10kV+
+                } else {
+                    r = 0.3;
+                    voltageFilter = ''; // ทุกระดับแรงดัน
+                }
+                var bbox = (lat - r) + ',' + (lng - r) + ',' + (lat + r) + ',' + (lng + r);
 
-                var allElements = [];
-                var seenIds = {};
-                for (var ri = 0; ri < thaiRegions.length; ri++) {
-                    var region = thaiRegions[ri];
-                    body.innerHTML = '<div style="text-align:center;padding:40px;color:#aaa"><div class="spinner"></div><br>กำลังดึงข้อมูลสายส่ง (' + (ri+1) + '/' + thaiRegions.length + ') ' + region.name + '...</div>';
-                    // โหลดเฉพาะสายส่งหลัก 115 kV ขึ้นไป + สถานีไฟฟ้า + โรงไฟฟ้า
-                    var query = '[out:json][timeout:60];(way["power"="line"]["voltage"~"[1-9][0-9]{5,}"](' + region.bbox + ');node["power"="substation"](' + region.bbox + ');node["power"="plant"](' + region.bbox + ');way["power"="substation"](' + region.bbox + ');way["power"="plant"](' + region.bbox + '););out center geom;';
-                // ลอง Overpass API โดยตรง (ไม่ต้อง CORS proxy — Overpass อนุญาต CORS)
+                var query = '[out:json][timeout:30];(way["power"="line"]' + voltageFilter + '(' + bbox + ');node["power"~"substation|plant"](' + bbox + ');way["power"~"substation|plant"](' + bbox + '););out center geom;';
+
                 var overpassUrls = [
                     'https://overpass-api.de/api/interpreter',
                     'https://overpass.kumi.systems/api/interpreter'
                 ];
-                    var data = null;
-                    for (var oi = 0; oi < overpassUrls.length; oi++) {
-                        try {
-                            var resp = await fetch(overpassUrls[oi], {
-                                method: 'POST',
-                                body: 'data=' + encodeURIComponent(query),
-                                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                                signal: AbortSignal.timeout(60000)
-                            });
-                            data = await resp.json();
-                            if (data && data.elements) break;
-                        } catch(oe) { data = null; }
-                    }
-                    if (data && data.elements) {
-                        data.elements.forEach(function(el) {
-                            var eid = el.type + '/' + el.id;
-                            if (!seenIds[eid]) { seenIds[eid] = true; allElements.push(el); }
+                var data = null;
+                for (var oi = 0; oi < overpassUrls.length; oi++) {
+                    try {
+                        var resp = await fetch(overpassUrls[oi], {
+                            method: 'POST',
+                            body: 'data=' + encodeURIComponent(query),
+                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                            signal: AbortSignal.timeout(30000)
                         });
-                    }
-                    if (ri < thaiRegions.length - 1) await new Promise(function(r) { setTimeout(r, 1500); });
+                        data = await resp.json();
+                        if (data && data.elements) break;
+                    } catch(oe) { data = null; }
                 }
 
-                if (allElements.length === 0) throw new Error('Overpass API ไม่ตอบกลับ — ลองใหม่อีกครั้ง');
+                if (!data || !data.elements || data.elements.length === 0) throw new Error('ไม่พบสายส่งในบริเวณนี้ — ลองซูมเข้าใกล้หรือเลื่อนไปยังพื้นที่ที่มีสายส่ง');
 
                 var lineCount = 0, substationCount = 0, plantCount = 0;
 
-                allElements.forEach(function(el) {
+                data.elements.forEach(function(el) {
                     var isPower = el.tags && el.tags.power;
                     if (!isPower) return;
                     var nm = el.tags.name || el.tags['name:th'] || '';
@@ -7526,7 +7519,7 @@
                 html += '<div><div style="font-size:14px;font-weight:700;color:#ff9800">สายส่งไฟฟ้า — OpenStreetMap</div>';
                 html += '<div style="font-size:11px;color:#aaa">ข้อมูลโครงข่ายไฟฟ้าจาก OSM Community</div></div></div>';
                 html += '<a href="https://openinframap.org/" target="_blank" rel="noopener" style="display:block;text-align:center;background:rgba(255,152,0,.15);border:1px solid #ff9800;color:#ff9800;padding:8px;border-radius:6px;text-decoration:none;font-size:12px;font-weight:600;margin-bottom:8px">🔗 เปิด Open Infrastructure Map</a>';
-                html += '<div style="font-size:10px;color:#888">📍 สายส่งหลัก 115+ kV ทั่วประเทศไทย · จำนวน elements: ' + allElements.length + '</div></div>';
+                html += '<div style="font-size:10px;color:#888">📍 บริเวณ: ' + lat.toFixed(2) + ', ' + lng.toFixed(2) + ' · รัศมี ~' + Math.round(r * 111) + ' กม.' + (voltageFilter ? ' · เฉพาะสายส่งหลัก' : ' · ทุกระดับแรงดัน') + '</div></div>';
 
                 html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px">';
                 html += '<div class="dt-card"><div class="dt-val" style="color:#ffd740;font-size:18px">' + lineCount + '</div><div class="dt-label">🔌 สายส่ง</div></div>';
