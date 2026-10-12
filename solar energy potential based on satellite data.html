@@ -3398,9 +3398,8 @@
                 if (!resp.ok) throw new Error('HTTP ' + resp.status);
                 var gj = await resp.json();
                 var feats = gj.features || [];
-                var totalLines = 0, totalBodies = 0, totalDams = 0, totalLabels = 0;
-                var labelled = {};
-                var BATCH = 50;
+                var totalLines = 0, totalBodies = 0, totalDams = 0;
+                var BATCH = 40;
 
                 function addBatch(start) {
                     var end = Math.min(start + BATCH, feats.length);
@@ -3414,10 +3413,11 @@
 
                         if (g.type === 'LineString' && g.coordinates.length >= 2) {
                             var isMain = nm && MAIN_RIVER_NAMES.indexOf(nm) > -1;
+                            if (tp !== 'dam' && tp !== 'weir' && !isMain) continue;
                             var col, wdt;
-                            if (tp === 'dam') { col = '#ff6f00'; wdt = 5; totalDams++; }
-                            else if (tp === 'weir') { col = '#8d6e63'; wdt = 4; totalDams++; }
-                            else { col = isMain ? '#00b0ff' : '#29b6f6'; wdt = isMain ? 4 : 2.5; totalLines++; }
+                            if (tp === 'dam') { col = '#ff6f00'; wdt = 4; totalDams++; }
+                            else if (tp === 'weir') { col = '#8d6e63'; wdt = 3; totalDams++; }
+                            else { col = '#00b0ff'; wdt = 3; totalLines++; }
 
                             if (nm && tp !== 'dam' && tp !== 'weir') {
                                 var dm = riverDischarge[nm] || (NAME_ALIAS_RIVER[nm] ? riverDischarge[NAME_ALIAS_RIVER[nm]] : null);
@@ -3436,62 +3436,6 @@
                                     material: Cesium.Color.fromCssColorString(col).withAlpha(0.85)
                                 }, show: true
                             }));
-
-                            if (nm && !labelled[nm]) {
-                                labelled[nm] = 1;
-                                var midIdx = Math.floor(g.coordinates.length / 2);
-                                var mc = g.coordinates[midIdx];
-                                var lblFont = isMain ? 'bold 14px' : 'bold 12px';
-                                var lblCol = isMain ? '#4fc3f7' : '#81d4fa';
-                                var lblFar = isMain ? 2e6 : 6e5;
-                                vectorWaterEntities.push(viewer.entities.add({
-                                    position: Cesium.Cartesian3.fromDegrees(mc[0], mc[1]),
-                                    label: {
-                                        text: nm, font: lblFont + ' sans-serif',
-                                        fillColor: Cesium.Color.fromCssColorString(lblCol),
-                                        outlineColor: Cesium.Color.BLACK, outlineWidth: 3,
-                                        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-                                        disableDepthTestDistance: Number.POSITIVE_INFINITY,
-                                        scaleByDistance: new Cesium.NearFarScalar(5e3, 1.0, lblFar, 0.0)
-                                    }, show: true
-                                }));
-                                totalLabels++;
-                            }
-                        } else if (g.type === 'Polygon' && g.coordinates.length > 0) {
-                            var ring = g.coordinates[0];
-                            if (ring.length < 3) continue;
-                            var hArr = [];
-                            var cxSum = 0, cySum = 0;
-                            for (var j = 0; j < ring.length; j++) {
-                                hArr.push(ring[j][0], ring[j][1]);
-                                cxSum += ring[j][0]; cySum += ring[j][1];
-                            }
-                            var bodyCol = tp === 'reservoir' ? '#0d47a1' : '#1565c0';
-                            vectorWaterEntities.push(viewer.entities.add({
-                                polygon: {
-                                    hierarchy: Cesium.Cartesian3.fromDegreesArray(hArr),
-                                    material: Cesium.Color.fromCssColorString(bodyCol).withAlpha(0.35),
-                                    outline: true, outlineColor: Cesium.Color.fromCssColorString('#4fc3f7')
-                                }, show: true
-                            }));
-                            totalBodies++;
-                            if (nm && !labelled[nm]) {
-                                labelled[nm] = 1;
-                                var cx = cxSum / ring.length, cy = cySum / ring.length;
-                                vectorWaterEntities.push(viewer.entities.add({
-                                    position: Cesium.Cartesian3.fromDegrees(cx, cy),
-                                    label: {
-                                        text: (tp === 'reservoir' ? '💧 ' : '') + nm,
-                                        font: 'bold 11px sans-serif',
-                                        fillColor: Cesium.Color.fromCssColorString('#80cbc4'),
-                                        outlineColor: Cesium.Color.BLACK, outlineWidth: 3,
-                                        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-                                        disableDepthTestDistance: Number.POSITIVE_INFINITY,
-                                        scaleByDistance: new Cesium.NearFarScalar(5e3, 1.0, 4e5, 0.0)
-                                    }, show: true
-                                }));
-                                totalLabels++;
-                            }
                         } else if (g.type === 'Point') {
                             if (tp === 'dam' || tp === 'weir') {
                                 var isDam = tp === 'dam';
@@ -3504,15 +3448,14 @@
                             }
                         }
                     }
-                    say('🔄 โหลดแล้ว ' + end + '/' + feats.length + ' features...');
                     if (end < feats.length) {
                         return new Promise(function(resolve) { requestAnimationFrame(function() { resolve(addBatch(end)); }); });
                     }
                 }
 
                 await addBatch(0);
-                say('✅ โหลดเสร็จ — ลำน้ำหลัก <b>' + totalLines.toLocaleString() + '</b> · แหล่งน้ำ <b>' + totalBodies.toLocaleString() + '</b> · เขื่อน/ฝาย <b>' + totalDams.toLocaleString() + '</b> · ป้าย <b>' + totalLabels + '</b>' +
-                    '<br><small style="color:#81d4fa">🗺️ เปิดแผนที่ลำน้ำละเอียด (Vector Tiles) อัตโนมัติ — ดูลำน้ำสายย่อยทุกสาย</small>' +
+                say('✅ โหลดเสร็จ — ลำน้ำหลัก <b>' + totalLines + '</b> เส้น · เขื่อน/ฝาย <b>' + totalDams + '</b>' +
+                    '<br><small style="color:#81d4fa">🗺️ แผนที่ลำน้ำละเอียด (MapLibre) แสดงลำน้ำทุกสาย + ชื่อ</small>' +
                     '<br><button onclick="openWaterwayMapOverlay()" style="margin-top:6px;background:#0288d1;color:#fff;border:none;padding:5px 14px;border-radius:4px;cursor:pointer;font-size:11px">🗺️ เปิด/ปิดแผนที่ลำน้ำ</button>');
                 openWaterwayMapOverlay();
             } catch(e) {
@@ -3537,8 +3480,8 @@
                 '<div style="display:flex;gap:4px;align-items:center;">' +
                 '<select id="wwMapStyle" style="background:#1565c0;color:#fff;border:1px solid #42a5f5;border-radius:4px;padding:3px 6px;font-size:11px;cursor:pointer;">' +
                 '<option value="sat">🛰️ ดาวเทียม</option>' +
-                '<option value="street">🗺️ แผนที่ถนน</option>' +
-                '<option value="dark" selected>🌑 โทนมืด</option>' +
+                '<option value="street" selected>🗺️ แผนที่ถนน</option>' +
+                '<option value="dark">🌑 โทนมืด</option>' +
                 '<option value="topo">⛰️ ภูมิประเทศ</option>' +
                 '</select>' +
                 '<button onclick="document.getElementById(\'waterwayMapOverlay\').style.display=\'none\'" style="background:none;border:none;color:#fff;font-size:18px;cursor:pointer;padding:0 4px;">✕</button></div>';
@@ -3577,7 +3520,7 @@
             var BASEMAPS_ML = {
                 sat: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
                 street: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                dark: 'https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+                dark: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
                 topo: 'https://tile.opentopomap.org/{z}/{x}/{y}.png'
             };
 
@@ -7605,7 +7548,8 @@
                         el.geometry.forEach(function(pt) { coords.push(pt.lon, pt.lat); });
                         if (coords.length < 4) return;
                         var color = voltage >= 230000 ? '#f44336' : voltage >= 115000 ? '#ff9800' : voltage >= 22000 ? '#ffd740' : '#69f0ae';
-                        var width = voltage >= 230000 ? 5 : voltage >= 115000 ? 4 : 3;
+                        var width = voltage >= 230000 ? 3 : voltage >= 115000 ? 2.5 : 2;
+                        if (coords.length > 400) { coords = coords.slice(0, 400); }
                         var ent = viewer.entities.add({
                             name: '🔌 สายส่ง' + (nm ? ' ' + nm : '') + ' (' + vStr + ')',
                             description: '<div style="font-family:sans-serif;padding:8px">' +
@@ -7753,7 +7697,7 @@
                         el.geometry.forEach(function(pt) { coords.push(pt.lon, pt.lat); });
                         if (coords.length < 4) return;
                         var color = voltage >= 230000 ? '#f44336' : voltage >= 115000 ? '#ff9800' : voltage >= 22000 ? '#ffd740' : '#69f0ae';
-                        var width = voltage >= 230000 ? 5 : voltage >= 115000 ? 4 : voltage >= 22000 ? 3 : 2;
+                        var width = voltage >= 230000 ? 3 : voltage >= 115000 ? 2.5 : voltage >= 22000 ? 2 : 1.5;
                         var ent = viewer.entities.add({ name: '🔌 สายส่ง ' + vStr, polyline: { positions: Cesium.Cartesian3.fromDegreesArray(coords), width: width, material: Cesium.Color.fromCssColorString(color).withAlpha(0.85), clampToGround: true } });
                         osmGridEntities.push(ent); added++;
                     } else if (el.tags.power === 'substation' || el.tags.power === 'plant') {
