@@ -1370,7 +1370,7 @@
                         <button class="btn-analyze" style="padding:8px; font-size:11.5px; background:#00695c; color:#fff;"
                                 onclick="loadThailandRivers()">🇹🇭 โหลดแม่น้ำทั้งประเทศไทย</button>
                         <button class="btn-analyze" style="padding:8px; font-size:11.5px; background:#0288d1; color:#fff; margin-top:4px"
-                                onclick="openWaterwayMapOverlay()">🗺️ เปิดแผนที่ลำน้ำละเอียด</button>
+                                onclick="openWaterwayMapOverlay()">🗺️ เปิดแผนที่เฝ้าระวังรวม</button>
                         <button class="btn-goto" style="width:100%; margin-top:5px; padding:6px; font-size:11px;"
                                 onclick="clearVectorWater(); clearOsmWater();">🗑️ ล้างเส้นลำน้ำ</button>
                         <div id="osmStatus" style="font-size:10px; color:#aaa; margin-top:5px; line-height:1.4;"></div>
@@ -3466,8 +3466,8 @@
 
                 await addBatch(0);
                 say('✅ แม่น้ำหลัก <b>' + totalLines + '</b> สาย · เขื่อน/ฝาย <b>' + totalDams + '</b>' +
-                    '<br><small style="color:#81d4fa">แม่น้ำสายหลักวาดบน Globe — กดปุ่มด้านล่างเพื่อดูลำน้ำทุกสายในแผนที่ละเอียด</small>' +
-                    '<br><button onclick="openWaterwayMapOverlay()" style="margin-top:6px;background:#0288d1;color:#fff;border:none;padding:5px 14px;border-radius:4px;cursor:pointer;font-size:11px">🗺️ เปิด/ปิดแผนที่ลำน้ำละเอียด</button>');
+                    '<br><small style="color:#81d4fa">แม่น้ำสายหลักวาดบน Globe — กดปุ่มด้านล่างเพื่อเปิดแผนที่เฝ้าระวังรวม (น้ำ ฝน เขื่อน อากาศ สายส่ง ไฟป่า)</small>' +
+                    '<br><button onclick="openWaterwayMapOverlay()" style="margin-top:6px;background:#0288d1;color:#fff;border:none;padding:5px 14px;border-radius:4px;cursor:pointer;font-size:11px">🗺️ เปิด/ปิดแผนที่เฝ้าระวังรวม</button>');
             } catch(e) {
                 say('<span style="color:#ffcc80">⚠️ โหลดไม่สำเร็จ: ' + e.message + '</span><br><button onclick="loadThailandRivers()" style="margin-top:8px;background:#29b6f6;color:#000;border:none;padding:6px 16px;border-radius:4px;cursor:pointer">ลองใหม่</button>');
             }
@@ -3482,20 +3482,43 @@
 
             var overlay = document.createElement('div');
             overlay.id = 'waterwayMapOverlay';
-            overlay.style.cssText = 'position:fixed;top:60px;right:20px;width:560px;height:520px;z-index:9999;background:#1a1a2e;border:2px solid #0288d1;border-radius:12px;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.6);resize:both;overflow:hidden;min-width:350px;min-height:300px;';
+            overlay.style.cssText = 'position:fixed;top:40px;right:10px;width:680px;height:600px;z-index:9999;background:#0d1117;border:2px solid #0288d1;border-radius:12px;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.7);resize:both;overflow:hidden;min-width:400px;min-height:350px;';
 
             var header = document.createElement('div');
-            header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:8px 14px;background:#0d47a1;border-radius:10px 10px 0 0;cursor:grab;user-select:none;';
-            header.innerHTML = '<span style="color:#fff;font-weight:bold;font-size:13px;">🗺️ แผนที่ลำน้ำละเอียด</span>' +
+            header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:6px 12px;background:linear-gradient(90deg,#0d47a1,#1565c0);border-radius:10px 10px 0 0;cursor:grab;user-select:none;flex-shrink:0;';
+            header.innerHTML = '<span style="color:#fff;font-weight:bold;font-size:13px;">🗺️ แผนที่เฝ้าระวังรวม</span>' +
                 '<div style="display:flex;gap:4px;align-items:center;">' +
-                '<select id="wwMapStyle" style="background:#1565c0;color:#fff;border:1px solid #42a5f5;border-radius:4px;padding:3px 6px;font-size:11px;cursor:pointer;">' +
-                '<option value="sat">🛰️ ดาวเทียม</option>' +
-                '<option value="street" selected>🗺️ แผนที่ถนน</option>' +
-                '<option value="dark">🌑 โทนมืด</option>' +
-                '<option value="topo">⛰️ ภูมิประเทศ</option>' +
-                '</select>' +
+                '<select id="wwMapStyle" style="background:#1565c0;color:#fff;border:1px solid #42a5f5;border-radius:4px;padding:2px 6px;font-size:11px;cursor:pointer;">' +
+                '<option value="sat">🛰️ ดาวเทียม</option><option value="street" selected>🗺️ ถนน</option>' +
+                '<option value="dark">🌑 มืด</option><option value="topo">⛰️ ภูมิประเทศ</option></select>' +
                 '<button onclick="document.getElementById(\'waterwayMapOverlay\').style.display=\'none\'" style="background:none;border:none;color:#fff;font-size:18px;cursor:pointer;padding:0 4px;">✕</button></div>';
             overlay.appendChild(header);
+
+            var layerBar = document.createElement('div');
+            layerBar.style.cssText = 'display:flex;flex-wrap:wrap;gap:3px;padding:5px 8px;background:#161b22;border-bottom:1px solid #30363d;flex-shrink:0;';
+            var LAYERS = [
+                { id: 'rivers', label: '💧 ลำน้ำ', color: '#29b6f6', on: true },
+                { id: 'waterlevel', label: '🌊 ระดับน้ำ', color: '#00e676' },
+                { id: 'dams', label: '🏗️ เขื่อน', color: '#ffd600' },
+                { id: 'rain', label: '🌧️ ฝน', color: '#42a5f5' },
+                { id: 'air', label: '😷 อากาศ', color: '#ef5350' },
+                { id: 'grid', label: '⚡ สายส่ง', color: '#ff9800' },
+                { id: 'fire', label: '🔥 ไฟป่า', color: '#ff5722' }
+            ];
+            LAYERS.forEach(function(ly) {
+                var chip = document.createElement('label');
+                chip.style.cssText = 'display:flex;align-items:center;gap:3px;padding:2px 7px;border-radius:10px;font-size:11px;cursor:pointer;color:#ccc;background:#21262d;border:1px solid #30363d;transition:all .2s;white-space:nowrap;';
+                chip.innerHTML = '<input type="checkbox" data-layer="' + ly.id + '"' + (ly.on ? ' checked' : '') + ' style="accent-color:' + ly.color + ';margin:0;width:13px;height:13px;cursor:pointer;">' + ly.label;
+                if (ly.on) chip.style.cssText += 'background:#1a3a5c;border-color:' + ly.color + ';color:#fff;';
+                layerBar.appendChild(chip);
+            });
+            overlay.appendChild(layerBar);
+
+            var statusBar = document.createElement('div');
+            statusBar.id = 'wwStatus';
+            statusBar.style.cssText = 'padding:2px 10px;font-size:10px;color:#8b949e;background:#0d1117;flex-shrink:0;min-height:16px;';
+            statusBar.textContent = 'พร้อมใช้งาน';
+            overlay.appendChild(statusBar);
 
             var isDragging = false, dragX = 0, dragY = 0;
             header.addEventListener('mousedown', function(e) {
@@ -3508,15 +3531,14 @@
 
             if (!document.getElementById('maplibreCSS')) {
                 var cssLink = document.createElement('link');
-                cssLink.id = 'maplibreCSS';
-                cssLink.rel = 'stylesheet';
+                cssLink.id = 'maplibreCSS'; cssLink.rel = 'stylesheet';
                 cssLink.href = 'https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.css';
                 document.head.appendChild(cssLink);
             }
 
             var mapDiv = document.createElement('div');
             mapDiv.id = 'waterwayMapContainer';
-            mapDiv.style.cssText = 'flex:1;width:100%;';
+            mapDiv.style.cssText = 'flex:1;width:100%;min-height:0;';
             overlay.appendChild(mapDiv);
             document.body.appendChild(overlay);
 
@@ -3526,6 +3548,271 @@
                 dark: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
                 topo: 'https://tile.opentopomap.org/{z}/{x}/{y}.png'
             };
+
+            var _layerCache = {};
+            function setStatus(t) { document.getElementById('wwStatus').textContent = t; }
+
+            function addClusteredLayer(map, srcId, data, color, popupFn) {
+                if (map.getSource(srcId)) {
+                    map.getSource(srcId).setData(data);
+                    ['cluster','count','point'].forEach(function(s) { var lid = srcId + '-' + s; if (map.getLayer(lid)) map.setLayoutProperty(lid, 'visibility', 'visible'); });
+                    return;
+                }
+                map.addSource(srcId, { type: 'geojson', data: data, cluster: true, clusterRadius: 50, clusterMaxZoom: 14 });
+                map.addLayer({ id: srcId + '-cluster', type: 'circle', source: srcId, filter: ['has', 'point_count'],
+                    paint: { 'circle-color': color, 'circle-opacity': 0.7, 'circle-radius': ['step', ['get', 'point_count'], 14, 10, 18, 50, 24, 200, 30] } });
+                map.addLayer({ id: srcId + '-count', type: 'symbol', source: srcId, filter: ['has', 'point_count'],
+                    layout: { 'text-field': '{point_count_abbreviated}', 'text-size': 11, 'text-font': ['Noto Sans Regular'] },
+                    paint: { 'text-color': '#fff' } });
+                map.addLayer({ id: srcId + '-point', type: 'circle', source: srcId, filter: ['!', ['has', 'point_count']],
+                    paint: { 'circle-color': ['get', 'color'], 'circle-radius': ['interpolate', ['linear'], ['zoom'], 5, 4, 12, 7], 'circle-stroke-width': 1, 'circle-stroke-color': '#fff', 'circle-opacity': 0.85 } });
+                map.on('click', srcId + '-cluster', function(e) {
+                    map.getSource(srcId).getClusterExpansionZoom(e.features[0].properties.cluster_id, function(err, z) {
+                        if (!err) map.easeTo({ center: e.features[0].geometry.coordinates, zoom: z });
+                    });
+                });
+                map.on('click', srcId + '-point', function(e) {
+                    var f = e.features[0];
+                    new maplibregl.Popup({ maxWidth: '280px', className: 'ww-popup' })
+                        .setLngLat(f.geometry.coordinates)
+                        .setHTML(popupFn(f.properties))
+                        .addTo(map);
+                });
+                map.on('mouseenter', srcId + '-point', function() { map.getCanvas().style.cursor = 'pointer'; });
+                map.on('mouseleave', srcId + '-point', function() { map.getCanvas().style.cursor = ''; });
+                map.on('mouseenter', srcId + '-cluster', function() { map.getCanvas().style.cursor = 'pointer'; });
+                map.on('mouseleave', srcId + '-cluster', function() { map.getCanvas().style.cursor = ''; });
+            }
+
+            function hideLayer(map, srcId) {
+                ['cluster','count','point','line'].forEach(function(s) {
+                    var lid = srcId + '-' + s;
+                    if (map.getLayer(lid)) map.setLayoutProperty(lid, 'visibility', 'none');
+                });
+            }
+
+            function toggleChipStyle(cb) {
+                var chip = cb.parentElement;
+                var ly = LAYERS.find(function(l) { return l.id === cb.dataset.layer; });
+                if (cb.checked) { chip.style.background = '#1a3a5c'; chip.style.borderColor = ly ? ly.color : '#58a6ff'; chip.style.color = '#fff'; }
+                else { chip.style.background = '#21262d'; chip.style.borderColor = '#30363d'; chip.style.color = '#ccc'; }
+            }
+
+            function loadWaterLevelData(map) {
+                if (_layerCache.waterlevel) { addClusteredLayer(map, 'waterlevel', _layerCache.waterlevel, '#00e676', popupWL); return; }
+                setStatus('⏳ กำลังโหลดสถานีวัดระดับน้ำ...');
+                fetch('https://api-v3.thaiwater.net/api/v1/thaiwater30/public/waterlevel_load').then(function(r) { return r.json(); }).then(function(wj) {
+                    var arr = (wj.waterlevel_data && wj.waterlevel_data.data) ? wj.waterlevel_data.data : [];
+                    var features = [];
+                    arr.forEach(function(w) {
+                        var lat = w.station && w.station.tele_station_lat; var lng = w.station && w.station.tele_station_long;
+                        if (!lat || !lng || lat < 5 || lat > 21 || lng < 97 || lng > 106) return;
+                        var name = (w.station && w.station.tele_station_name && w.station.tele_station_name.th) || '';
+                        var prov = (w.station && w.station.province && w.station.province.province_name && w.station.province.province_name.th) || '';
+                        var basin = (w.station && w.station.basin && w.station.basin.basin_name && w.station.basin.basin_name.th) || '';
+                        var wl = w.waterlevel_msl; var pct = w.storage_percent;
+                        var col = pct > 100 ? '#d50000' : pct > 80 ? '#ff6d00' : pct > 50 ? '#ffd600' : pct > 20 ? '#00e676' : '#42a5f5';
+                        features.push({ type: 'Feature', geometry: { type: 'Point', coordinates: [lng, lat] },
+                            properties: { name: name, province: prov, basin: basin, wl: wl, pct: pct, color: col } });
+                    });
+                    var gj = { type: 'FeatureCollection', features: features };
+                    _layerCache.waterlevel = gj;
+                    addClusteredLayer(map, 'waterlevel', gj, '#00e676', popupWL);
+                    setStatus('✅ สถานีวัดน้ำ ' + features.length + ' สถานี');
+                }).catch(function(e) { setStatus('❌ โหลดสถานีวัดน้ำล้มเหลว'); });
+            }
+            function popupWL(p) {
+                var pctTxt = p.pct !== null && p.pct !== undefined ? p.pct + '%' : '-';
+                return '<div style="font-size:12px;line-height:1.6"><b>🌊 ' + (p.name || '-') + '</b><br>' +
+                    '📍 ' + (p.province || '-') + ' · ลุ่มน้ำ' + (p.basin || '-') + '<br>' +
+                    '💧 ระดับน้ำ: <b>' + (p.wl !== null ? p.wl + ' ม.รทก.' : '-') + '</b><br>' +
+                    '📊 ปริมาณกักเก็บ: <b style="color:' + p.color + '">' + pctTxt + '</b></div>';
+            }
+
+            function loadDamsData(map) {
+                if (_layerCache.dams) { addClusteredLayer(map, 'dams', _layerCache.dams, '#ffd600', popupDam); return; }
+                setStatus('⏳ กำลังโหลดข้อมูลเขื่อน...');
+                fetch('https://api-v3.thaiwater.net/api/v1/thaiwater30/analyst/dam').then(function(r) { return r.json(); }).then(function(dj) {
+                    var arr = dj.data || dj || [];
+                    if (arr.dam) arr = arr.dam; if (arr.data) arr = arr.data;
+                    if (!Array.isArray(arr)) { var flat = []; Object.keys(arr).forEach(function(k) { if (Array.isArray(arr[k])) flat = flat.concat(arr[k]); }); arr = flat; }
+                    var features = [];
+                    arr.forEach(function(d) {
+                        var lat = d.lat || (d.station && d.station.lat); var lng = d.long || d.lng || (d.station && d.station.long);
+                        if (!lat || !lng) return;
+                        var name = d.dam_name || (d.station && d.station.name) || '';
+                        var prov = d.province || ''; var stor = d.dam_storage || 0; var cap = d.normal_storage || d.max_storage || 0;
+                        var pct = cap > 0 ? Math.round(stor / cap * 100) : null;
+                        var inflow = d.dam_inflow || 0; var released = d.dam_released || 0;
+                        var col = pct === null ? '#78909c' : pct > 100 ? '#d50000' : pct > 80 ? '#ff6d00' : pct > 50 ? '#ffd600' : pct > 20 ? '#66bb6a' : '#42a5f5';
+                        features.push({ type: 'Feature', geometry: { type: 'Point', coordinates: [lng, lat] },
+                            properties: { name: name, province: prov, storage: stor, cap: cap, pct: pct, inflow: inflow, released: released, color: col } });
+                    });
+                    var gj = { type: 'FeatureCollection', features: features };
+                    _layerCache.dams = gj;
+                    addClusteredLayer(map, 'dams', gj, '#ffd600', popupDam);
+                    setStatus('✅ เขื่อน ' + features.length + ' แห่ง');
+                }).catch(function(e) { setStatus('❌ โหลดเขื่อนล้มเหลว — ' + e.message); });
+            }
+            function popupDam(p) {
+                return '<div style="font-size:12px;line-height:1.6"><b>🏗️ ' + (p.name || '-') + '</b><br>' +
+                    '📍 ' + (p.province || '-') + '<br>' +
+                    '💧 กักเก็บ: <b>' + (p.storage ? Number(p.storage).toLocaleString() : '-') + '</b> / ' + (p.cap ? Number(p.cap).toLocaleString() : '-') + ' ล้าน ลบ.ม.<br>' +
+                    '📊 <b style="color:' + p.color + '">' + (p.pct !== null ? p.pct + '%' : '-') + '</b> · รับ ' + (p.inflow || 0) + ' · ปล่อย ' + (p.released || 0) + ' ล้าน ลบ.ม.</div>';
+            }
+
+            function loadRainData(map) {
+                if (_layerCache.rain) { addClusteredLayer(map, 'rain', _layerCache.rain, '#42a5f5', popupRain); return; }
+                setStatus('⏳ กำลังโหลดสถานีวัดฝน...');
+                fetch('https://api-v3.thaiwater.net/api/v1/thaiwater30/public/rain_24h').then(function(r) { return r.json(); }).then(function(rj) {
+                    var arr = (rj.rain_data && rj.rain_data.data) ? rj.rain_data.data : [];
+                    var features = [];
+                    arr.forEach(function(r) {
+                        var lat = r.station && r.station.tele_station_lat; var lng = r.station && r.station.tele_station_long;
+                        if (!lat || !lng || lat < 5 || lat > 21 || lng < 97 || lng > 106) return;
+                        var name = (r.station && r.station.tele_station_name && r.station.tele_station_name.th) || '';
+                        var prov = (r.station && r.station.province && r.station.province.province_name && r.station.province.province_name.th) || '';
+                        var rain24 = r.rain_24h; var rain1 = r.rain_1h;
+                        var col = rain24 > 90 ? '#d50000' : rain24 > 35 ? '#ff6d00' : rain24 > 10 ? '#ffd600' : rain24 > 0.1 ? '#66bb6a' : '#78909c';
+                        features.push({ type: 'Feature', geometry: { type: 'Point', coordinates: [lng, lat] },
+                            properties: { name: name, province: prov, rain24: rain24, rain1: rain1, color: col } });
+                    });
+                    var gj = { type: 'FeatureCollection', features: features };
+                    _layerCache.rain = gj;
+                    addClusteredLayer(map, 'rain', gj, '#42a5f5', popupRain);
+                    setStatus('✅ สถานีฝน ' + features.length + ' สถานี');
+                }).catch(function(e) { setStatus('❌ โหลดข้อมูลฝนล้มเหลว'); });
+            }
+            function popupRain(p) {
+                return '<div style="font-size:12px;line-height:1.6"><b>🌧️ ' + (p.name || '-') + '</b><br>' +
+                    '📍 ' + (p.province || '-') + '<br>' +
+                    '☔ ฝน 24 ชม.: <b style="color:' + p.color + '">' + (p.rain24 !== null ? p.rain24 + ' มม.' : '-') + '</b><br>' +
+                    '💧 ฝน 1 ชม.: ' + (p.rain1 !== null ? p.rain1 + ' มม.' : '-') + '</div>';
+            }
+
+            function loadAirData(map) {
+                if (_layerCache.air) { addClusteredLayer(map, 'air', _layerCache.air, '#ef5350', popupAir); return; }
+                setStatus('⏳ กำลังโหลดสถานีตรวจอากาศ...');
+                fetch('https://air4thai.com/forweb/getAQI_JSON.php').then(function(r) { return r.json(); }).then(function(aj) {
+                    var arr = aj.stations || aj || [];
+                    var features = [];
+                    arr.forEach(function(s) {
+                        var lat = parseFloat(s.lat); var lng = parseFloat(s.long);
+                        if (!lat || !lng || isNaN(lat)) return;
+                        var aqi = s.LastUpdate && s.LastUpdate.AQI ? parseInt(s.LastUpdate.AQI.aqi) : null;
+                        var pm25 = s.LastUpdate && s.LastUpdate.PM25 ? s.LastUpdate.PM25.value : null;
+                        var col = aqi > 200 ? '#7e0023' : aqi > 100 ? '#d50000' : aqi > 50 ? '#ff6d00' : aqi > 25 ? '#ffd600' : '#66bb6a';
+                        features.push({ type: 'Feature', geometry: { type: 'Point', coordinates: [lng, lat] },
+                            properties: { name: s.nameTH || s.nameEN || '', area: s.areaTH || '', aqi: aqi, pm25: pm25, color: col } });
+                    });
+                    var gj = { type: 'FeatureCollection', features: features };
+                    _layerCache.air = gj;
+                    addClusteredLayer(map, 'air', gj, '#ef5350', popupAir);
+                    setStatus('✅ สถานีอากาศ ' + features.length + ' สถานี');
+                }).catch(function(e) { setStatus('❌ โหลดข้อมูลอากาศล้มเหลว'); });
+            }
+            function popupAir(p) {
+                return '<div style="font-size:12px;line-height:1.6"><b>😷 ' + (p.name || '-') + '</b><br>' +
+                    '📍 ' + (p.area || '-') + '<br>' +
+                    '🎯 AQI: <b style="color:' + p.color + '">' + (p.aqi || '-') + '</b><br>' +
+                    '🌫️ PM2.5: <b>' + (p.pm25 || '-') + '</b> µg/m³</div>';
+            }
+
+            function loadGridData(map) {
+                if (_layerCache.grid) { addGridToMap(map, _layerCache.grid); return; }
+                setStatus('⏳ กำลังโหลดสายส่งไฟฟ้า...');
+                var cam = viewer.camera.positionCartographic;
+                var cLat = Cesium.Math.toDegrees(cam.latitude);
+                var cLng = Cesium.Math.toDegrees(cam.longitude);
+                var r = 1.5;
+                var bbox = (cLat - r) + ',' + (cLng - r) + ',' + (cLat + r) + ',' + (cLng + r);
+                var q = '[out:json][timeout:30];(way["power"="line"](' + bbox + ');node["power"="substation"](' + bbox + ');node["power"="plant"](' + bbox + '););out geom;';
+                var urls = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
+                tryOverpassGrid(map, urls, 0, q);
+            }
+            function tryOverpassGrid(map, urls, idx, q) {
+                if (idx >= urls.length) { setStatus('❌ โหลดสายส่งล้มเหลว'); return; }
+                var fd = new URLSearchParams(); fd.append('data', q);
+                fetch(urls[idx], { method: 'POST', body: fd }).then(function(r) { return r.json(); }).then(function(oj) {
+                    var lineFeats = [], ptFeats = [];
+                    (oj.elements || []).forEach(function(el) {
+                        if (el.type === 'way' && el.geometry) {
+                            var coords = el.geometry.map(function(p) { return [p.lon, p.lat]; });
+                            if (coords.length < 2) return;
+                            var v = parseInt(el.tags && el.tags.voltage) || 0;
+                            var col = v >= 230000 ? '#f44336' : v >= 115000 ? '#ff9800' : v >= 22000 ? '#ffeb3b' : '#66bb6a';
+                            var w = v >= 230000 ? 2.5 : v >= 115000 ? 2 : 1.5;
+                            lineFeats.push({ type: 'Feature', geometry: { type: 'LineString', coordinates: coords },
+                                properties: { voltage: v, color: col, width: w, name: (el.tags && el.tags.name) || '' } });
+                        } else if (el.type === 'node' && el.lat && el.lon) {
+                            var tp = (el.tags && el.tags.power) || '';
+                            ptFeats.push({ type: 'Feature', geometry: { type: 'Point', coordinates: [el.lon, el.lat] },
+                                properties: { name: (el.tags && el.tags.name) || tp, type: tp, color: tp === 'plant' ? '#f44336' : '#ff9800' } });
+                        }
+                    });
+                    var data = { lines: { type: 'FeatureCollection', features: lineFeats }, points: { type: 'FeatureCollection', features: ptFeats } };
+                    _layerCache.grid = data;
+                    addGridToMap(map, data);
+                    setStatus('✅ สายส่ง ' + lineFeats.length + ' เส้น · สถานี ' + ptFeats.length + ' แห่ง');
+                }).catch(function() { tryOverpassGrid(map, urls, idx + 1, q); });
+            }
+            function addGridToMap(map, data) {
+                if (!map.getSource('grid-lines')) {
+                    map.addSource('grid-lines', { type: 'geojson', data: data.lines });
+                    map.addLayer({ id: 'grid-lines-line', type: 'line', source: 'grid-lines',
+                        paint: { 'line-color': ['get', 'color'], 'line-width': ['get', 'width'], 'line-opacity': 0.75 } });
+                    map.on('click', 'grid-lines-line', function(e) {
+                        var f = e.features[0]; var v = f.properties.voltage;
+                        new maplibregl.Popup({ maxWidth: '200px' }).setLngLat(e.lngLat)
+                            .setHTML('<b>⚡ ' + (f.properties.name || 'สายส่ง') + '</b><br>แรงดัน: ' + (v >= 1000 ? (v / 1000) + ' kV' : v + ' V'))
+                            .addTo(map);
+                    });
+                } else { map.getSource('grid-lines').setData(data.lines); }
+                if (map.getLayer('grid-lines-line')) map.setLayoutProperty('grid-lines-line', 'visibility', 'visible');
+                if (data.points.features.length) {
+                    addClusteredLayer(map, 'grid-pts', data.points, '#ff9800', function(p) {
+                        return '<b>⚡ ' + (p.name || '-') + '</b><br>ประเภท: ' + (p.type === 'plant' ? 'โรงไฟฟ้า' : 'สถานีไฟฟ้า');
+                    });
+                }
+            }
+
+            function loadFireData(map) {
+                if (_layerCache.fire) { addClusteredLayer(map, 'fire', _layerCache.fire, '#ff5722', popupFire); return; }
+                setStatus('⏳ กำลังโหลดจุดความร้อน NASA FIRMS...');
+                var csvUrl = 'https://firms.modaps.eosdis.nasa.gov/data/active_fire/suomi-npp-viirs-c2/csv/SUOMI_VIIRS_C2_Southeast_Asia_24h.csv';
+                var proxies = ['https://corsproxy.io/?', 'https://api.allorigins.win/raw?url='];
+                tryFIRMS(map, csvUrl, proxies, 0);
+            }
+            function tryFIRMS(map, csvUrl, proxies, idx) {
+                var url = idx < proxies.length ? proxies[idx] + encodeURIComponent(csvUrl) : csvUrl;
+                fetch(url).then(function(r) { return r.text(); }).then(function(csv) {
+                    var lines = csv.trim().split('\n');
+                    if (lines.length < 2) throw new Error('empty');
+                    var hdr = lines[0].split(',');
+                    var iLat = hdr.indexOf('latitude'), iLng = hdr.indexOf('longitude'), iBrt = hdr.indexOf('bright_ti4'), iConf = hdr.indexOf('confidence'), iFrp = hdr.indexOf('frp'), iDate = hdr.indexOf('acq_date'), iTime = hdr.indexOf('acq_time');
+                    var features = [];
+                    for (var i = 1; i < lines.length; i++) {
+                        var cols = lines[i].split(',');
+                        var lat = parseFloat(cols[iLat]), lng = parseFloat(cols[iLng]);
+                        if (lat < 5 || lat > 21 || lng < 97 || lng > 106) continue;
+                        var frp = parseFloat(cols[iFrp]) || 0;
+                        var col = frp > 50 ? '#d50000' : frp > 10 ? '#ff6d00' : '#ff9800';
+                        features.push({ type: 'Feature', geometry: { type: 'Point', coordinates: [lng, lat] },
+                            properties: { bright: cols[iBrt] || '-', conf: cols[iConf] || '-', frp: frp, date: cols[iDate] || '', time: cols[iTime] || '', color: col } });
+                    }
+                    var gj = { type: 'FeatureCollection', features: features };
+                    _layerCache.fire = gj;
+                    addClusteredLayer(map, 'fire', gj, '#ff5722', popupFire);
+                    setStatus('✅ จุดความร้อน ' + features.length + ' จุด (24 ชม.)');
+                }).catch(function() { if (idx + 1 < proxies.length + 1) tryFIRMS(map, csvUrl, proxies, idx + 1); else setStatus('❌ โหลด FIRMS ล้มเหลว'); });
+            }
+            function popupFire(p) {
+                return '<div style="font-size:12px;line-height:1.6"><b>🔥 จุดความร้อน</b><br>' +
+                    '🌡️ ความสว่าง: ' + p.bright + ' K<br>' +
+                    '🔥 FRP: <b style="color:' + p.color + '">' + p.frp + '</b> MW<br>' +
+                    '📊 ความเชื่อมั่น: ' + p.conf + '<br>' +
+                    '🕐 ' + p.date + ' ' + p.time + '</div>';
+            }
 
             function initWaterwayMap() {
                 var cam = viewer.camera.positionCartographic;
@@ -3538,13 +3825,10 @@
                     style: {
                         version: 8,
                         glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
-                        sources: {
-                            basemap: { type: 'raster', tiles: [BASEMAPS_ML[selStyle]], tileSize: 256, attribution: '© OpenStreetMap' }
-                        },
+                        sources: { basemap: { type: 'raster', tiles: [BASEMAPS_ML[selStyle]], tileSize: 256, attribution: '© OSM' } },
                         layers: [{ id: 'basemap', type: 'raster', source: 'basemap' }]
                     },
-                    center: [cLng, cLat],
-                    zoom: 9
+                    center: [cLng, cLat], zoom: 8
                 });
                 window._wwMap = map;
 
@@ -3555,48 +3839,80 @@
                     fetch('https://tiles.openfreemap.org/planet').then(function(r) { return r.json(); }).then(function(tj) {
                         var tileUrl = tj.tiles ? tj.tiles[0] : 'https://tiles.openfreemap.org/planet/{z}/{x}/{y}.pbf';
                         map.addSource('ofm', { type: 'vector', tiles: [tileUrl], minzoom: 0, maxzoom: 14 });
-
                         map.addLayer({ id: 'water-area', type: 'fill', source: 'ofm', 'source-layer': 'water',
-                            paint: { 'fill-color': '#1565c0', 'fill-opacity': 0.4 } });
+                            paint: { 'fill-color': '#1565c0', 'fill-opacity': 0.35 } });
                         map.addLayer({ id: 'ww-glow', type: 'line', source: 'ofm', 'source-layer': 'waterway',
                             filter: ['in', 'class', 'river'],
-                            paint: { 'line-color': '#00b0ff', 'line-width': ['interpolate', ['linear'], ['zoom'], 5, 4, 10, 10, 14, 16], 'line-opacity': 0.15, 'line-blur': 4 } });
+                            paint: { 'line-color': '#00b0ff', 'line-width': ['interpolate', ['linear'], ['zoom'], 5, 3, 10, 8, 14, 14], 'line-opacity': 0.12, 'line-blur': 4 } });
                         map.addLayer({ id: 'ww-all', type: 'line', source: 'ofm', 'source-layer': 'waterway',
-                            paint: { 'line-color': '#29b6f6', 'line-width': ['interpolate', ['linear'], ['zoom'], 5, 0.5, 10, 2, 14, 4], 'line-opacity': 0.7 } });
+                            paint: { 'line-color': '#29b6f6', 'line-width': ['interpolate', ['linear'], ['zoom'], 5, 0.4, 10, 1.5, 14, 3], 'line-opacity': 0.65 } });
                         map.addLayer({ id: 'ww-main', type: 'line', source: 'ofm', 'source-layer': 'waterway',
                             filter: ['in', 'class', 'river'],
-                            paint: { 'line-color': '#00b0ff', 'line-width': ['interpolate', ['linear'], ['zoom'], 5, 1.5, 10, 4, 14, 7], 'line-opacity': 0.9 } });
+                            paint: { 'line-color': '#00b0ff', 'line-width': ['interpolate', ['linear'], ['zoom'], 5, 1, 10, 3, 14, 6], 'line-opacity': 0.85 } });
                         map.addLayer({ id: 'ww-label', type: 'symbol', source: 'ofm', 'source-layer': 'waterway',
                             filter: ['has', 'name'],
                             layout: { 'symbol-placement': 'line', 'text-field': ['get', 'name'],
-                                'text-size': ['interpolate', ['linear'], ['zoom'], 7, 10, 12, 14],
-                                'text-font': ['Noto Sans Regular'], 'text-max-angle': 30, 'symbol-spacing': 250 },
-                            paint: { 'text-color': '#e1f5fe', 'text-halo-color': 'rgba(0,0,0,0.8)', 'text-halo-width': 2 } });
+                                'text-size': ['interpolate', ['linear'], ['zoom'], 7, 9, 12, 13],
+                                'text-font': ['Noto Sans Regular'], 'text-max-angle': 30, 'symbol-spacing': 300 },
+                            paint: { 'text-color': '#b3e5fc', 'text-halo-color': 'rgba(0,0,0,0.9)', 'text-halo-width': 2 } });
                         map.addLayer({ id: 'water-label', type: 'symbol', source: 'ofm', 'source-layer': 'water_name',
-                            layout: { 'text-field': ['get', 'name'], 'text-size': 12, 'text-font': ['Noto Sans Regular'] },
-                            paint: { 'text-color': '#b3e5fc', 'text-halo-color': 'rgba(0,0,0,0.7)', 'text-halo-width': 1.5 } });
+                            layout: { 'text-field': ['get', 'name'], 'text-size': 11, 'text-font': ['Noto Sans Regular'] },
+                            paint: { 'text-color': '#80cbc4', 'text-halo-color': 'rgba(0,0,0,0.8)', 'text-halo-width': 1.5 } });
                         map.addLayer({ id: 'boundary', type: 'line', source: 'ofm', 'source-layer': 'boundary',
                             filter: ['<=', 'admin_level', 6],
-                            paint: { 'line-color': '#616161', 'line-width': 1, 'line-dasharray': [3, 2], 'line-opacity': 0.5 } });
+                            paint: { 'line-color': '#555', 'line-width': 0.8, 'line-dasharray': [3, 2], 'line-opacity': 0.4 } });
                         map.addLayer({ id: 'road', type: 'line', source: 'ofm', 'source-layer': 'transportation',
                             filter: ['in', 'class', 'motorway', 'trunk', 'primary'],
-                            paint: { 'line-color': '#555', 'line-width': ['interpolate', ['linear'], ['zoom'], 5, 0.3, 12, 1.5], 'line-opacity': 0.4 } });
+                            paint: { 'line-color': '#555', 'line-width': ['interpolate', ['linear'], ['zoom'], 5, 0.2, 12, 1.2], 'line-opacity': 0.35 } });
                         map.addLayer({ id: 'place-label', type: 'symbol', source: 'ofm', 'source-layer': 'place',
-                            filter: ['in', 'class', 'city', 'town', 'village'],
-                            layout: { 'text-field': ['get', 'name'], 'text-size': ['match', ['get', 'class'], 'city', 14, 'town', 12, 10], 'text-font': ['Noto Sans Regular'] },
-                            paint: { 'text-color': '#ffcc80', 'text-halo-color': 'rgba(0,0,0,0.7)', 'text-halo-width': 1.5 } });
+                            filter: ['in', 'class', 'city', 'town'],
+                            layout: { 'text-field': ['get', 'name'], 'text-size': ['match', ['get', 'class'], 'city', 13, 11], 'text-font': ['Noto Sans Regular'] },
+                            paint: { 'text-color': '#e0e0e0', 'text-halo-color': 'rgba(0,0,0,0.7)', 'text-halo-width': 1.5 } });
+                    });
+
+                    layerBar.querySelectorAll('input[type=checkbox]').forEach(function(cb) {
+                        if (cb.checked && cb.dataset.layer !== 'rivers') {
+                            toggleLayer(map, cb.dataset.layer, true);
+                        }
                     });
                 });
+
+                var popupStyle = document.createElement('style');
+                popupStyle.textContent = '.ww-popup .maplibregl-popup-content{background:#1a1a2e;color:#e0e0e0;border:1px solid #304ffe;border-radius:8px;padding:10px 12px;box-shadow:0 4px 16px rgba(0,0,0,0.5);} .ww-popup .maplibregl-popup-tip{border-top-color:#304ffe;}';
+                document.head.appendChild(popupStyle);
 
                 document.getElementById('wwMapStyle').addEventListener('change', function() {
                     var newTiles = BASEMAPS_ML[this.value];
                     if (map.getSource('basemap')) { map.removeLayer('basemap'); map.removeSource('basemap'); }
                     map.addSource('basemap', { type: 'raster', tiles: [newTiles], tileSize: 256 });
-                    var firstOFM = map.getStyle().layers.find(function(l) { return l.source === 'ofm'; });
-                    map.addLayer({ id: 'basemap', type: 'raster', source: 'basemap' }, firstOFM ? firstOFM.id : undefined);
+                    var firstNon = map.getStyle().layers.find(function(l) { return l.source && l.source !== 'basemap'; });
+                    map.addLayer({ id: 'basemap', type: 'raster', source: 'basemap' }, firstNon ? firstNon.id : undefined);
                 });
 
-                // Sync CesiumJS camera → MapLibre
+                function toggleLayer(m, id, on) {
+                    if (id === 'rivers') {
+                        var vis = on ? 'visible' : 'none';
+                        ['water-area','ww-glow','ww-all','ww-main','ww-label','water-label'].forEach(function(lid) { if (m.getLayer(lid)) m.setLayoutProperty(lid, 'visibility', vis); });
+                    } else if (on) {
+                        if (id === 'waterlevel') loadWaterLevelData(m);
+                        else if (id === 'dams') loadDamsData(m);
+                        else if (id === 'rain') loadRainData(m);
+                        else if (id === 'air') loadAirData(m);
+                        else if (id === 'grid') loadGridData(m);
+                        else if (id === 'fire') loadFireData(m);
+                    } else {
+                        hideLayer(m, id);
+                        if (id === 'grid') { hideLayer(m, 'grid-lines'); hideLayer(m, 'grid-pts'); }
+                    }
+                }
+
+                layerBar.querySelectorAll('input[type=checkbox]').forEach(function(cb) {
+                    cb.addEventListener('change', function() {
+                        toggleChipStyle(this);
+                        if (map.loaded()) toggleLayer(map, this.dataset.layer, this.checked);
+                    });
+                });
+
                 var syncThrottle = null;
                 viewer.camera.changed.addEventListener(function() {
                     if (syncThrottle) return;
