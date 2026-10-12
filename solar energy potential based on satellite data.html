@@ -3388,14 +3388,89 @@
 
             osmLoading = true;
             removeVectorWaterEntities();
-            say('🔄 กำลังเปิดแผนที่ลำน้ำ...');
+            say('🔄 กำลังโหลดแม่น้ำหลัก...');
 
             await ensureRiverDischarge();
 
-            say('✅ เปิดแผนที่ลำน้ำละเอียด (MapLibre + OpenFreeMap Vector Tiles)' +
-                '<br><small style="color:#81d4fa">แสดงแม่น้ำทุกสาย คลอง แหล่งน้ำ พร้อมชื่อ — เลื่อนซูมดูรายละเอียดได้เลย</small>' +
-                '<br><button onclick="openWaterwayMapOverlay()" style="margin-top:6px;background:#0288d1;color:#fff;border:none;padding:5px 14px;border-radius:4px;cursor:pointer;font-size:11px">🗺️ เปิด/ปิดแผนที่ลำน้ำ</button>');
-            openWaterwayMapOverlay();
+            try {
+                var resp = await fetch('data/thailand_rivers_major.geojson');
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
+                var gj = await resp.json();
+                var feats = gj.features || [];
+                var totalLines = 0, totalDams = 0;
+                var labelled = {};
+                var BATCH = 30;
+
+                function addBatch(start) {
+                    var end = Math.min(start + BATCH, feats.length);
+                    for (var i = start; i < end; i++) {
+                        var feat = feats[i];
+                        var p = feat.properties || {};
+                        var tp = p.type || '';
+                        var nm = p.name || '';
+                        var g = feat.geometry;
+                        if (!g) continue;
+
+                        if (g.type === 'LineString' && g.coordinates.length >= 2) {
+                            var isMain = nm && MAIN_RIVER_NAMES.indexOf(nm) > -1;
+                            if (tp === 'dam' || tp === 'weir') {
+                                totalDams++;
+                            } else if (!isMain) {
+                                continue;
+                            } else {
+                                totalLines++;
+                            }
+                            var col, wdt;
+                            if (tp === 'dam') { col = '#ff6f00'; wdt = 3; }
+                            else if (tp === 'weir') { col = '#8d6e63'; wdt = 2; }
+                            else { col = '#00b0ff'; wdt = 2.5; }
+
+                            if (nm && tp !== 'dam' && tp !== 'weir') {
+                                var dm = riverDischarge[nm] || (NAME_ALIAS_RIVER[nm] ? riverDischarge[NAME_ALIAS_RIVER[nm]] : null);
+                                if (dm) { var dSt = dischargeStyle(dm.today); col = dSt.col; wdt = Math.max(wdt, dSt.w); }
+                            }
+
+                            var positions = [];
+                            for (var j = 0; j < g.coordinates.length; j++) {
+                                positions.push(g.coordinates[j][0], g.coordinates[j][1]);
+                            }
+                            vectorWaterEntities.push(viewer.entities.add({
+                                polyline: { positions: Cesium.Cartesian3.fromDegreesArray(positions), width: wdt, material: Cesium.Color.fromCssColorString(col).withAlpha(0.85), clampToGround: true },
+                                show: true
+                            }));
+
+                            if (nm && !labelled[nm] && tp !== 'dam' && tp !== 'weir') {
+                                labelled[nm] = 1;
+                                var midIdx = Math.floor(g.coordinates.length / 2);
+                                var mc = g.coordinates[midIdx];
+                                vectorWaterEntities.push(viewer.entities.add({
+                                    position: Cesium.Cartesian3.fromDegrees(mc[0], mc[1]),
+                                    label: { text: nm, font: 'bold 13px sans-serif', fillColor: Cesium.Color.fromCssColorString('#4fc3f7'), outlineColor: Cesium.Color.BLACK, outlineWidth: 3, style: Cesium.LabelStyle.FILL_AND_OUTLINE, disableDepthTestDistance: Number.POSITIVE_INFINITY, scaleByDistance: new Cesium.NearFarScalar(5e3, 1.0, 2e6, 0.0) },
+                                    show: true
+                                }));
+                            }
+                        } else if (g.type === 'Point' && (tp === 'dam' || tp === 'weir')) {
+                            var isDam = tp === 'dam';
+                            vectorWaterEntities.push(viewer.entities.add({
+                                position: Cesium.Cartesian3.fromDegrees(g.coordinates[0], g.coordinates[1]),
+                                billboard: { image: createTextPin(isDam ? '🏗️' : '🌊', isDam ? '#ff6f00' : '#8d6e63'), width: 36, height: 45, verticalOrigin: Cesium.VerticalOrigin.BOTTOM, heightReference: Cesium.HeightReference.CLAMP_TO_GROUND, disableDepthTestDistance: Number.POSITIVE_INFINITY, scaleByDistance: new Cesium.NearFarScalar(1e4, 1.0, 5e5, 0.3) },
+                                name: (isDam ? 'เขื่อน ' : 'ฝาย ') + nm, show: true
+                            }));
+                            totalDams++;
+                        }
+                    }
+                    if (end < feats.length) {
+                        return new Promise(function(resolve) { requestAnimationFrame(function() { resolve(addBatch(end)); }); });
+                    }
+                }
+
+                await addBatch(0);
+                say('✅ แม่น้ำหลัก <b>' + totalLines + '</b> สาย · เขื่อน/ฝาย <b>' + totalDams + '</b>' +
+                    '<br><small style="color:#81d4fa">แม่น้ำสายหลักวาดบน Globe — กดปุ่มด้านล่างเพื่อดูลำน้ำทุกสายในแผนที่ละเอียด</small>' +
+                    '<br><button onclick="openWaterwayMapOverlay()" style="margin-top:6px;background:#0288d1;color:#fff;border:none;padding:5px 14px;border-radius:4px;cursor:pointer;font-size:11px">🗺️ เปิด/ปิดแผนที่ลำน้ำละเอียด</button>');
+            } catch(e) {
+                say('<span style="color:#ffcc80">⚠️ โหลดไม่สำเร็จ: ' + e.message + '</span><br><button onclick="loadThailandRivers()" style="margin-top:8px;background:#29b6f6;color:#000;border:none;padding:6px 16px;border-radius:4px;cursor:pointer">ลองใหม่</button>');
+            }
 
             osmLoading = false;
         }
@@ -3403,37 +3478,33 @@
 
         function openWaterwayMapOverlay() {
             var existing = document.getElementById('waterwayMapOverlay');
-            if (existing) {
-                var show = existing.style.display === 'none';
-                existing.style.display = show ? 'block' : 'none';
-                var cb = document.getElementById('wwControlBar');
-                if (cb) cb.style.display = show ? 'flex' : 'none';
-                return;
-            }
+            if (existing) { existing.style.display = existing.style.display === 'none' ? 'flex' : 'none'; return; }
 
             var overlay = document.createElement('div');
             overlay.id = 'waterwayMapOverlay';
-            overlay.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:5;pointer-events:none;';
+            overlay.style.cssText = 'position:fixed;top:60px;right:20px;width:560px;height:520px;z-index:9999;background:#1a1a2e;border:2px solid #0288d1;border-radius:12px;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.6);resize:both;overflow:hidden;min-width:350px;min-height:300px;';
 
-            var container = document.createElement('div');
-            container.id = 'waterwayMapContainer';
-            container.style.cssText = 'width:100%;height:100%;';
-            overlay.appendChild(container);
-            document.body.appendChild(overlay);
+            var header = document.createElement('div');
+            header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:8px 14px;background:#0d47a1;border-radius:10px 10px 0 0;cursor:grab;user-select:none;';
+            header.innerHTML = '<span style="color:#fff;font-weight:bold;font-size:13px;">🗺️ แผนที่ลำน้ำละเอียด</span>' +
+                '<div style="display:flex;gap:4px;align-items:center;">' +
+                '<select id="wwMapStyle" style="background:#1565c0;color:#fff;border:1px solid #42a5f5;border-radius:4px;padding:3px 6px;font-size:11px;cursor:pointer;">' +
+                '<option value="sat">🛰️ ดาวเทียม</option>' +
+                '<option value="street" selected>🗺️ แผนที่ถนน</option>' +
+                '<option value="dark">🌑 โทนมืด</option>' +
+                '<option value="topo">⛰️ ภูมิประเทศ</option>' +
+                '</select>' +
+                '<button onclick="document.getElementById(\'waterwayMapOverlay\').style.display=\'none\'" style="background:none;border:none;color:#fff;font-size:18px;cursor:pointer;padding:0 4px;">✕</button></div>';
+            overlay.appendChild(header);
 
-            // Control bar (receives mouse events)
-            var ctrl = document.createElement('div');
-            ctrl.id = 'wwControlBar';
-            ctrl.style.cssText = 'position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:10;pointer-events:auto;display:flex;gap:6px;align-items:center;background:rgba(13,71,161,0.85);padding:5px 12px;border-radius:20px;backdrop-filter:blur(6px);box-shadow:0 2px 12px rgba(0,0,0,0.4);';
-            ctrl.innerHTML = '<span style="color:#81d4fa;font-size:11px;font-weight:600;">🌊 ลำน้ำ</span>' +
-                '<label style="color:#fff;font-size:11px;cursor:pointer;display:flex;align-items:center;gap:3px;">' +
-                '<input type="checkbox" id="wwToggleLabels" checked style="accent-color:#00b0ff;"> ชื่อ</label>' +
-                '<label style="color:#fff;font-size:11px;cursor:pointer;display:flex;align-items:center;gap:3px;">' +
-                '<input type="checkbox" id="wwToggleGlow" checked style="accent-color:#00b0ff;"> เรืองแสง</label>' +
-                '<input type="range" id="wwOpacity" min="20" max="100" value="70" style="width:60px;accent-color:#00b0ff;">' +
-                '<span id="wwOpacityVal" style="color:#aaa;font-size:10px;min-width:28px;">70%</span>' +
-                '<button onclick="document.getElementById(\'waterwayMapOverlay\').style.display=\'none\';document.getElementById(\'wwControlBar\').style.display=\'none\'" style="background:none;border:none;color:#ff8a80;font-size:14px;cursor:pointer;padding:0 2px;" title="ปิดเลเยอร์ลำน้ำ">✕</button>';
-            document.body.appendChild(ctrl);
+            var isDragging = false, dragX = 0, dragY = 0;
+            header.addEventListener('mousedown', function(e) {
+                if (e.target.tagName === 'SELECT' || e.target.tagName === 'BUTTON' || e.target.tagName === 'OPTION') return;
+                isDragging = true; dragX = e.clientX - overlay.offsetLeft; dragY = e.clientY - overlay.offsetTop;
+                header.style.cursor = 'grabbing'; e.preventDefault();
+            });
+            document.addEventListener('mousemove', function(e) { if (!isDragging) return; overlay.style.left = Math.max(0, e.clientX - dragX) + 'px'; overlay.style.top = Math.max(0, e.clientY - dragY) + 'px'; overlay.style.right = 'auto'; });
+            document.addEventListener('mouseup', function() { isDragging = false; header.style.cursor = 'grab'; });
 
             if (!document.getElementById('maplibreCSS')) {
                 var cssLink = document.createElement('link');
@@ -3443,27 +3514,42 @@
                 document.head.appendChild(cssLink);
             }
 
+            var mapDiv = document.createElement('div');
+            mapDiv.id = 'waterwayMapContainer';
+            mapDiv.style.cssText = 'flex:1;width:100%;';
+            overlay.appendChild(mapDiv);
+            document.body.appendChild(overlay);
+
+            var BASEMAPS_ML = {
+                sat: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+                street: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                dark: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+                topo: 'https://tile.opentopomap.org/{z}/{x}/{y}.png'
+            };
+
             function initWaterwayMap() {
                 var cam = viewer.camera.positionCartographic;
                 var cLng = Cesium.Math.toDegrees(cam.longitude);
                 var cLat = Cesium.Math.toDegrees(cam.latitude);
-                var h = cam.height;
-                var z = Math.max(5, Math.min(18, Math.round(17 - Math.log2(h / 500))));
+                var selStyle = document.getElementById('wwMapStyle').value;
 
                 var map = new maplibregl.Map({
                     container: 'waterwayMapContainer',
-                    interactive: false,
-                    attributionControl: false,
                     style: {
                         version: 8,
                         glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
-                        sources: {},
-                        layers: [{ id: 'bg', type: 'background', paint: { 'background-color': 'rgba(0,0,0,0)' } }]
+                        sources: {
+                            basemap: { type: 'raster', tiles: [BASEMAPS_ML[selStyle]], tileSize: 256, attribution: '© OpenStreetMap' }
+                        },
+                        layers: [{ id: 'basemap', type: 'raster', source: 'basemap' }]
                     },
                     center: [cLng, cLat],
-                    zoom: z
+                    zoom: 9
                 });
                 window._wwMap = map;
+
+                map.addControl(new maplibregl.NavigationControl(), 'bottom-right');
+                map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left');
 
                 map.on('load', function() {
                     fetch('https://tiles.openfreemap.org/planet').then(function(r) { return r.json(); }).then(function(tj) {
@@ -3471,42 +3557,46 @@
                         map.addSource('ofm', { type: 'vector', tiles: [tileUrl], minzoom: 0, maxzoom: 14 });
 
                         map.addLayer({ id: 'water-area', type: 'fill', source: 'ofm', 'source-layer': 'water',
-                            paint: { 'fill-color': '#0d47a1', 'fill-opacity': 0.35 } });
+                            paint: { 'fill-color': '#1565c0', 'fill-opacity': 0.4 } });
                         map.addLayer({ id: 'ww-glow', type: 'line', source: 'ofm', 'source-layer': 'waterway',
                             filter: ['in', 'class', 'river'],
-                            paint: { 'line-color': '#00b0ff', 'line-width': ['interpolate', ['linear'], ['zoom'], 5, 3, 10, 8, 14, 14], 'line-opacity': 0.12, 'line-blur': 4 } });
+                            paint: { 'line-color': '#00b0ff', 'line-width': ['interpolate', ['linear'], ['zoom'], 5, 4, 10, 10, 14, 16], 'line-opacity': 0.15, 'line-blur': 4 } });
                         map.addLayer({ id: 'ww-all', type: 'line', source: 'ofm', 'source-layer': 'waterway',
-                            paint: { 'line-color': '#4dd0e1', 'line-width': ['interpolate', ['linear'], ['zoom'], 5, 0.4, 10, 1.5, 14, 3], 'line-opacity': 0.6 } });
+                            paint: { 'line-color': '#29b6f6', 'line-width': ['interpolate', ['linear'], ['zoom'], 5, 0.5, 10, 2, 14, 4], 'line-opacity': 0.7 } });
                         map.addLayer({ id: 'ww-main', type: 'line', source: 'ofm', 'source-layer': 'waterway',
                             filter: ['in', 'class', 'river'],
-                            paint: { 'line-color': '#00b0ff', 'line-width': ['interpolate', ['linear'], ['zoom'], 5, 1, 10, 3, 14, 6], 'line-opacity': 0.85 } });
+                            paint: { 'line-color': '#00b0ff', 'line-width': ['interpolate', ['linear'], ['zoom'], 5, 1.5, 10, 4, 14, 7], 'line-opacity': 0.9 } });
                         map.addLayer({ id: 'ww-label', type: 'symbol', source: 'ofm', 'source-layer': 'waterway',
                             filter: ['has', 'name'],
                             layout: { 'symbol-placement': 'line', 'text-field': ['get', 'name'],
-                                'text-size': ['interpolate', ['linear'], ['zoom'], 7, 9, 12, 13],
-                                'text-font': ['Noto Sans Regular'], 'text-max-angle': 30, 'symbol-spacing': 300 },
-                            paint: { 'text-color': '#b3e5fc', 'text-halo-color': 'rgba(0,0,0,0.9)', 'text-halo-width': 2 } });
+                                'text-size': ['interpolate', ['linear'], ['zoom'], 7, 10, 12, 14],
+                                'text-font': ['Noto Sans Regular'], 'text-max-angle': 30, 'symbol-spacing': 250 },
+                            paint: { 'text-color': '#e1f5fe', 'text-halo-color': 'rgba(0,0,0,0.8)', 'text-halo-width': 2 } });
                         map.addLayer({ id: 'water-label', type: 'symbol', source: 'ofm', 'source-layer': 'water_name',
-                            layout: { 'text-field': ['get', 'name'], 'text-size': 11, 'text-font': ['Noto Sans Regular'] },
-                            paint: { 'text-color': '#80cbc4', 'text-halo-color': 'rgba(0,0,0,0.8)', 'text-halo-width': 1.5 } });
+                            layout: { 'text-field': ['get', 'name'], 'text-size': 12, 'text-font': ['Noto Sans Regular'] },
+                            paint: { 'text-color': '#b3e5fc', 'text-halo-color': 'rgba(0,0,0,0.7)', 'text-halo-width': 1.5 } });
+                        map.addLayer({ id: 'boundary', type: 'line', source: 'ofm', 'source-layer': 'boundary',
+                            filter: ['<=', 'admin_level', 6],
+                            paint: { 'line-color': '#616161', 'line-width': 1, 'line-dasharray': [3, 2], 'line-opacity': 0.5 } });
+                        map.addLayer({ id: 'road', type: 'line', source: 'ofm', 'source-layer': 'transportation',
+                            filter: ['in', 'class', 'motorway', 'trunk', 'primary'],
+                            paint: { 'line-color': '#555', 'line-width': ['interpolate', ['linear'], ['zoom'], 5, 0.3, 12, 1.5], 'line-opacity': 0.4 } });
+                        map.addLayer({ id: 'place-label', type: 'symbol', source: 'ofm', 'source-layer': 'place',
+                            filter: ['in', 'class', 'city', 'town', 'village'],
+                            layout: { 'text-field': ['get', 'name'], 'text-size': ['match', ['get', 'class'], 'city', 14, 'town', 12, 10], 'text-font': ['Noto Sans Regular'] },
+                            paint: { 'text-color': '#ffcc80', 'text-halo-color': 'rgba(0,0,0,0.7)', 'text-halo-width': 1.5 } });
                     });
                 });
 
-                // Controls
-                document.getElementById('wwToggleLabels').addEventListener('change', function() {
-                    var vis = this.checked ? 'visible' : 'none';
-                    if (map.getLayer('ww-label')) map.setLayoutProperty('ww-label', 'visibility', vis);
-                    if (map.getLayer('water-label')) map.setLayoutProperty('water-label', 'visibility', vis);
-                });
-                document.getElementById('wwToggleGlow').addEventListener('change', function() {
-                    if (map.getLayer('ww-glow')) map.setLayoutProperty('ww-glow', 'visibility', this.checked ? 'visible' : 'none');
-                });
-                document.getElementById('wwOpacity').addEventListener('input', function() {
-                    overlay.style.opacity = this.value / 100;
-                    document.getElementById('wwOpacityVal').textContent = this.value + '%';
+                document.getElementById('wwMapStyle').addEventListener('change', function() {
+                    var newTiles = BASEMAPS_ML[this.value];
+                    if (map.getSource('basemap')) { map.removeLayer('basemap'); map.removeSource('basemap'); }
+                    map.addSource('basemap', { type: 'raster', tiles: [newTiles], tileSize: 256 });
+                    var firstOFM = map.getStyle().layers.find(function(l) { return l.source === 'ofm'; });
+                    map.addLayer({ id: 'basemap', type: 'raster', source: 'basemap' }, firstOFM ? firstOFM.id : undefined);
                 });
 
-                // Sync CesiumJS camera → MapLibre (one-way, MapLibre is non-interactive)
+                // Sync CesiumJS camera → MapLibre
                 var syncThrottle = null;
                 viewer.camera.changed.addEventListener(function() {
                     if (syncThrottle) return;
