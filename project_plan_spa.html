@@ -860,7 +860,7 @@ function makeExportName(prefix, ext){
   const datePart=now.toLocaleDateString('th-TH',{day:'numeric',month:'long',year:'numeric'});
   const h=String(now.getHours()).padStart(2,'0');
   const m=String(now.getMinutes()).padStart(2,'0');
-  const safe=pname.replace(/[\/:*?"<>|]/g,'_');
+  const safe=pname.replace(/[\\\/:*?"<>|()[\]]/g,'').replace(/\s+/g,' ').trim().substring(0,60).trim();
   return `${prefix}_${safe}_${datePart}_${h}${m}.${ext}`;
 }
 function makeDailyName(ext, dateISO, weekNo){
