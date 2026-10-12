@@ -705,7 +705,7 @@ function thaiDateLong(iso){
   if(isNaN(d)) return '—';
   return d.toLocaleDateString('th-TH',{day:'numeric',month:'long',year:'numeric'});
 }
-function toISO(d){ return d.toISOString().slice(0,10); }
+function toISO(d){ const y=d.getFullYear(); const m=String(d.getMonth()+1).padStart(2,'0'); const dd=String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${dd}`; }
 function localISO(d){ const dd=d||new Date(); return `${dd.getFullYear()}-${String(dd.getMonth()+1).padStart(2,'0')}-${String(dd.getDate()).padStart(2,'0')}`; }
 function todayISO(){ return localISO(); }
 
@@ -734,6 +734,45 @@ function addWorkDays(startISO, wd){
   let rem=wd-1;
   while(rem>0){ d.setDate(d.getDate()+1); const w=d.getDay(); if(w>0&&w<6) rem--; }
   return toISO(d);
+}
+function nextWorkDay(dateISO){
+  if(!dateISO) return dateISO;
+  let d=new Date(dateISO+'T00:00:00');
+  if(isNaN(d)) return dateISO;
+  do{ d.setDate(d.getDate()+1); }while(d.getDay()===0||d.getDay()===6);
+  return toISO(d);
+}
+function cascadeSubDates(mainItem){
+  if(!mainItem||!mainItem.subItems||mainItem.subItems.length===0) return;
+  const pStart=mainItem.startDate||(currentProject&&currentProject.startDate)||todayISO();
+  let nextStart=pStart;
+  mainItem.subItems.forEach(s=>{
+    s.startDate=nextStart;
+    if(s.workDays>0) s.endDate=addWorkDays(nextStart,s.workDays);
+    s.days=calDays(s.startDate,s.endDate);
+    nextStart=s.endDate?nextWorkDay(s.endDate):nextStart;
+  });
+  recalcMainFromSubs(mainItem);
+}
+function cascadeSubDatesFrom(mainItem, fromIdx){
+  if(!mainItem||!mainItem.subItems) return;
+  for(let i=fromIdx;i<mainItem.subItems.length;i++){
+    const s=mainItem.subItems[i];
+    const prev=mainItem.subItems[i-1];
+    const nextStart=prev&&prev.endDate?nextWorkDay(prev.endDate):(mainItem.startDate||todayISO());
+    s.startDate=nextStart;
+    if(s.workDays>0) s.endDate=addWorkDays(nextStart,s.workDays);
+    s.days=calDays(s.startDate,s.endDate);
+  }
+}
+function recalcMainFromSubs(m){
+  if(!m.subItems||m.subItems.length===0) return;
+  const starts=m.subItems.map(s=>s.startDate).filter(Boolean).sort();
+  const ends=m.subItems.map(s=>s.endDate).filter(Boolean).sort();
+  if(starts.length) m.startDate=starts[0];
+  if(ends.length) m.endDate=ends[ends.length-1];
+  m.days=calDays(m.startDate,m.endDate);
+  m.workDays=calcWorkDays(m.startDate,m.endDate);
 }
 
 /* File name: projectName_ThaiDate_HHmm.ext */
@@ -1538,14 +1577,21 @@ function updateField(type,mainId,subId,field,val){
     obj.startDate=val;
     if(obj.workDays>0){ obj.endDate=addWorkDays(val,obj.workDays); }
     obj.days=calDays(obj.startDate,obj.endDate);
-    // If main, update sub-items default start
-    if(type==='main') obj.subItems.forEach(s=>{ if(!s._dateCustomized){ s.startDate=val; if(s.workDays>0) s.endDate=addWorkDays(val,s.workDays); s.days=calDays(s.startDate,s.endDate); } });
+    if(type==='main'){ cascadeSubDates(obj); renderTaskTable(); return; }
+    if(type==='sub'){ const m=items.find(x=>x.id===mainId); if(m){ const idx=m.subItems.indexOf(obj); cascadeSubDatesFrom(m,idx); recalcMainFromSubs(m); renderTaskTable(); return; } }
+  } else if(field==='endDate'){
+    obj.endDate=val;
+    obj.days=calDays(obj.startDate,obj.endDate);
+    obj.workDays=calcWorkDays(obj.startDate,obj.endDate);
+    if(type==='sub'){ const m=items.find(x=>x.id===mainId); if(m){ const idx=m.subItems.indexOf(obj); cascadeSubDatesFrom(m,idx+1); recalcMainFromSubs(m); renderTaskTable(); return; } }
+    if(type==='main'){ recalcMainFromSubs(obj); renderTaskTable(); return; }
   } else if(field==='workDays'){
     obj.workDays=Math.max(0,parseInt(val)||0);
-    const base=type==='main'?obj.startDate||pStart:(parentStart||obj.startDate||pStart);
+    const base=obj.startDate||pStart;
     if(obj.workDays>0) obj.endDate=addWorkDays(base,obj.workDays);
     obj.days=calDays(obj.startDate||base,obj.endDate);
-    if(type==='sub') obj._dateCustomized=true;
+    if(type==='sub'){ const m=items.find(x=>x.id===mainId); if(m){ const idx=m.subItems.indexOf(obj); cascadeSubDatesFrom(m,idx+1); recalcMainFromSubs(m); renderTaskTable(); return; } }
+    if(type==='main'){ cascadeSubDates(obj); renderTaskTable(); return; }
   } else if(field==='percentDone'){
     obj.percentDone=Math.min(100,Math.max(0,parseFloat(val)||0));
   } else if(field==='description'||field==='lead'){
