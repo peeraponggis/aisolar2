@@ -5703,11 +5703,11 @@
                 var pc = toGeocode[k].postcode;
                 var cc = toGeocode[k].cc;
                 try {
-                    var qUrl = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&postalcode=' +
+                    var nomUrl = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&postalcode=' +
                         encodeURIComponent(pc) + (cc ? '&countrycodes=' + cc : '');
+                    var qUrl = 'https://cors-get-proxy.sirjosh.workers.dev/get?url=' + encodeURIComponent(nomUrl);
                     var resp = await fetch(qUrl, {
-                        headers: { 'Accept': 'application/json', 'User-Agent': 'aiSolar-Platform/1.0' },
-                        signal: AbortSignal.timeout(5000)
+                        signal: AbortSignal.timeout(8000)
                     });
                     if (resp.ok) {
                         var data = await resp.json();
