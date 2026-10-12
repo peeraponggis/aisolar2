@@ -182,6 +182,7 @@
         .tab-btn.pvout-active.active { color: #ff6e40; text-shadow: 0 0 8px rgba(255,110,64,.4); }
         .tab-btn.ieat-active.active { color: #26c6da; text-shadow: 0 0 8px rgba(38,198,218,.4); }
         .tab-btn.terrain3d-active.active { color: #8d6e63; text-shadow: 0 0 8px rgba(141,110,99,.4); }
+        .tab-btn.waterwatch-active.active { color: #e53935; text-shadow: 0 0 8px rgba(229,57,53,.4); }
         .terrain-overlay-btn { display:inline-block; padding:6px 12px; margin:3px; border-radius:6px; border:1px solid #555; background:rgba(141,110,99,.1); color:#ccc; font-size:11px; cursor:pointer; transition:all .2s; }
         .terrain-overlay-btn:hover { background:rgba(141,110,99,.25); }
         .terrain-overlay-btn.active { background:rgba(141,110,99,.3); border-color:#8d6e63; color:#fff; }
@@ -595,6 +596,7 @@
             <button class="tab-btn" id="tab-pvoutput" onclick="switchSource('PVOUTPUT')">🔌 PVOutput Live</button>
             <button class="tab-btn" id="tab-ieat" onclick="switchSource('IEAT_DT')">🏭 กนอ./IEAT DT</button>
             <button class="tab-btn" id="tab-terrain3d" onclick="switchSource('TERRAIN_3D')">🏔️ 3D ภูมิประเทศ</button>
+            <button class="tab-btn" id="tab-waterwatch" onclick="switchSource('WATER_WATCH')">💧 Water Watch ขอนแก่น</button>
         </div>
 
         <div class="form-group">
@@ -1193,6 +1195,7 @@
             vectorWaterEntities.forEach(ent => ent.show = false);
             if (typeof meshEntities !== 'undefined') meshEntities.forEach(ent => ent.show = false);
             if (typeof ieatEntities !== 'undefined') ieatEntities.forEach(ent => ent.show = false);
+            if (typeof waterWatchEntities !== 'undefined') waterWatchEntities.forEach(ent => ent.show = false);
             if (typeof terrain3dLayer !== 'undefined' && terrain3dLayer) { terrain3dLayer.show = false; }
             if (typeof terrain3dClickHandler !== 'undefined' && terrain3dClickHandler) {
                 terrain3dClickHandler.destroy(); terrain3dClickHandler = null;
@@ -1479,6 +1482,17 @@
                 setLocalInfo('terrain_3dntm');
                 currentSource = sourceName;
                 loadTerrain3D();
+                return;
+            }
+
+            // --- 💧 Water Way Watch ขอนแก่น ---
+            if (sourceName === 'WATER_WATCH') {
+                var wb = document.getElementById('tab-waterwatch');
+                wb.classList.add('active');
+                wb.classList.add('waterwatch-active');
+                currentSource = sourceName;
+                waterWatchEntities.forEach(function(e) { e.show = true; });
+                loadWaterWatch();
                 return;
             }
 
@@ -5294,6 +5308,193 @@
             document.getElementById('panelTitle').innerText = '☀️ พยากรณ์กำลังผลิตโซลาร์';
         }
         window.loadSolarForecast = loadSolarForecast;
+
+        /* =========================================================
+           17.6) 💧 Water Way Watch — ระบบเฝ้าระวังน้ำ ขอนแก่น
+           API: water2watch.com/api/public/map/gates
+           ========================================================= */
+        var waterWatchEntities = [];
+
+        async function loadWaterWatch() {
+            openPanel('💧 Water Way Watch — ระบบเฝ้าระวังน้ำ ขอนแก่น');
+            var body = document.getElementById('panelBody');
+            body.innerHTML = '<div style="text-align:center;padding:40px;color:#aaa"><div class="spinner"></div><br>กำลังดึงข้อมูลจาก Water Way Watch...</div>';
+
+            try {
+                var corsProxy = 'https://cors-get-proxy.sirjosh.workers.dev/get?url=';
+                var resp = await fetch(corsProxy + encodeURIComponent('https://water2watch.com/api/public/map/gates'), {
+                    signal: AbortSignal.timeout(10000)
+                });
+                var data = await resp.json();
+                if (!data.ok || !data.gates) throw new Error('ไม่สามารถดึงข้อมูลได้');
+
+                var gates = data.gates;
+                var summary = data.summary;
+
+                // Add entities to map
+                waterWatchEntities.forEach(function(e) { viewer.entities.remove(e); });
+                waterWatchEntities = [];
+
+                gates.forEach(function(g, idx) {
+                    var levelColor = g.level === 'flood' ? '#f44336' :
+                                     g.level === 'warning' ? '#ff9800' :
+                                     g.level === 'watch' ? '#fdd835' : '#4caf50';
+                    var levelIcon = g.level === 'flood' ? '🔴' :
+                                    g.level === 'warning' ? '🟠' :
+                                    g.level === 'watch' ? '🟡' : '🟢';
+
+                    var ent = viewer.entities.add({
+                        id: 'w2w_' + idx,
+                        position: Cesium.Cartesian3.fromDegrees(g.lon, g.lat, 50),
+                        billboard: {
+                            image: createW2WIcon(g.level),
+                            width: 36, height: 36,
+                            verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+                            disableDepthTestDistance: Number.POSITIVE_INFINITY
+                        },
+                        label: {
+                            text: g.name,
+                            font: 'bold 12px sans-serif',
+                            fillColor: Cesium.Color.fromCssColorString(levelColor),
+                            outlineColor: Cesium.Color.BLACK,
+                            outlineWidth: 2,
+                            style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+                            pixelOffset: new Cesium.Cartesian2(0, -40),
+                            disableDepthTestDistance: Number.POSITIVE_INFINITY
+                        }
+                    });
+                    waterWatchEntities.push(ent);
+                });
+
+                // Fly to Khon Kaen
+                viewer.camera.flyTo({
+                    destination: Cesium.Cartesian3.fromDegrees(102.815, 16.431, 8000),
+                    orientation: { heading: 0, pitch: Cesium.Math.toRadians(-60), roll: 0 },
+                    duration: 1.5
+                });
+
+                // Render panel
+                var html = '';
+
+                // Header + Link
+                html += '<div style="background:rgba(229,57,53,.08);border:1px solid rgba(229,57,53,.25);border-radius:6px;padding:12px;margin-bottom:12px">';
+                html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">';
+                html += '<div style="font-size:28px">💧</div>';
+                html += '<div>';
+                html += '<div style="font-size:14px;font-weight:700;color:#e53935">Water Way Watch</div>';
+                html += '<div style="font-size:11px;color:#aaa">ระบบเฝ้าระวังน้ำ น้ำท่วม และปริมาณน้ำฝน ขอนแก่น</div>';
+                html += '</div></div>';
+                html += '<a href="https://water2watch.com/" target="_blank" rel="noopener" style="display:block;text-align:center;background:rgba(229,57,53,.15);border:1px solid #e53935;color:#e53935;padding:8px 18px;border-radius:6px;text-decoration:none;font-size:12px;font-weight:600;margin-bottom:8px">🔗 เปิดเว็บ Water Way Watch (water2watch.com)</a>';
+                html += '<div style="font-size:10px;color:#888">อัปเดต: ' + new Date(data.updatedAt).toLocaleString('th-TH') + '</div>';
+                html += '</div>';
+
+                // Summary cards
+                html += '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:12px">';
+                html += '<div class="dt-card"><div class="dt-val" style="color:#64b5f6;font-size:18px">' + summary.total + '</div><div class="dt-label">📊 ทั้งหมด</div></div>';
+                html += '<div class="dt-card"><div class="dt-val" style="color:#4caf50;font-size:18px">' + summary.normal + '</div><div class="dt-label">🟢 ปกติ</div></div>';
+                html += '<div class="dt-card"><div class="dt-val" style="color:#fdd835;font-size:18px">' + summary.watch + '</div><div class="dt-label">🟡 เฝ้าระวัง</div></div>';
+                html += '<div class="dt-card"><div class="dt-val" style="color:#ff9800;font-size:18px">' + summary.warning + '</div><div class="dt-label">🟠 เตือนภัย</div></div>';
+                html += '<div class="dt-card"><div class="dt-val" style="color:#f44336;font-size:18px">' + summary.flood + '</div><div class="dt-label">🔴 น้ำท่วม</div></div>';
+                html += '</div>';
+
+                // Gate details
+                gates.forEach(function(g, idx) {
+                    var levelColor = g.level === 'flood' ? '#f44336' :
+                                     g.level === 'warning' ? '#ff9800' :
+                                     g.level === 'watch' ? '#fdd835' : '#4caf50';
+                    var levelText = g.level === 'flood' ? '🔴 น้ำท่วม' :
+                                    g.level === 'warning' ? '🟠 เตือนภัย' :
+                                    g.level === 'watch' ? '🟡 เฝ้าระวัง' : '🟢 ปกติ';
+                    var pct = g.bankLevel > 0 ? ((g.waterLevel / g.bankLevel) * 100).toFixed(1) : '—';
+                    var barPct = Math.min(100, parseFloat(pct) || 0);
+                    var barColor = barPct > 95 ? '#f44336' : barPct > 85 ? '#ff9800' : barPct > 70 ? '#fdd835' : '#4caf50';
+
+                    html += '<div style="background:rgba(255,255,255,.04);border:1px solid #333;border-left:3px solid ' + levelColor + ';border-radius:6px;padding:12px;margin-bottom:10px;cursor:pointer" onclick="flyToW2WGate(' + idx + ')">';
+
+                    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">';
+                    html += '<div style="font-size:14px;font-weight:700;color:#eee">🏗️ ' + g.name + '</div>';
+                    html += '<span style="background:' + levelColor + '22;border:1px solid ' + levelColor + ';color:' + levelColor + ';padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700">' + levelText + '</span>';
+                    html += '</div>';
+
+                    html += '<div style="font-size:11px;color:#888;margin-bottom:8px">📍 ' + g.locationText + '</div>';
+
+                    // Water level bar
+                    html += '<div style="margin-bottom:8px">';
+                    html += '<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px">';
+                    html += '<span style="color:#aaa">ระดับน้ำ</span>';
+                    html += '<span style="color:#eee;font-weight:700">' + g.waterLevel.toFixed(3) + ' ม.รทก.</span>';
+                    html += '</div>';
+                    html += '<div style="background:#222;border-radius:4px;height:14px;overflow:hidden;position:relative">';
+                    html += '<div style="width:' + barPct + '%;height:100%;background:' + barColor + ';border-radius:4px;transition:width .5s"></div>';
+                    html += '<div style="position:absolute;right:4px;top:0;line-height:14px;font-size:9px;color:#fff;font-weight:700">' + pct + '%</div>';
+                    html += '</div>';
+                    html += '<div style="display:flex;justify-content:space-between;font-size:10px;color:#666;margin-top:2px">';
+                    html += '<span>0</span><span>ตลิ่ง: ' + g.bankLevel.toFixed(2) + ' ม.รทก.</span>';
+                    html += '</div></div>';
+
+                    // Details grid
+                    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px">';
+                    html += '<div style="color:#888">🚪 ประตูน้ำ: <span style="color:' + (g.gateStatus === 'เปิด' ? '#4caf50' : '#ff9800') + ';font-weight:700">' + g.gateStatus + '</span></div>';
+                    html += '<div style="color:#888">📡 สถานะ: <span style="color:' + (g.isOnline ? '#4caf50' : '#f44336') + '">' + (g.isOnline ? '🟢 ออนไลน์' : '🔴 ออฟไลน์') + '</span></div>';
+                    if (g.hasRain) {
+                        html += '<div style="color:#888">🌧️ ฝน: <span style="color:#64b5f6">' + (g.rainGauge !== null ? g.rainGauge + ' mm' : '—') + '</span></div>';
+                    }
+                    html += '<div style="color:#888">📍 พิกัด: <span style="color:#aaa">' + g.lat.toFixed(4) + ', ' + g.lon.toFixed(4) + '</span></div>';
+                    html += '</div>';
+
+                    html += '</div>';
+                });
+
+                // คำอธิบายโครงการ
+                html += '<div style="background:rgba(229,57,53,.05);border:1px solid #333;border-radius:6px;padding:12px;margin-bottom:12px">';
+                html += '<div style="font-size:12px;font-weight:700;color:#e53935;margin-bottom:8px;border-bottom:1px solid #333;padding-bottom:6px">📖 เกี่ยวกับ Water Way Watch</div>';
+                html += '<div style="font-size:11px;color:#bbb;line-height:1.6">';
+                html += '<b>Water Way Watch</b> คือระบบเฝ้าระวังสถานการณ์น้ำแบบ Real-time ในพื้นที่ขอนแก่น พัฒนาโดยความร่วมมือของ <b>มหาวิทยาลัยขอนแก่น (EMKKU)</b> ร่วมกับหน่วยงานท้องถิ่น<br><br>';
+                html += '🔹 <b>ตรวจวัดระดับน้ำ</b> — ติดตามระดับน้ำในบึง คลอง และประตูระบายน้ำ แบบ Real-time ด้วยเซ็นเซอร์ IoT<br>';
+                html += '🔹 <b>ตรวจวัดปริมาณฝน</b> — เก็บข้อมูลปริมาณน้ำฝนจากเครื่องวัดฝนอัตโนมัติ<br>';
+                html += '🔹 <b>ควบคุมประตูน้ำ</b> — สั่งเปิด-ปิดประตูระบายน้ำได้จากระยะไกล เพื่อบริหารจัดการน้ำ<br>';
+                html += '🔹 <b>ระดับเฝ้าระวัง</b> — <span style="color:#4caf50">🟢 ปกติ</span> → <span style="color:#fdd835">🟡 เฝ้าระวัง</span> → <span style="color:#ff9800">🟠 เตือนภัย</span> → <span style="color:#f44336">🔴 น้ำท่วม</span><br><br>';
+                html += '🔹 <b>ม.รทก.</b> = เมตรเหนือระดับน้ำทะเลปานกลาง (Mean Sea Level, MSL) — ค่ามาตรฐานที่ใช้วัดระดับน้ำทั่วประเทศ<br>';
+                html += '🔹 <b>ระดับตลิ่ง</b> = ระดับสูงสุดที่น้ำจะไม่ล้นตลิ่ง — ถ้าน้ำสูงกว่านี้ จะเกิดน้ำท่วม<br><br>';
+                html += '<b>ที่มา:</b> <a href="https://water2watch.com/" target="_blank" rel="noopener" style="color:#e53935">water2watch.com</a> — โดย EMKKU, SCOR, TCG';
+                html += '</div></div>';
+
+                body.innerHTML = html;
+
+            } catch(e) {
+                body.innerHTML = '<div style="color:#f44336;padding:20px;text-align:center">❌ ไม่สามารถดึงข้อมูลจาก Water Way Watch ได้: ' + e.message + '<br><br><a href="https://water2watch.com/" target="_blank" rel="noopener" style="color:#64b5f6">🔗 เปิดเว็บ water2watch.com โดยตรง</a></div>';
+            }
+        }
+
+        function createW2WIcon(level) {
+            var c = document.createElement('canvas');
+            c.width = 40; c.height = 40;
+            var ctx = c.getContext('2d');
+            var color = level === 'flood' ? '#f44336' :
+                        level === 'warning' ? '#ff9800' :
+                        level === 'watch' ? '#fdd835' : '#4caf50';
+            ctx.beginPath(); ctx.arc(20, 20, 18, 0, Math.PI * 2);
+            ctx.fillStyle = color; ctx.globalAlpha = 0.3; ctx.fill();
+            ctx.globalAlpha = 1; ctx.strokeStyle = color; ctx.lineWidth = 2.5; ctx.stroke();
+            ctx.font = '20px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillStyle = '#fff'; ctx.fillText('💧', 20, 21);
+            return c.toDataURL();
+        }
+
+        function flyToW2WGate(idx) {
+            var gates = waterWatchEntities;
+            if (!gates[idx]) return;
+            var pos = Cesium.Cartographic.fromCartesian(gates[idx].position.getValue(Cesium.JulianDate.now()));
+            viewer.camera.flyTo({
+                destination: Cesium.Cartesian3.fromDegrees(
+                    Cesium.Math.toDegrees(pos.longitude),
+                    Cesium.Math.toDegrees(pos.latitude),
+                    1500),
+                orientation: { heading: 0, pitch: Cesium.Math.toRadians(-60), roll: 0 },
+                duration: 1
+            });
+        }
+        window.flyToW2WGate = flyToW2WGate;
 
         /* =========================================================
            17.5) 🔌 PVOutput Live — ข้อมูลจริงจากระบบโซลาร์ทั่วโลก
