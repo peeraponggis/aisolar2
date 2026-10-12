@@ -7530,8 +7530,9 @@
                 html += '<button onclick="loadOSMGridLocal()" style="width:100%;background:#ff9800;color:#000;border:none;padding:10px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:700">🔌 โหลดสายส่งบริเวณที่กำลังดู</button>';
                 html += '</div>';
 
-                html += '<div style="font-size:12px;font-weight:700;color:#ff9800;margin-bottom:6px">🗺️ แผนที่สายส่งทั่วประเทศ (OpenInfraMap)</div>';
-                html += '<iframe src="https://openinframap.org/#6/' + lat.toFixed(2) + '/' + lng.toFixed(2) + '/Power" style="width:100%;height:350px;border:1px solid #333;border-radius:6px;margin-bottom:12px" loading="lazy"></iframe>';
+                html += '<a href="https://openinframap.org/#6/' + lat.toFixed(2) + '/' + lng.toFixed(2) + '/Power" target="_blank" rel="noopener" style="display:block;background:rgba(255,152,0,.1);border:1px solid #ff9800;border-radius:6px;padding:14px;margin-bottom:12px;text-decoration:none;text-align:center">';
+                html += '<div style="font-size:13px;font-weight:700;color:#ff9800;margin-bottom:4px">🗺️ แผนที่สายส่งทั่วประเทศ (OpenInfraMap)</div>';
+                html += '<div style="font-size:11px;color:#aaa">คลิกเพื่อเปิดในแท็บใหม่ — ดูโครงข่ายสายส่งทั้งหมด</div></a>';
 
                 html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px">';
                 html += '<a href="https://openinframap.org/#8/' + lat.toFixed(2) + '/' + lng.toFixed(2) + '/Power" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;gap:4px;background:rgba(255,152,0,.12);border:1px solid #ff9800;color:#ff9800;padding:8px;border-radius:6px;text-decoration:none;font-size:11px;font-weight:600">🔗 OpenInfraMap</a>';
