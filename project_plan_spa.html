@@ -319,6 +319,8 @@ button{cursor:pointer}
           <button class="btn btn-outline" onclick="newProject()">➕ โครงการใหม่</button>
           <button class="btn btn-secondary" onclick="document.getElementById('load-json-inp').click()">📂 นำเข้า JSON</button>
           <input type="file" id="load-json-inp" accept=".json" onchange="loadProjectJSON(this)" style="display:none"/>
+          <button class="btn btn-secondary" onclick="document.getElementById('load-csv-inp').click()">📂 นำเข้า CSV</button>
+          <input type="file" id="load-csv-inp" accept=".csv" onchange="loadProjectCSV(this)" style="display:none"/>
         </div>
       </div>
       <div class="tabs">
@@ -450,6 +452,7 @@ button{cursor:pointer}
         <div class="btn-group">
           <button class="btn btn-success" onclick="exportGanttPDF()">📄 บันทึก PDF</button>
           <button class="btn btn-outline" onclick="exportJSON('3.ProjPlan')">💾 บันทึก JSON</button>
+          <button class="btn btn-outline" onclick="exportCSV()">📊 บันทึก CSV</button>
         </div>
       </div>
       <div id="gantt-project-info" class="card" style="padding:12px;margin-bottom:12px"></div>
@@ -796,19 +799,18 @@ function cascadeMainItems(fromIdx){
 }
 function recalcProjectDatesFromItems(){
   if(!currentProject||!currentProject.items||currentProject.items.length===0) return;
-  const allEnds=currentProject.items.map(m=>m.endDate).filter(Boolean).sort();
-  const allStarts=currentProject.items.map(m=>m.startDate).filter(Boolean).sort();
+  const items=currentProject.items;
+  const allStarts=items.map(m=>m.startDate).filter(Boolean).sort();
   if(allStarts.length){
-    const first=allStarts[0];
-    if(!currentProject.startDate||first<currentProject.startDate){ currentProject.startDate=first; }
+    currentProject.startDate=allStarts[0];
   }
-  if(allEnds.length){
-    const last=allEnds[allEnds.length-1];
-    if(!currentProject.endDate||last>currentProject.endDate){ currentProject.endDate=last; }
+  const lastItem=items[items.length-1];
+  if(lastItem&&lastItem.endDate){
+    currentProject.endDate=lastItem.endDate;
   }
-  if(currentProject.startDate&&currentProject.endDate){
-    currentProject.workDays=calcWorkDays(currentProject.startDate,currentProject.endDate);
-  }
+  let totalWD=0;
+  items.forEach(m=>{ totalWD+=(m.workDays||0); });
+  currentProject.workDays=totalWD;
   fillProjectForm();
 }
 function validateDateContinuity(){
@@ -1872,6 +1874,99 @@ async function exportJSON(prefix){
   const blob=new Blob([JSON.stringify(currentProject,null,2)],{type:'application/json'});
   const fn=prefix?makeExportName(prefix,'json'):makeFileName('json');
   await saveLocalFile(blob,fn);
+}
+
+/* ═══════════════════════════════════════════
+   CSV EXPORT / IMPORT
+═══════════════════════════════════════════ */
+function csvEscape(v){
+  const s=String(v??'');
+  return s.includes(',')||s.includes('"')||s.includes('\n')?'"'+s.replace(/"/g,'""')+'"':s;
+}
+async function exportCSV(){
+  if(!currentProject){ toast('❌ ยังไม่มีโครงการ'); return; }
+  collectProjectForm();
+  const h=['ItemNo','Type','Description','Lead','StartDate','EndDate','WorkDays','Days','PercentDone'];
+  const rows=['﻿'+h.join(',')];
+  (currentProject.items||[]).forEach(m=>{
+    rows.push([m.itemNo,'main',m.description,m.lead,m.startDate,m.endDate,m.workDays,m.days,m.percentDone].map(csvEscape).join(','));
+    (m.subItems||[]).forEach(s=>{
+      rows.push([s.itemNo,'sub',s.description,s.lead,s.startDate,s.endDate,s.workDays,s.days,s.percentDone].map(csvEscape).join(','));
+    });
+  });
+  const blob=new Blob([rows.join('\r\n')],{type:'text/csv;charset=utf-8'});
+  const fn=makeExportName('3.ProjPlan','csv');
+  await saveLocalFile(blob,fn);
+}
+function parseCSVLine(line){
+  const result=[];let cur='',inQ=false;
+  for(let i=0;i<line.length;i++){
+    const c=line[i];
+    if(inQ){
+      if(c==='"'&&line[i+1]==='"'){cur+='"';i++;}
+      else if(c==='"') inQ=false;
+      else cur+=c;
+    } else {
+      if(c==='"') inQ=true;
+      else if(c===','){result.push(cur);cur='';}
+      else cur+=c;
+    }
+  }
+  result.push(cur);
+  return result;
+}
+function loadProjectCSV(inp){
+  const f=inp.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=e=>{
+    try{
+      let text=e.target.result.replace(/^﻿/,'');
+      const lines=text.split(/\r?\n/).filter(l=>l.trim());
+      if(lines.length<2){ toast('❌ ไฟล์ CSV ว่างเปล่า'); return; }
+      const header=parseCSVLine(lines[0]).map(h=>h.trim().toLowerCase());
+      const iNo=header.indexOf('itemno'),iType=header.indexOf('type'),iDesc=header.indexOf('description');
+      const iLead=header.indexOf('lead'),iStart=header.indexOf('startdate'),iEnd=header.indexOf('enddate');
+      const iWD=header.indexOf('workdays'),iDays=header.indexOf('days'),iPct=header.indexOf('percentdone');
+      if(iNo<0||iDesc<0){ toast('❌ CSV ต้องมีคอลัมน์ ItemNo, Description'); return; }
+      if(!currentProject){ currentProject={id:uuid(),projectName:'โครงการใหม่',items:[],leads:[],weeklyReports:[],reportEnabled:false}; }
+      const items=[];
+      let curMain=null;
+      for(let i=1;i<lines.length;i++){
+        const cols=parseCSVLine(lines[i]);
+        const itemNo=cols[iNo]?.trim()||'';
+        const type=(cols[iType]?.trim()||'').toLowerCase();
+        const desc=cols[iDesc]?.trim()||'';
+        const lead=iLead>=0?cols[iLead]?.trim():'';
+        const start=iStart>=0?cols[iStart]?.trim():'';
+        const end=iEnd>=0?cols[iEnd]?.trim():'';
+        const wd=iWD>=0?parseInt(cols[iWD])||0:0;
+        const days=iDays>=0?parseInt(cols[iDays])||0:0;
+        const pct=iPct>=0?parseFloat(cols[iPct])||0:0;
+        const row={id:uuid(),type:type||'main',itemNo,description:desc,lead,startDate:start,endDate:end,workDays:wd,days:days,percentDone:pct};
+        if(type==='sub'&&curMain){
+          row.type='sub';
+          curMain.subItems.push(row);
+        } else {
+          row.type='main';
+          row.subItems=[];
+          items.push(row);
+          curMain=row;
+        }
+      }
+      currentProject.items=items;
+      items.forEach(m=>recalcMainFromSubs(m));
+      appData.currentProjectId=currentProject.id;
+      const idx=appData.projects.findIndex(x=>x.id===currentProject.id);
+      if(idx>=0) appData.projects[idx]=currentProject; else appData.projects.push(currentProject);
+      fillProjectForm();
+      renderLeadsTags();
+      renderTaskTable();
+      saveStore();
+      toast('✅ นำเข้า CSV สำเร็จ: '+items.length+' รายการหลัก');
+    } catch(err){ toast('❌ ไม่สามารถอ่านไฟล์ CSV ได้: '+err.message); }
+  };
+  r.readAsText(f,'UTF-8');
+  inp.value='';
 }
 
 /* ═══════════════════════════════════════════
