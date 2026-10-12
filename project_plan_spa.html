@@ -386,9 +386,11 @@ button{cursor:pointer}
                 📋 รายการตัวอย่าง
                 <div class="btn-group">
                   <button class="btn btn-secondary btn-xs" onclick="document.getElementById('sample-import').click()" title="นำเข้า JSON">📂</button>
+                  <button class="btn btn-secondary btn-xs" onclick="document.getElementById('sample-import-csv').click()" title="นำเข้า CSV">📂 CSV</button>
                   <button class="btn btn-outline btn-xs" onclick="exportSampleJSON()" title="ส่งออก JSON">💾</button>
                   <button class="btn btn-outline btn-xs" onclick="addAllSamplesToTask()" title="ส่งรายการตัวอย่างทั้งหมดไปยังตารางงาน" style="background:#e8f5e9;border-color:var(--primary)">📤 ส่งทั้งหมด</button>
                   <input type="file" id="sample-import" accept=".json" onchange="importSampleJSON(this)" style="display:none"/>
+                  <input type="file" id="sample-import-csv" accept=".csv" onchange="importSampleCSV(this)" style="display:none"/>
                 </div>
               </div>
               <div class="text-muted mb8" style="font-size:10px">ลากไปยัง "รายการงาน" หรือคลิก ➕ เพื่อเพิ่ม</div>
@@ -1340,6 +1342,42 @@ function importSampleJSON(inp){
       renderSampleList();
       toast('✅ นำเข้ารายการตัวอย่างแล้ว ('+sampleItems.length+' หัวข้อ)');
     } catch(err){ toast('❌ ไม่สามารถอ่านไฟล์ JSON ได้'); }
+  };
+  r.readAsText(f,'UTF-8');
+  inp.value='';
+}
+function importSampleCSV(inp){
+  const f=inp.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=e=>{
+    try{
+      let text=e.target.result.replace(/^﻿/,'');
+      const lines=text.split(/\r?\n/).filter(l=>l.trim());
+      if(lines.length<2){ toast('❌ ไฟล์ CSV ว่างเปล่า'); return; }
+      const header=parseCSVLine(lines[0]).map(h=>h.trim().toLowerCase());
+      const iDesc=header.indexOf('description');
+      const iType=header.indexOf('type');
+      if(iDesc<0){ toast('❌ CSV ต้องมีคอลัมน์ Description'); return; }
+      const items=[];
+      let curMain=null;
+      for(let i=1;i<lines.length;i++){
+        const cols=parseCSVLine(lines[i]);
+        const desc=cols[iDesc]?.trim()||'';
+        if(!desc) continue;
+        const type=(iType>=0?cols[iType]?.trim():'').toLowerCase();
+        if(type==='sub'&&curMain){
+          curMain.subItems.push({id:uuid(),type:'sub',description:desc});
+        } else {
+          const m={id:uuid(),type:'main',description:desc,subItems:[]};
+          items.push(m);
+          curMain=m;
+        }
+      }
+      sampleItems=items;
+      saveSampleStore();
+      renderSampleList();
+      toast('✅ นำเข้ารายการตัวอย่างจาก CSV แล้ว ('+items.length+' หัวข้อ)');
+    } catch(err){ toast('❌ ไม่สามารถอ่านไฟล์ CSV ได้: '+err.message); }
   };
   r.readAsText(f,'UTF-8');
   inp.value='';
