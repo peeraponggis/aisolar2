@@ -3514,8 +3514,41 @@
 
             var overlay = document.createElement('div');
             overlay.id = 'waterwayMapOverlay';
-            overlay.style.cssText = 'position:fixed;top:60px;right:20px;width:500px;height:450px;z-index:9999;background:#1a1a2e;border:2px solid #0288d1;border-radius:12px;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.6);';
-            overlay.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 14px;background:#0d47a1;border-radius:10px 10px 0 0;"><span style="color:#fff;font-weight:bold;">🗺️ แผนที่ลำน้ำ — OpenFreeMap Vector Tiles</span><button onclick="document.getElementById(\'waterwayMapOverlay\').style.display=\'none\'" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;">✕</button></div><div id="waterwayMapContainer" style="flex:1;border-radius:0 0 10px 10px;overflow:hidden;"></div>';
+            overlay.style.cssText = 'position:fixed;top:60px;right:20px;width:560px;height:520px;z-index:9999;background:#1a1a2e;border:2px solid #0288d1;border-radius:12px;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.6);resize:both;overflow:hidden;min-width:350px;min-height:300px;';
+
+            var header = document.createElement('div');
+            header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:8px 14px;background:#0d47a1;border-radius:10px 10px 0 0;cursor:grab;user-select:none;';
+            header.innerHTML = '<span style="color:#fff;font-weight:bold;font-size:13px;">🗺️ แผนที่ลำน้ำละเอียด</span>' +
+                '<div style="display:flex;gap:4px;align-items:center;">' +
+                '<select id="wwMapStyle" style="background:#1565c0;color:#fff;border:1px solid #42a5f5;border-radius:4px;padding:3px 6px;font-size:11px;cursor:pointer;">' +
+                '<option value="sat">🛰️ ดาวเทียม</option>' +
+                '<option value="street">🗺️ แผนที่ถนน</option>' +
+                '<option value="dark" selected>🌑 โทนมืด</option>' +
+                '<option value="topo">⛰️ ภูมิประเทศ</option>' +
+                '</select>' +
+                '<button onclick="document.getElementById(\'waterwayMapOverlay\').style.display=\'none\'" style="background:none;border:none;color:#fff;font-size:18px;cursor:pointer;padding:0 4px;">✕</button></div>';
+            overlay.appendChild(header);
+
+            // Drag logic
+            var isDragging = false, dragX = 0, dragY = 0;
+            header.addEventListener('mousedown', function(e) {
+                if (e.target.tagName === 'SELECT' || e.target.tagName === 'BUTTON' || e.target.tagName === 'OPTION') return;
+                isDragging = true; dragX = e.clientX - overlay.offsetLeft; dragY = e.clientY - overlay.offsetTop;
+                header.style.cursor = 'grabbing';
+                e.preventDefault();
+            });
+            document.addEventListener('mousemove', function(e) {
+                if (!isDragging) return;
+                overlay.style.left = Math.max(0, e.clientX - dragX) + 'px';
+                overlay.style.top = Math.max(0, e.clientY - dragY) + 'px';
+                overlay.style.right = 'auto';
+            });
+            document.addEventListener('mouseup', function() { isDragging = false; header.style.cursor = 'grab'; });
+
+            var container = document.createElement('div');
+            container.id = 'waterwayMapContainer';
+            container.style.cssText = 'flex:1;overflow:hidden;';
+            overlay.appendChild(container);
             document.body.appendChild(overlay);
 
             if (!document.getElementById('maplibreCSS')) {
@@ -3526,27 +3559,75 @@
                 document.head.appendChild(cssLink);
             }
 
+            var BASEMAPS_ML = {
+                sat: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+                street: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                dark: 'https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+                topo: 'https://tile.opentopomap.org/{z}/{x}/{y}.png'
+            };
+
             function initWaterwayMap() {
                 var cam = viewer.camera.positionCartographic;
                 var cLng = Cesium.Math.toDegrees(cam.longitude);
                 var cLat = Cesium.Math.toDegrees(cam.latitude);
+                var selStyle = document.getElementById('wwMapStyle').value;
 
                 var map = new maplibregl.Map({
                     container: 'waterwayMapContainer',
-                    style: { version: 8, sources: {}, layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#0a1628' } }] },
+                    style: {
+                        version: 8,
+                        sources: {
+                            basemap: { type: 'raster', tiles: [BASEMAPS_ML[selStyle]], tileSize: 256, attribution: '© OpenStreetMap' }
+                        },
+                        layers: [{ id: 'basemap', type: 'raster', source: 'basemap' }]
+                    },
                     center: [cLng, cLat],
-                    zoom: 8
+                    zoom: 9
                 });
+                window._wwMap = map;
+
+                map.addControl(new maplibregl.NavigationControl(), 'bottom-right');
+                map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left');
 
                 map.on('load', function() {
                     fetch('https://tiles.openfreemap.org/planet').then(function(r) { return r.json(); }).then(function(tj) {
                         var tileUrl = tj.tiles ? tj.tiles[0] : 'https://tiles.openfreemap.org/planet/{z}/{x}/{y}.pbf';
                         map.addSource('ofm', { type: 'vector', tiles: [tileUrl], minzoom: 0, maxzoom: 14 });
-                        map.addLayer({ id: 'water-area', type: 'fill', source: 'ofm', 'source-layer': 'water', paint: { 'fill-color': '#1565c0', 'fill-opacity': 0.5 } });
-                        map.addLayer({ id: 'ww-all', type: 'line', source: 'ofm', 'source-layer': 'waterway', paint: { 'line-color': '#29b6f6', 'line-width': ['interpolate', ['linear'], ['zoom'], 5, 0.5, 10, 2, 14, 4], 'line-opacity': 0.8 } });
-                        map.addLayer({ id: 'ww-main', type: 'line', source: 'ofm', 'source-layer': 'waterway', filter: ['in', 'class', 'river'], paint: { 'line-color': '#00b0ff', 'line-width': ['interpolate', ['linear'], ['zoom'], 5, 1, 10, 3, 14, 6], 'line-opacity': 0.9 } });
-                        map.addLayer({ id: 'ww-label', type: 'symbol', source: 'ofm', 'source-layer': 'waterway', filter: ['has', 'name'], layout: { 'symbol-placement': 'line', 'text-field': ['get', 'name'], 'text-size': 11, 'text-font': ['Noto Sans Regular'] }, paint: { 'text-color': '#81d4fa', 'text-halo-color': '#0a1628', 'text-halo-width': 1.5 } });
+
+                        map.addLayer({ id: 'water-area', type: 'fill', source: 'ofm', 'source-layer': 'water',
+                            paint: { 'fill-color': '#1565c0', 'fill-opacity': 0.4 } });
+                        map.addLayer({ id: 'ww-all', type: 'line', source: 'ofm', 'source-layer': 'waterway',
+                            paint: { 'line-color': '#29b6f6', 'line-width': ['interpolate', ['linear'], ['zoom'], 5, 0.5, 10, 2, 14, 4], 'line-opacity': 0.7 } });
+                        map.addLayer({ id: 'ww-main', type: 'line', source: 'ofm', 'source-layer': 'waterway',
+                            filter: ['in', 'class', 'river'],
+                            paint: { 'line-color': '#00b0ff', 'line-width': ['interpolate', ['linear'], ['zoom'], 5, 1.5, 10, 4, 14, 7], 'line-opacity': 0.9 } });
+                        map.addLayer({ id: 'ww-glow', type: 'line', source: 'ofm', 'source-layer': 'waterway',
+                            filter: ['in', 'class', 'river'],
+                            paint: { 'line-color': '#00b0ff', 'line-width': ['interpolate', ['linear'], ['zoom'], 5, 4, 10, 10, 14, 16], 'line-opacity': 0.15, 'line-blur': 4 } });
+                        map.addLayer({ id: 'ww-label', type: 'symbol', source: 'ofm', 'source-layer': 'waterway',
+                            filter: ['has', 'name'],
+                            layout: { 'symbol-placement': 'line', 'text-field': ['get', 'name'], 'text-size': ['interpolate', ['linear'], ['zoom'], 7, 10, 12, 14],
+                                'text-font': ['Noto Sans Regular'], 'text-max-angle': 30, 'symbol-spacing': 250 },
+                            paint: { 'text-color': '#e1f5fe', 'text-halo-color': 'rgba(0,0,0,0.8)', 'text-halo-width': 2 } });
+                        map.addLayer({ id: 'water-label', type: 'symbol', source: 'ofm', 'source-layer': 'water_name',
+                            layout: { 'text-field': ['get', 'name'], 'text-size': 12, 'text-font': ['Noto Sans Regular'] },
+                            paint: { 'text-color': '#b3e5fc', 'text-halo-color': 'rgba(0,0,0,0.7)', 'text-halo-width': 1.5 } });
+                        map.addLayer({ id: 'place-label', type: 'symbol', source: 'ofm', 'source-layer': 'place',
+                            filter: ['in', 'class', 'city', 'town'],
+                            layout: { 'text-field': ['get', 'name'], 'text-size': ['match', ['get', 'class'], 'city', 14, 11], 'text-font': ['Noto Sans Regular'] },
+                            paint: { 'text-color': '#ffcc80', 'text-halo-color': 'rgba(0,0,0,0.7)', 'text-halo-width': 1.5 } });
                     });
+                });
+
+                document.getElementById('wwMapStyle').addEventListener('change', function() {
+                    var newTiles = BASEMAPS_ML[this.value];
+                    if (map.getSource('basemap')) {
+                        map.removeLayer('basemap');
+                        map.removeSource('basemap');
+                    }
+                    map.addSource('basemap', { type: 'raster', tiles: [newTiles], tileSize: 256 });
+                    var firstOFM = map.getStyle().layers.find(function(l) { return l.source === 'ofm'; });
+                    map.addLayer({ id: 'basemap', type: 'raster', source: 'basemap' }, firstOFM ? firstOFM.id : undefined);
                 });
             }
 
