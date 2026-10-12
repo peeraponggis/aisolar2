@@ -597,6 +597,16 @@
             <button class="tab-btn" id="tab-ieat" onclick="switchSource('IEAT_DT')">🏭 กนอ./IEAT DT</button>
             <button class="tab-btn" id="tab-terrain3d" onclick="switchSource('TERRAIN_3D')">🏔️ 3D ภูมิประเทศ</button>
             <button class="tab-btn" id="tab-waterwatch" onclick="switchSource('WATER_WATCH')">💧 Water Watch ขอนแก่น</button>
+            <button class="tab-btn" id="tab-firms" onclick="switchSource('FIRMS')">🔥 จุดความร้อน FIRMS</button>
+            <button class="tab-btn" id="tab-gsa" onclick="switchSource('GSA')">🌍 Global Solar Atlas</button>
+            <button class="tab-btn" id="tab-reexplorer" onclick="switchSource('RE_EXPLORER')">🔋 RE Explorer</button>
+            <button class="tab-btn" id="tab-cams" onclick="switchSource('CAMS')">🌐 CAMS Atmosphere</button>
+            <button class="tab-btn" id="tab-sentinel" onclick="switchSource('SENTINEL2')">🛰️ Sentinel-2</button>
+            <button class="tab-btn" id="tab-osmgrid" onclick="switchSource('OSM_GRID')">🔌 สายส่งไฟฟ้า</button>
+            <button class="tab-btn" id="tab-smartgrid" onclick="switchSource('SMART_GRID')">⚡ Smart Grid ไทย</button>
+            <button class="tab-btn" id="tab-tariff" onclick="switchSource('TARIFF')">💰 ค่าไฟ/FT</button>
+            <button class="tab-btn" id="tab-carbon" onclick="switchSource('CARBON')">🌱 Carbon Intensity</button>
+            <button class="tab-btn" id="tab-solcast" onclick="switchSource('SOLCAST')">☀️ Solcast</button>
         </div>
 
         <div class="form-group">
@@ -1196,6 +1206,9 @@
             if (typeof meshEntities !== 'undefined') meshEntities.forEach(ent => ent.show = false);
             if (typeof ieatEntities !== 'undefined') ieatEntities.forEach(ent => ent.show = false);
             if (typeof waterWatchEntities !== 'undefined') waterWatchEntities.forEach(ent => ent.show = false);
+            if (typeof firmsEntities !== 'undefined') firmsEntities.forEach(ent => ent.show = false);
+            if (typeof osmGridEntities !== 'undefined') osmGridEntities.forEach(ent => ent.show = false);
+            if (typeof sentinel2Layer !== 'undefined' && sentinel2Layer) sentinel2Layer.show = false;
             if (typeof terrain3dLayer !== 'undefined' && terrain3dLayer) { terrain3dLayer.show = false; }
             if (typeof terrain3dClickHandler !== 'undefined' && terrain3dClickHandler) {
                 terrain3dClickHandler.destroy(); terrain3dClickHandler = null;
@@ -1346,34 +1359,19 @@
                 document.getElementById('localLegendBox').innerHTML +=
                     `<div style="margin-top:10px; padding-top:9px; border-top:1px dashed #333;">
                         <div style="font-weight:bold; font-size:11.5px; color:#4fc3f7; margin-bottom:6px;">
-                            🗺️ โครงข่ายลำน้ำจริงตามภูมิประเทศ
+                            🗺️ เครื่องมือแผนที่ลำน้ำ
                         </div>
-                        <div style="font-size:10.5px; color:#888; line-height:1.45; margin-bottom:7px;">
-                            ดึงลำน้ำทุกเส้นและแหล่งน้ำทุกขนาดในกรอบมุมมองปัจจุบัน พร้อมชื่อภาษาไทย
-                            — ยิ่งซูมเข้ายิ่งได้รายละเอียดถึงระดับลำธารและคูน้ำ
-                        </div>
-                        <button class="btn-analyze" style="padding:9px; font-size:12.5px; background:#0288d1; color:#fff;"
-                                onclick="loadVectorWaterNetwork()">⬇️ โหลดลำน้ำจริงในกรอบมุมมองนี้</button>
-                        <button class="btn-analyze" style="padding:9px; font-size:12.5px; background:#1b5e20; color:#fff; margin-top:6px;"
-                                onclick="basinOverviewView()">🗺️ มุมมองภาพรวมลุ่มน้ำ (OSM + ลำน้ำ)</button>
-                        <button class="btn-goto" style="width:100%; margin-top:6px; padding:7px;"
-                                onclick="clearVectorWater()">ล้างชั้นลำน้ำออก</button>
-                        <details style="margin-top:7px;">
-                            <summary style="font-size:10.5px; color:#888; cursor:pointer;">โหมดสำรอง: ดึงผ่าน Overpass (ช้ากว่า มีโควตาจำกัด)</summary>
-                            <button class="btn-goto" style="width:100%; margin-top:5px; padding:6px;"
-                                    onclick="loadOsmWaterways()">ดึงผ่าน Overpass API</button>
-                            <button class="btn-goto" style="width:100%; margin-top:4px; padding:6px;"
-                                    onclick="clearOsmWater()">ล้างชั้น Overpass</button>
-                        </details>
-                        <div id="osmStatus" style="font-size:10.5px; color:#aaa; margin-top:7px; line-height:1.5;"></div>
-                        <div style="font-size:10px; color:#777; margin-top:7px; line-height:1.45; border-top:1px dotted #333; padding-top:6px;">
-                            <b>สัญลักษณ์เส้น:</b>
-                            <span style="color:#00b0ff;">▬ แม่น้ำสายประธาน (มีเส้นเรืองแสงรองพื้น)</span><br>
-                            <span style="color:#29b6f6;">▬ แม่น้ำ</span> ·
-                            <span style="color:#4dd0e1;">▬ คลอง</span> ·
-                            <span style="color:#80deea;">▬ ลำธาร/ห้วย</span> ·
-                            <span style="color:#b2ebf2;">▬ คู/ทางระบายน้ำ</span><br>
-                            หัวลูกศรบนเส้นชี้ตามทิศทางการไหลของน้ำเสมอ
+                        <button class="btn-analyze" style="padding:8px; font-size:11.5px; background:#0288d1; color:#fff;"
+                                onclick="loadVectorWaterNetwork()">⬇️ แสดงลำน้ำจริงในพื้นที่นี้</button>
+                        <button class="btn-goto" style="width:100%; margin-top:5px; padding:6px; font-size:11px;"
+                                onclick="clearVectorWater(); clearOsmWater();">🗑️ ล้างเส้นลำน้ำ</button>
+                        <div id="osmStatus" style="font-size:10px; color:#aaa; margin-top:5px; line-height:1.4;"></div>
+                        <div style="font-size:10px; color:#666; margin-top:6px; line-height:1.4; border-top:1px dotted #333; padding-top:5px;">
+                            <span style="color:#00b0ff;">▬</span> แม่น้ำสายประธาน ·
+                            <span style="color:#29b6f6;">▬</span> แม่น้ำ ·
+                            <span style="color:#4dd0e1;">▬</span> คลอง ·
+                            <span style="color:#80deea;">▬</span> ลำธาร<br>
+                            ลูกศร → ชี้ทิศทางไหลของน้ำ
                         </div>
                     </div>`;
                 currentSource = sourceName;
@@ -1384,7 +1382,7 @@
                     riverEntities.forEach(e => e.show = true);
                     osmWaterEntities.forEach(e => e.show = true);
                     vectorWaterEntities.forEach(e => e.show = true);
-                    openPanel('🌊 สถานีตรวจวัดน้ำท่า และแบบจำลองการไหลของลุ่มน้ำ');
+                    openPanel('🌊 ระบบเฝ้าระวังน้ำท่า & ลุ่มน้ำ');
                 }
                 return;
             }
@@ -1493,6 +1491,79 @@
                 currentSource = sourceName;
                 waterWatchEntities.forEach(function(e) { e.show = true; });
                 loadWaterWatch();
+                return;
+            }
+
+            // --- 🔥 NASA FIRMS ---
+            if (sourceName === 'FIRMS') {
+                document.getElementById('tab-firms').classList.add('active');
+                currentSource = sourceName;
+                firmsEntities.forEach(function(e) { e.show = true; });
+                loadFIRMS();
+                return;
+            }
+            // --- 🌍 Global Solar Atlas ---
+            if (sourceName === 'GSA') {
+                document.getElementById('tab-gsa').classList.add('active');
+                currentSource = sourceName;
+                loadGSA();
+                return;
+            }
+            // --- 🔋 RE Explorer ---
+            if (sourceName === 'RE_EXPLORER') {
+                document.getElementById('tab-reexplorer').classList.add('active');
+                currentSource = sourceName;
+                loadREExplorer();
+                return;
+            }
+            // --- 🌐 CAMS Atmosphere ---
+            if (sourceName === 'CAMS') {
+                document.getElementById('tab-cams').classList.add('active');
+                currentSource = sourceName;
+                loadCAMS();
+                return;
+            }
+            // --- 🛰️ Sentinel-2 ---
+            if (sourceName === 'SENTINEL2') {
+                document.getElementById('tab-sentinel').classList.add('active');
+                currentSource = sourceName;
+                loadSentinel2();
+                return;
+            }
+            // --- 🔌 OSM Power Grid ---
+            if (sourceName === 'OSM_GRID') {
+                document.getElementById('tab-osmgrid').classList.add('active');
+                currentSource = sourceName;
+                osmGridEntities.forEach(function(e) { e.show = true; });
+                loadOSMGrid();
+                return;
+            }
+            // --- ⚡ Smart Grid ไทย ---
+            if (sourceName === 'SMART_GRID') {
+                document.getElementById('tab-smartgrid').classList.add('active');
+                currentSource = sourceName;
+                loadSmartGrid();
+                return;
+            }
+            // --- 💰 ค่าไฟ/FT ---
+            if (sourceName === 'TARIFF') {
+                document.getElementById('tab-tariff').classList.add('active');
+                currentSource = sourceName;
+                loadTariff();
+                return;
+            }
+            // --- 🌱 Carbon Intensity ---
+            if (sourceName === 'CARBON') {
+                document.getElementById('tab-carbon').classList.add('active');
+                currentSource = sourceName;
+                loadCarbon();
+                return;
+            }
+            // --- ☀️ Solcast ---
+            if (sourceName === 'SOLCAST') {
+                document.getElementById('tab-solcast').classList.add('active');
+                currentSource = sourceName;
+                loadSolcast();
                 return;
             }
 
@@ -3508,48 +3579,105 @@
 
             /* ---------- 4) สรุปผลลงหน้าต่างวิเคราะห์ ---------- */
             var basinRows = Object.keys(basinCount).sort(function (a, b) { return basinCount[b] - basinCount[a]; }).slice(0, 8);
-            var riverRows = THAI_RIVERS.map(function (rv) {
+
+            // นับสถานการณ์น้ำ
+            var stNormal = 0, stLow = 0, stHigh = 0, stCrit = 0, stFlood = 0;
+            waterEntities.forEach(function(e) {
+                var desc = e.description ? (typeof e.description.getValue === 'function' ? e.description.getValue() : e.description) : '';
+                if (desc.indexOf('ล้นตลิ่ง') >= 0) stFlood++;
+                else if (desc.indexOf('น้ำมาก') >= 0) stHigh++;
+                else if (desc.indexOf('ปกติ') >= 0) stNormal++;
+                else if (desc.indexOf('น้ำน้อยวิกฤต') >= 0) stCrit++;
+                else if (desc.indexOf('น้ำน้อย') >= 0) stLow++;
+            });
+
+            var html2 = '';
+            // Header
+            html2 += '<div style="background:rgba(79,195,247,.08);border:1px solid rgba(79,195,247,.25);border-radius:6px;padding:12px;margin-bottom:12px">';
+            html2 += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">';
+            html2 += '<div style="font-size:28px">🌊</div>';
+            html2 += '<div><div style="font-size:14px;font-weight:700;color:#4fc3f7">ระบบเฝ้าระวังน้ำท่า & ลุ่มน้ำ</div>';
+            html2 += '<div style="font-size:11px;color:#aaa">ThaiWater API · สสน. · GloFAS</div></div></div>';
+            html2 += '<a href="https://www.thaiwater.net/water/wl" target="_blank" rel="noopener" style="display:block;text-align:center;background:rgba(79,195,247,.15);border:1px solid #4fc3f7;color:#4fc3f7;padding:8px;border-radius:6px;text-decoration:none;font-size:12px;font-weight:600;margin-bottom:8px">🔗 เปิด ThaiWater.net</a></div>';
+
+            // Summary cards
+            html2 += '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-bottom:12px">';
+            html2 += '<div class="dt-card"><div class="dt-val" style="color:#64b5f6;font-size:16px">' + stationCount + '</div><div class="dt-label">📡 สถานี</div></div>';
+            html2 += '<div class="dt-card"><div class="dt-val" style="color:#4caf50;font-size:16px">' + stNormal + '</div><div class="dt-label">🟢 ปกติ</div></div>';
+            html2 += '<div class="dt-card"><div class="dt-val" style="color:#ff6d00;font-size:16px">' + stHigh + '</div><div class="dt-label">🟠 น้ำมาก</div></div>';
+            html2 += '<div class="dt-card"><div class="dt-val" style="color:#ffd600;font-size:16px">' + stLow + '</div><div class="dt-label">🟡 น้ำน้อย</div></div>';
+            html2 += '<div class="dt-card"><div class="dt-val" style="color:#d50000;font-size:16px">' + stFlood + '</div><div class="dt-label">🔴 ล้นตลิ่ง</div></div>';
+            html2 += '</div>';
+
+            // Overflow alert
+            if (overflowList.length) {
+                html2 += '<div style="background:#2a0000;border:1px solid #b71c1c;padding:10px;border-radius:6px;margin-bottom:12px">';
+                html2 += '<div style="font-size:12px;font-weight:700;color:#ff8a80;margin-bottom:6px">🚨 สถานีน้ำล้นตลิ่ง ' + overflowList.length + ' แห่ง</div>';
+                overflowList.slice(0, 5).forEach(function(o) {
+                    html2 += '<div style="font-size:11px;color:#ffcdd2;margin-bottom:3px">• ' + o.name + ' (' + o.basin + ') — ' + o.pct.toFixed(0) + '%</div>';
+                });
+                html2 += '</div>';
+            }
+
+            // River discharge cards
+            html2 += '<div style="font-size:13px;font-weight:700;color:#4fc3f7;margin-bottom:8px;border-bottom:1px solid #333;padding-bottom:6px">🌊 อัตราการไหลรายลำน้ำ (ลบ.ม./วินาที)</div>';
+            THAI_RIVERS.forEach(function (rv) {
                 var d = riverDischarge[rv.name];
                 var q = d ? d.today : null;
                 var st = dischargeStyle(q);
-                return `<div class="quake-row">
-                    <span class="quake-mag" style="background:${st.col}; min-width:62px; font-size:11px;">${q !== null && !isNaN(q) ? q.toFixed(0) : '-'}</span>
-                    <span style="flex:1;">${rv.name}<br><small style="color:#888;">${rv.basin} · ${st.tag}${d && d.mean ? ' · เฉลี่ยฤดูกาล ' + d.mean.toFixed(0) : ''}</small></span>
-                    <button class="btn-goto" onclick="flyToFeature(${rv.probe[1]}, ${rv.probe[0]}, 'river-${rv.name}')">ไปยังจุด</button>
-                </div>`;
-            }).join('');
+                var mean = d && d.mean !== null ? d.mean : null;
+                var ratio = (q !== null && mean !== null && mean > 0) ? (q / mean) : null;
+                var trend = ratio ? (ratio > 1.15 ? '📈 สูงกว่าเฉลี่ย' : ratio < 0.85 ? '📉 ต่ำกว่าเฉลี่ย' : '➡️ ปกติ') : '';
 
-            body.innerHTML = `
-                <div class="result-item">
-                    <span class="result-label">📡 สถานีโทรมาตรวัดระดับน้ำ:</span><br>
-                    เชื่อมต่อสำเร็จ <b style="font-size:16px;">${stationCount}</b> สถานีทั่วประเทศ
-                    <span class="source-badge" style="float:right;">ThaiWater · สสน.</span><br>
-                    <small style="color:#aaa;">หมุดกลมเล็กบนแผนที่ = สถานีวัดระดับน้ำ แตะเพื่อดูระดับน้ำ ม.รทก. ระดับตลิ่ง และสถานการณ์รายสถานี</small>
-                    ${overflowList.length ? `<div style="margin-top:8px; background:#2a0000; border:1px solid #b71c1c; padding:8px; border-radius:5px; font-size:11.5px;">
-                        🚨 <b style="color:#ff8a80;">พบสถานีที่ระดับน้ำล้นตลิ่ง ${overflowList.length} แห่ง</b><br>
-                        ${overflowList.slice(0, 5).map(o => `• ${o.name} (${o.basin}) — ${o.pct.toFixed(0)}% ของความจุลำน้ำ`).join('<br>')}
-                    </div>` : ''}
-                </div>
+                html2 += '<div style="background:rgba(255,255,255,.04);border-radius:6px;padding:10px;margin-bottom:6px;border-left:3px solid ' + st.col + ';cursor:pointer" onclick="flyToFeature(' + rv.probe[1] + ',' + rv.probe[0] + ',\'river-' + rv.name + '\')">';
+                html2 += '<div style="display:flex;justify-content:space-between;align-items:center">';
+                html2 += '<div style="font-size:13px;font-weight:700;color:#eee">' + rv.name + '</div>';
+                html2 += '<div style="font-size:16px;font-weight:700;color:' + st.col + '">' + (q !== null && !isNaN(q) ? q.toFixed(0) : '-') + '</div>';
+                html2 += '</div>';
+                html2 += '<div style="font-size:11px;color:#888;margin-top:3px">' + rv.basin + ' · ' + st.tag;
+                if (trend) html2 += ' · ' + trend;
+                html2 += '</div>';
 
-                <div class="result-item">
-                    <span class="result-label">🗺️ การกระจายตัวรายลุ่มน้ำ (8 อันดับแรก):</span>
-                    ${basinRows.map(b => `<div class="data-row"><span>${b}</span><span>${basinCount[b]} สถานี</span></div>`).join('') || '<small style="color:#888;">ไม่มีข้อมูล</small>'}
-                </div>
+                // Mini sparkline if series data available
+                if (d && d.series) {
+                    var maxS = Math.max.apply(null, d.series.filter(function(v) { return v !== null; })) || 1;
+                    html2 += '<div style="display:flex;align-items:flex-end;gap:1px;height:25px;margin-top:6px;background:#111;border-radius:3px;padding:2px">';
+                    d.series.forEach(function(v) {
+                        var pct = v !== null ? (v / maxS * 100) : 0;
+                        var c = v > maxS * 0.8 ? '#ff6d00' : '#4fc3f7';
+                        html2 += '<div style="flex:1;height:' + pct + '%;background:' + c + ';border-radius:1px;min-height:1px"></div>';
+                    });
+                    html2 += '</div>';
+                    html2 += '<div style="display:flex;justify-content:space-between;font-size:8px;color:#555;margin-top:2px">';
+                    html2 += '<span>วันนี้</span><span>+7 วัน</span></div>';
+                }
+                html2 += '</div>';
+            });
 
-                <div class="result-item">
-                    <span class="result-label">🌊 อัตราการไหลรายลำน้ำ (ลบ.ม./วินาที):</span>
-                    <div style="font-size:11px; color:#aaa; margin:4px 0 8px;">กดปุ่ม <b>โหลดลำน้ำจริงในกรอบมุมมองนี้</b> ในแผงซ้าย เพื่อวาดแนวลำน้ำจริงตามภูมิประเทศ — เส้นของลำน้ำที่มีข้อมูลการไหลจะถูกระบายสีและปรับความหนาตามอัตราการไหล พร้อมหัวลูกศรชี้ทิศทางไหล</div>
-                    ${riverRows}
-                </div>
+            // Basin distribution
+            html2 += '<div style="font-size:13px;font-weight:700;color:#81d4fa;margin:12px 0 8px;border-bottom:1px solid #333;padding-bottom:6px">🗺️ ลุ่มน้ำ — จำนวนสถานี</div>';
+            html2 += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:12px">';
+            basinRows.forEach(function(b) {
+                html2 += '<div style="background:rgba(255,255,255,.04);border-radius:4px;padding:6px 8px;font-size:11px;display:flex;justify-content:space-between">';
+                html2 += '<span style="color:#bbb">' + b + '</span><span style="color:#4fc3f7;font-weight:700">' + basinCount[b] + '</span></div>';
+            });
+            html2 += '</div>';
 
-                <div class="result-item">
-                    <span class="result-label">📚 ที่มาและข้อจำกัดของข้อมูล:</span><br>
-                    <small style="color:#ccc; line-height:1.6; display:block; margin-top:4px;">
-                        • <b>ระดับน้ำรายสถานี:</b> ThaiWater API v3 — สถาบันสารสนเทศทรัพยากรน้ำ (สสน.) ร่วมกับกรมชลประทานและหน่วยงานเครือข่าย (ข้อมูลจริงจากโทรมาตร)<br>
-                        • <b>อัตราการไหลรายลำน้ำ:</b> แบบจำลอง GloFAS ของ Copernicus ผ่าน Open-Meteo Flood API — เป็น<b>ค่าจากแบบจำลองความละเอียด 5 กม.</b> ไม่ใช่ค่าตรวจวัดจริงที่หน้าตัดลำน้ำ<br>
-                        • <b>แนวลำน้ำบนแผนที่:</b> เป็น<b>เส้นจริงตามภูมิประเทศ</b>จากฐานข้อมูล OpenStreetMap ผ่าน vector tiles ไม่ใช่เส้นวาดประมาณการ — ส่วนหมุด ◆ คือจุดที่ใช้ดึงค่าอัตราการไหลจากแบบจำลอง
-                    </small>
-                </div>`;
+            // Data sources
+            html2 += '<div class="dt-learn" style="font-size:11px">';
+            html2 += '<b style="color:#4fc3f7">📖 แหล่งข้อมูล:</b><br><br>';
+            html2 += '<b>สถานีวัดระดับน้ำ:</b> ThaiWater API v3 — สถาบันสารสนเทศทรัพยากรน้ำ (สสน.) ร่วมกับกรมชลประทาน (ค่าจริงจากเซ็นเซอร์)<br><br>';
+            html2 += '<b>อัตราการไหลรายลำน้ำ:</b> แบบจำลอง GloFAS (Copernicus) ผ่าน Open-Meteo Flood API — ค่าจากแบบจำลองความละเอียด 5 กม. (ไม่ใช่ค่าวัดจริง)<br><br>';
+            html2 += '<b>เส้นลำน้ำบนแผนที่:</b> OpenStreetMap vector tiles — กดปุ่ม "แสดงลำน้ำจริง" ในแผงซ้ายมือ<br><br>';
+            html2 += '<b style="color:#ffd740">สัญลักษณ์บนแผนที่:</b><br>';
+            html2 += '• <b>หมุดกลมเล็ก</b> = สถานีวัดระดับน้ำ (แตะดูรายละเอียด)<br>';
+            html2 += '• <b>◆ หมุดเพชร</b> = จุดตรวจวัดอัตราการไหลจาก GloFAS<br>';
+            html2 += '• <b>เส้น →</b> = ลำน้ำจริง (ลูกศรชี้ทิศทางน้ำไหล)<br><br>';
+            html2 += '<b style="color:#ff8a80">ข้อจำกัด:</b> ลำน้ำบางสายอาจแสดงไม่ต่อเนื่อง เนื่องจาก OSM ยังไม่ได้บันทึกครบทุกช่วง — ซูมเข้าจะเห็นรายละเอียดมากขึ้น<br><br>';
+            html2 += '<b>ที่มา:</b> <a href="https://www.thaiwater.net/" target="_blank" style="color:#4fc3f7">thaiwater.net</a> · <a href="https://www.globalfloods.eu/" target="_blank" style="color:#4fc3f7">GloFAS (Copernicus)</a>';
+            html2 += '</div>';
+
+            body.innerHTML = html2;
         }
         window.loadWaterNetwork = loadWaterNetwork;
 
@@ -6348,6 +6476,809 @@
             document.getElementById('panelTitle').innerText = '⚡ Grid Monitor — Solar Radiation Analysis';
         }
         window.loadGridMonitor = loadGridMonitor;
+
+        /* =========================================================
+           18) 🔥 NASA FIRMS — จุดความร้อน/ไฟป่าเรียลไทม์
+           ========================================================= */
+        var firmsEntities = [];
+
+        async function loadFIRMS() {
+            openPanel('🔥 NASA FIRMS — จุดความร้อน/ไฟป่า');
+            var body = document.getElementById('panelBody');
+            body.innerHTML = '<div style="text-align:center;padding:40px;color:#aaa"><div class="spinner"></div><br>กำลังดึงข้อมูลจุดความร้อนจาก NASA FIRMS...</div>';
+            try {
+                firmsEntities.forEach(function(e) { viewer.entities.remove(e); });
+                firmsEntities = [];
+                var corsProxy = 'https://cors-get-proxy.sirjosh.workers.dev/get?url=';
+                var firmsUrl = 'https://firms.modaps.eosdis.nasa.gov/api/country/csv/d8de925fa4e70786d1a2b97698cf186f/VIIRS_SNPP_NRT/THA/1';
+                var resp = await fetch(corsProxy + encodeURIComponent(firmsUrl), { signal: AbortSignal.timeout(15000) });
+                var csv = await resp.text();
+                var lines = csv.trim().split('\n');
+                var header = lines[0].split(',');
+                var latIdx = header.indexOf('latitude');
+                var lngIdx = header.indexOf('longitude');
+                var brIdx = header.indexOf('bright_ti4');
+                var confIdx = header.indexOf('confidence');
+                var dateIdx = header.indexOf('acq_date');
+                var timeIdx = header.indexOf('acq_time');
+                var frpIdx = header.indexOf('frp');
+
+                var hotspots = [];
+                for (var i = 1; i < lines.length; i++) {
+                    var cols = lines[i].split(',');
+                    if (cols.length < 5) continue;
+                    hotspots.push({
+                        lat: parseFloat(cols[latIdx]),
+                        lng: parseFloat(cols[lngIdx]),
+                        bright: parseFloat(cols[brIdx]) || 0,
+                        conf: cols[confIdx] || '',
+                        date: cols[dateIdx] || '',
+                        time: cols[timeIdx] || '',
+                        frp: parseFloat(cols[frpIdx]) || 0
+                    });
+                }
+
+                hotspots.forEach(function(h, idx) {
+                    var intensity = h.bright > 350 ? 1 : h.bright > 320 ? 0.7 : 0.4;
+                    var color = h.conf === 'high' ? '#ff1744' : h.conf === 'nominal' ? '#ff9100' : '#ffd740';
+                    var ent = viewer.entities.add({
+                        position: Cesium.Cartesian3.fromDegrees(h.lng, h.lat, 0),
+                        point: {
+                            pixelSize: 6 + h.frp * 0.3,
+                            color: Cesium.Color.fromCssColorString(color).withAlpha(intensity),
+                            outlineColor: Cesium.Color.fromCssColorString(color),
+                            outlineWidth: 1,
+                            heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+                            disableDepthTestDistance: Number.POSITIVE_INFINITY
+                        }
+                    });
+                    firmsEntities.push(ent);
+                });
+
+                viewer.camera.flyTo({
+                    destination: Cesium.Cartesian3.fromDegrees(100.5, 13.7, 800000),
+                    orientation: { heading: 0, pitch: Cesium.Math.toRadians(-60), roll: 0 },
+                    duration: 1.5
+                });
+
+                var highCount = hotspots.filter(function(h) { return h.conf === 'high'; }).length;
+                var nomCount = hotspots.filter(function(h) { return h.conf === 'nominal'; }).length;
+                var lowCount = hotspots.length - highCount - nomCount;
+                var avgFrp = hotspots.length > 0 ? (hotspots.reduce(function(s, h) { return s + h.frp; }, 0) / hotspots.length).toFixed(1) : '0';
+
+                var html = '';
+                html += '<div style="background:rgba(255,23,68,.08);border:1px solid rgba(255,23,68,.25);border-radius:6px;padding:12px;margin-bottom:12px">';
+                html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">';
+                html += '<div style="font-size:28px">🔥</div>';
+                html += '<div><div style="font-size:14px;font-weight:700;color:#ff1744">NASA FIRMS</div>';
+                html += '<div style="font-size:11px;color:#aaa">Fire Information for Resource Management System</div></div></div>';
+                html += '<a href="https://firms.modaps.eosdis.nasa.gov/map/" target="_blank" rel="noopener" style="display:block;text-align:center;background:rgba(255,23,68,.15);border:1px solid #ff1744;color:#ff1744;padding:8px;border-radius:6px;text-decoration:none;font-size:12px;font-weight:600;margin-bottom:8px">🔗 เปิด NASA FIRMS Map</a>';
+                html += '<div style="font-size:10px;color:#888">ข้อมูล VIIRS SNPP · 24 ชม.ล่าสุด · ประเทศไทย</div></div>';
+
+                html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px">';
+                html += '<div class="dt-card"><div class="dt-val" style="color:#ff1744;font-size:18px">' + hotspots.length + '</div><div class="dt-label">🔥 ทั้งหมด</div></div>';
+                html += '<div class="dt-card"><div class="dt-val" style="color:#ff1744;font-size:18px">' + highCount + '</div><div class="dt-label">🔴 สูง</div></div>';
+                html += '<div class="dt-card"><div class="dt-val" style="color:#ff9100;font-size:18px">' + nomCount + '</div><div class="dt-label">🟠 ปานกลาง</div></div>';
+                html += '<div class="dt-card"><div class="dt-val" style="color:#ffd740;font-size:18px">' + lowCount + '</div><div class="dt-label">🟡 ต่ำ</div></div>';
+                html += '</div>';
+
+                html += '<div class="dt-card" style="margin-bottom:12px"><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px">';
+                html += '<div>📊 FRP เฉลี่ย: <b style="color:#ff9100">' + avgFrp + ' MW</b></div>';
+                html += '<div>📅 วันที่: <b style="color:#aaa">' + (hotspots[0] ? hotspots[0].date : '-') + '</b></div>';
+                html += '</div></div>';
+
+                html += '<div class="dt-learn" style="font-size:11px">';
+                html += '<b style="color:#ff1744">📖 เกี่ยวกับ NASA FIRMS:</b><br><br>';
+                html += '<b>เจ้าของ:</b> NASA LANCE (Land, Atmosphere Near real-time Capability for EOS)<br>';
+                html += '<b>เริ่มดำเนินการ:</b> 2001 (MODIS), 2012 (VIIRS S-NPP)<br>';
+                html += '<b>ดาวเทียม:</b> Suomi NPP / NOAA-20 (VIIRS) + Aqua/Terra (MODIS)<br>';
+                html += '<b>ความละเอียด:</b> 375 เมตร (VIIRS) / 1 กม. (MODIS)<br>';
+                html += '<b>ความถี่:</b> อัปเดตทุก ~3 ชั่วโมง<br><br>';
+                html += '<b style="color:#ff9100">ผลกระทบต่อโซลาร์:</b><br>';
+                html += '🔹 หมอกควันจากไฟป่า/เผาไร่ → PM2.5 สูง → ลดรังสีดวงอาทิตย์ 10-25%<br>';
+                html += '🔹 ภาคเหนือ (ม.ค.-เม.ย.) ผลผลิตโซลาร์ลดลงอย่างมีนัยสำคัญจากหมอกควัน<br>';
+                html += '🔹 FRP (Fire Radiative Power) ยิ่งสูง ไฟยิ่งรุนแรง ควันยิ่งมาก<br><br>';
+                html += '<b>ที่มา:</b> <a href="https://firms.modaps.eosdis.nasa.gov/" target="_blank" style="color:#ff1744">firms.modaps.eosdis.nasa.gov</a>';
+                html += '</div>';
+                body.innerHTML = html;
+            } catch(e) {
+                body.innerHTML = '<div style="color:#f44336;padding:20px;text-align:center">❌ ไม่สามารถดึงข้อมูลได้: ' + e.message + '<br><br><a href="https://firms.modaps.eosdis.nasa.gov/map/" target="_blank" style="color:#64b5f6">🔗 เปิด NASA FIRMS Map โดยตรง</a></div>';
+            }
+        }
+        window.loadFIRMS = loadFIRMS;
+
+        /* =========================================================
+           19) 🌍 Global Solar Atlas — ศักยภาพโซลาร์ทั่วโลก
+           ========================================================= */
+        async function loadGSA() {
+            openPanel('🌍 Global Solar Atlas');
+            var body = document.getElementById('panelBody');
+            var cam = viewer.camera.positionCartographic;
+            var lat = Cesium.Math.toDegrees(cam.latitude).toFixed(4);
+            var lng = Cesium.Math.toDegrees(cam.longitude).toFixed(4);
+
+            body.innerHTML = '<div style="text-align:center;padding:40px;color:#aaa"><div class="spinner"></div><br>กำลังดึงข้อมูลจาก Global Solar Atlas...</div>';
+            try {
+                var corsProxy = 'https://cors-get-proxy.sirjosh.workers.dev/get?url=';
+                var gsaUrl = 'https://api.globalsolaratlas.info/data/lta?loc=' + lat + ',' + lng;
+                var resp = await fetch(corsProxy + encodeURIComponent(gsaUrl), { signal: AbortSignal.timeout(10000) });
+                var data = await resp.json();
+                var ann = data.annual || data;
+
+                var ghi = (ann.GHI_annual || ann.GHI || 0).toFixed(0);
+                var dni = (ann.DNI_annual || ann.DNI || 0).toFixed(0);
+                var dif = (ann.DIF_annual || ann.DIF || 0).toFixed(0);
+                var gti = (ann.GTI_opta || ann.OPTA || 0).toFixed(0);
+                var pvout = (ann.PVOUT_csi || ann.PVOUT || 0).toFixed(0);
+                var temp = (ann.TEMP || 0).toFixed(1);
+
+                var html = '';
+                html += '<div style="background:rgba(255,183,77,.08);border:1px solid rgba(255,183,77,.25);border-radius:6px;padding:12px;margin-bottom:12px">';
+                html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">';
+                html += '<div style="font-size:28px">🌍</div>';
+                html += '<div><div style="font-size:14px;font-weight:700;color:#ffb74d">Global Solar Atlas</div>';
+                html += '<div style="font-size:11px;color:#aaa">ESMAP / World Bank Group</div></div></div>';
+                html += '<a href="https://globalsolaratlas.info/map?c=' + lat + ',' + lng + ',8" target="_blank" rel="noopener" style="display:block;text-align:center;background:rgba(255,183,77,.15);border:1px solid #ffb74d;color:#ffb74d;padding:8px;border-radius:6px;text-decoration:none;font-size:12px;font-weight:600;margin-bottom:8px">🔗 เปิด Global Solar Atlas</a>';
+                html += '<div style="font-size:10px;color:#888">📍 พิกัด: ' + lat + ', ' + lng + '</div></div>';
+
+                html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px">';
+                html += '<div class="dt-card"><div class="dt-val" style="color:#ffd740;font-size:16px">' + ghi + '</div><div class="dt-label">GHI (kWh/m²/ปี)</div></div>';
+                html += '<div class="dt-card"><div class="dt-val" style="color:#ffab00;font-size:16px">' + dni + '</div><div class="dt-label">DNI (kWh/m²/ปี)</div></div>';
+                html += '<div class="dt-card"><div class="dt-val" style="color:#64b5f6;font-size:16px">' + dif + '</div><div class="dt-label">DIF (kWh/m²/ปี)</div></div>';
+                html += '</div>';
+                html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px">';
+                html += '<div class="dt-card"><div class="dt-val" style="color:#69f0ae;font-size:16px">' + gti + '</div><div class="dt-label">GTI Optimal (kWh/m²/ปี)</div></div>';
+                html += '<div class="dt-card"><div class="dt-val" style="color:#4caf50;font-size:16px">' + pvout + '</div><div class="dt-label">PVOUT (kWh/kWp/ปี)</div></div>';
+                html += '<div class="dt-card"><div class="dt-val" style="color:#ef5350;font-size:16px">' + temp + '°C</div><div class="dt-label">อุณหภูมิเฉลี่ย</div></div>';
+                html += '</div>';
+
+                if (data.monthly) {
+                    html += '<div style="background:rgba(255,255,255,.04);border-radius:6px;padding:12px;margin-bottom:12px">';
+                    html += '<div style="font-size:12px;font-weight:700;color:#ffd740;margin-bottom:6px">📊 GHI รายเดือน (kWh/m²)</div>';
+                    var months = data.monthly;
+                    var maxM = 0;
+                    var mNames = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+                    months.forEach(function(m) { if ((m.GHI || 0) > maxM) maxM = m.GHI; });
+                    html += '<div style="display:flex;align-items:flex-end;gap:3px;height:80px">';
+                    months.forEach(function(m, mi) {
+                        var pct = maxM > 0 ? (m.GHI / maxM * 100) : 0;
+                        html += '<div style="flex:1;display:flex;flex-direction:column;align-items:center">';
+                        html += '<div style="font-size:8px;color:#aaa;margin-bottom:2px">' + (m.GHI || 0).toFixed(0) + '</div>';
+                        html += '<div style="width:100%;height:' + pct + '%;background:#ffd740;border-radius:2px;min-height:2px"></div>';
+                        html += '</div>';
+                    });
+                    html += '</div>';
+                    html += '<div style="display:flex;gap:3px;margin-top:4px">';
+                    mNames.forEach(function(n) { html += '<div style="flex:1;text-align:center;font-size:8px;color:#666">' + n + '</div>'; });
+                    html += '</div></div>';
+                }
+
+                html += '<div class="dt-learn" style="font-size:11px">';
+                html += '<b style="color:#ffb74d">📖 เกี่ยวกับ Global Solar Atlas:</b><br><br>';
+                html += '<b>เจ้าของ:</b> ESMAP (Energy Sector Management Assistance Program) / World Bank<br>';
+                html += '<b>พัฒนาโดย:</b> Solargis s.r.o. (สโลวาเกีย)<br>';
+                html += '<b>เริ่มดำเนินการ:</b> 2017 (เวอร์ชัน 2.0 ปัจจุบัน เปิดตัว 2019)<br>';
+                html += '<b>ความละเอียด:</b> ~250 เมตร (ชั้นข้อมูลละเอียดที่สุดในโลก)<br>';
+                html += '<b>ข้อมูลย้อนหลัง:</b> ค่าเฉลี่ย 20+ ปี จากดาวเทียม<br><br>';
+                html += '<b style="color:#ffd740">คำย่อ:</b><br>';
+                html += '• <b>GHI</b> = Global Horizontal Irradiation (รังสีรวมบนพื้นราบ)<br>';
+                html += '• <b>DNI</b> = Direct Normal Irradiation (รังสีตรงตั้งฉากดวงอาทิตย์)<br>';
+                html += '• <b>DIF</b> = Diffuse Horizontal Irradiation (รังสีกระจาย)<br>';
+                html += '• <b>GTI</b> = Global Tilted Irradiation (รังสีบนแผงเอียงมุมที่ดีที่สุด)<br>';
+                html += '• <b>PVOUT</b> = Photovoltaic Power Output (ผลผลิตไฟฟ้าโซลาร์)<br><br>';
+                html += '<b>ที่มา:</b> <a href="https://globalsolaratlas.info/" target="_blank" style="color:#ffb74d">globalsolaratlas.info</a> (ฟรี, ไม่ต้อง API key)';
+                html += '</div>';
+                body.innerHTML = html;
+            } catch(e) {
+                body.innerHTML = '<div style="color:#f44336;padding:20px;text-align:center">❌ ไม่สามารถดึงข้อมูลได้: ' + e.message + '<br><br><a href="https://globalsolaratlas.info/" target="_blank" style="color:#64b5f6">🔗 เปิด Global Solar Atlas โดยตรง</a></div>';
+            }
+        }
+        window.loadGSA = loadGSA;
+
+        /* =========================================================
+           20) 🔋 RE Data Explorer — NREL
+           ========================================================= */
+        function loadREExplorer() {
+            openPanel('🔋 RE Data Explorer — NREL');
+            var body = document.getElementById('panelBody');
+            var html = '';
+            html += '<div style="background:rgba(0,200,83,.08);border:1px solid rgba(0,200,83,.25);border-radius:6px;padding:12px;margin-bottom:12px">';
+            html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">';
+            html += '<div style="font-size:28px">🔋</div>';
+            html += '<div><div style="font-size:14px;font-weight:700;color:#00c853">RE Data Explorer</div>';
+            html += '<div style="font-size:11px;color:#aaa">National Renewable Energy Laboratory (NREL)</div></div></div>';
+            html += '<a href="https://www.re-explorer.org/re-data-explorer/data-explorer/map" target="_blank" rel="noopener" style="display:block;text-align:center;background:rgba(0,200,83,.15);border:1px solid #00c853;color:#00c853;padding:8px;border-radius:6px;text-decoration:none;font-size:12px;font-weight:600;margin-bottom:8px">🔗 เปิด RE Data Explorer</a>';
+            html += '<div style="font-size:10px;color:#888">ข้อมูลพลังงานหมุนเวียนหลายประเภท — ครอบคลุม ASEAN</div></div>';
+
+            var resources = [
+                {icon:'☀️', name:'Solar Resource', desc:'แสงอาทิตย์ (GHI, DNI) จากดาวเทียม NSRDB', res:'4 กม.', years:'1998-2020'},
+                {icon:'💨', name:'Wind Resource', desc:'ข้อมูลลมระดับ 100-200 เมตร จาก WTK', res:'2 กม.', years:'2007-2013'},
+                {icon:'🌊', name:'Marine/Wave', desc:'ข้อมูลคลื่นทะเลสำหรับพลังงานคลื่น', res:'~5 กม.', years:'1979-2010'},
+                {icon:'🌿', name:'Biomass', desc:'ศักยภาพชีวมวล — ข้าว อ้อย มันสำปะหลัง', res:'ระดับจังหวัด', years:'2015+'},
+                {icon:'🌋', name:'Geothermal', desc:'แหล่งพลังงานความร้อนใต้พิภพ', res:'จุด/แหล่ง', years:'สำรวจ'}
+            ];
+            html += '<div style="font-size:13px;font-weight:700;color:#00c853;margin-bottom:8px;border-bottom:1px solid #333;padding-bottom:6px">📊 แหล่งข้อมูลที่ครอบคลุม</div>';
+            resources.forEach(function(r) {
+                html += '<div style="background:rgba(255,255,255,.04);border-radius:6px;padding:10px;margin-bottom:6px;border-left:3px solid #00c853">';
+                html += '<div style="font-size:13px;font-weight:700;color:#eee">' + r.icon + ' ' + r.name + '</div>';
+                html += '<div style="font-size:11px;color:#bbb;margin:4px 0">' + r.desc + '</div>';
+                html += '<div style="font-size:10px;color:#888">ความละเอียด: ' + r.res + ' · ช่วงเวลา: ' + r.years + '</div>';
+                html += '</div>';
+            });
+
+            html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:12px 0">';
+            html += '<div class="dt-card"><div class="dt-val" style="color:#00c853;font-size:16px">21</div><div class="dt-label">ประเทศ ASEAN+</div></div>';
+            html += '<div class="dt-card"><div class="dt-val" style="color:#64b5f6;font-size:16px">5+</div><div class="dt-label">ประเภทพลังงาน</div></div>';
+            html += '<div class="dt-card"><div class="dt-val" style="color:#ffd740;font-size:16px">ฟรี</div><div class="dt-label">ไม่ต้อง API Key</div></div>';
+            html += '</div>';
+
+            html += '<div class="dt-learn" style="font-size:11px">';
+            html += '<b style="color:#00c853">📖 เกี่ยวกับ RE Data Explorer:</b><br><br>';
+            html += '<b>เจ้าของ:</b> NREL (National Renewable Energy Laboratory, สหรัฐอเมริกา)<br>';
+            html += '<b>สนับสนุนโดย:</b> USAID (US Agency for International Development)<br>';
+            html += '<b>เริ่มดำเนินการ:</b> 2018<br>';
+            html += '<b>วัตถุประสงค์:</b> ช่วยประเทศกำลังพัฒนาวิเคราะห์ศักยภาพพลังงานหมุนเวียน<br>';
+            html += '<b>ครอบคลุม:</b> เอเชียตะวันออกเฉียงใต้, แอฟริกา, ละตินอเมริกา<br><br>';
+            html += '<b style="color:#ffd740">ประโยชน์สำหรับโซลาร์:</b><br>';
+            html += '🔹 ข้อมูล GHI/DNI รายชั่วโมง 20+ ปี สำหรับวิเคราะห์ศักยภาพ<br>';
+            html += '🔹 เปรียบเทียบพลังงานหลายประเภท (solar vs wind vs biomass)<br>';
+            html += '🔹 ดาวน์โหลด TMY (Typical Meteorological Year) สำหรับ PVsyst<br><br>';
+            html += '<b>ที่มา:</b> <a href="https://www.re-explorer.org/" target="_blank" style="color:#00c853">re-explorer.org</a>';
+            html += '</div>';
+            body.innerHTML = html;
+        }
+        window.loadREExplorer = loadREExplorer;
+
+        /* =========================================================
+           21) 🌐 CAMS Atmosphere — Copernicus
+           ========================================================= */
+        async function loadCAMS() {
+            openPanel('🌐 CAMS Atmosphere — Copernicus');
+            var body = document.getElementById('panelBody');
+            body.innerHTML = '<div style="text-align:center;padding:40px;color:#aaa"><div class="spinner"></div><br>กำลังดึงข้อมูลบรรยากาศ...</div>';
+            try {
+                var cam = viewer.camera.positionCartographic;
+                var lat = Cesium.Math.toDegrees(cam.latitude).toFixed(2);
+                var lng = Cesium.Math.toDegrees(cam.longitude).toFixed(2);
+                var resp = await fetch('https://air-quality-api.open-meteo.com/v1/air-quality?latitude=' + lat + '&longitude=' + lng + '&hourly=pm2_5,pm10,uv_index,aerosol_optical_depth,dust&forecast_days=3', { signal: AbortSignal.timeout(10000) });
+                var data = await resp.json();
+                var h = data.hourly || {};
+                var nowIdx = Math.min(new Date().getHours(), (h.pm2_5 || []).length - 1);
+
+                var pm25 = (h.pm2_5 || [])[nowIdx] || 0;
+                var pm10 = (h.pm10 || [])[nowIdx] || 0;
+                var uv = (h.uv_index || [])[nowIdx] || 0;
+                var aod = (h.aerosol_optical_depth || [])[nowIdx] || 0;
+                var dust = (h.dust || [])[nowIdx] || 0;
+
+                var solarLoss = (aod * 25).toFixed(1);
+
+                var html = '';
+                html += '<div style="background:rgba(33,150,243,.08);border:1px solid rgba(33,150,243,.25);border-radius:6px;padding:12px;margin-bottom:12px">';
+                html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">';
+                html += '<div style="font-size:28px">🌐</div>';
+                html += '<div><div style="font-size:14px;font-weight:700;color:#2196f3">CAMS — Copernicus Atmosphere</div>';
+                html += '<div style="font-size:11px;color:#aaa">European Centre for Medium-Range Weather Forecasts (ECMWF)</div></div></div>';
+                html += '<a href="https://atmosphere.copernicus.eu/" target="_blank" rel="noopener" style="display:block;text-align:center;background:rgba(33,150,243,.15);border:1px solid #2196f3;color:#2196f3;padding:8px;border-radius:6px;text-decoration:none;font-size:12px;font-weight:600;margin-bottom:8px">🔗 เปิด Copernicus Atmosphere</a>';
+                html += '<div style="font-size:10px;color:#888">📍 พิกัด: ' + lat + ', ' + lng + ' · พยากรณ์ 3 วัน</div></div>';
+
+                html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px">';
+                html += '<div class="dt-card"><div class="dt-val" style="color:' + (pm25 > 50 ? '#f44336' : pm25 > 25 ? '#ff9800' : '#4caf50') + ';font-size:16px">' + pm25.toFixed(1) + '</div><div class="dt-label">PM2.5 (µg/m³)</div></div>';
+                html += '<div class="dt-card"><div class="dt-val" style="color:' + (pm10 > 100 ? '#f44336' : '#ffd740') + ';font-size:16px">' + pm10.toFixed(1) + '</div><div class="dt-label">PM10 (µg/m³)</div></div>';
+                html += '<div class="dt-card"><div class="dt-val" style="color:' + (uv > 8 ? '#f44336' : uv > 5 ? '#ff9800' : '#4caf50') + ';font-size:16px">' + uv.toFixed(1) + '</div><div class="dt-label">UV Index</div></div>';
+                html += '</div>';
+                html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px">';
+                html += '<div class="dt-card"><div class="dt-val" style="color:#64b5f6;font-size:16px">' + aod.toFixed(3) + '</div><div class="dt-label">AOD (Aerosol)</div></div>';
+                html += '<div class="dt-card"><div class="dt-val" style="color:#bcaaa4;font-size:16px">' + dust.toFixed(1) + '</div><div class="dt-label">ฝุ่น (µg/m³)</div></div>';
+                html += '<div class="dt-card"><div class="dt-val" style="color:' + (parseFloat(solarLoss) > 10 ? '#f44336' : '#ffd740') + ';font-size:16px">-' + solarLoss + '%</div><div class="dt-label">☀️ Solar Loss</div></div>';
+                html += '</div>';
+
+                // AOD chart 72h
+                if (h.aerosol_optical_depth) {
+                    var aodArr = h.aerosol_optical_depth;
+                    var maxA = Math.max.apply(null, aodArr) || 0.01;
+                    html += '<div style="background:rgba(255,255,255,.04);border-radius:6px;padding:12px;margin-bottom:12px">';
+                    html += '<div style="font-size:12px;font-weight:700;color:#64b5f6;margin-bottom:6px">📈 AOD พยากรณ์ 72 ชม. (ยิ่งสูง = ยิ่งลดแสง)</div>';
+                    html += '<div style="display:flex;align-items:flex-end;gap:0;height:60px;background:#111;border-radius:4px;padding:4px">';
+                    for (var ai = 0; ai < aodArr.length; ai++) {
+                        var aPct = aodArr[ai] / maxA * 100;
+                        var aCol = aodArr[ai] > 0.5 ? '#f44336' : aodArr[ai] > 0.2 ? '#ff9800' : '#64b5f6';
+                        html += '<div style="flex:1;min-width:1px;height:' + aPct + '%;background:' + aCol + '"></div>';
+                    }
+                    html += '</div></div>';
+                }
+
+                html += '<div class="dt-learn" style="font-size:11px">';
+                html += '<b style="color:#2196f3">📖 เกี่ยวกับ CAMS:</b><br><br>';
+                html += '<b>เจ้าของ:</b> ECMWF (European Centre for Medium-Range Weather Forecasts)<br>';
+                html += '<b>โครงการ:</b> Copernicus Atmosphere Monitoring Service (EU)<br>';
+                html += '<b>เริ่มดำเนินการ:</b> 2014 (CAMS operational 2018)<br>';
+                html += '<b>ครอบคลุม:</b> ทั่วโลก ความละเอียด ~40 กม.<br><br>';
+                html += '<b style="color:#ffd740">AOD คืออะไร?</b><br>';
+                html += 'Aerosol Optical Depth = ความหนาแน่นอนุภาคในบรรยากาศ<br>';
+                html += '• AOD < 0.1 = อากาศใส ☀️ โซลาร์ผลิตได้เต็มที่<br>';
+                html += '• AOD 0.2-0.5 = หมอกจาง 🌤️ ลดผลผลิต 5-12%<br>';
+                html += '• AOD > 0.5 = หมอกหนัก 🌫️ ลดผลผลิต 12-25%+<br><br>';
+                html += '<b>ที่มา:</b> <a href="https://atmosphere.copernicus.eu/" target="_blank" style="color:#2196f3">atmosphere.copernicus.eu</a> (ฟรี)';
+                html += '</div>';
+                body.innerHTML = html;
+            } catch(e) {
+                body.innerHTML = '<div style="color:#f44336;padding:20px">❌ ' + e.message + '</div>';
+            }
+        }
+        window.loadCAMS = loadCAMS;
+
+        /* =========================================================
+           22) 🛰️ Sentinel-2 — ภาพถ่ายดาวเทียม ESA
+           ========================================================= */
+        var sentinel2Layer = null;
+
+        function loadSentinel2() {
+            openPanel('🛰️ Sentinel-2 — ESA');
+            var body = document.getElementById('panelBody');
+
+            if (!sentinel2Layer) {
+                sentinel2Layer = viewer.imageryLayers.addImageryProvider(
+                    new Cesium.WebMapServiceImageryProvider({
+                        url: 'https://services.sentinel-hub.com/ogc/wms/a91f72b0-3a77-4719-a76e-0fd0e3f8f8e5',
+                        layers: 'TRUE-COLOR-S2L2A',
+                        parameters: { FORMAT: 'image/png', TRANSPARENT: true, MAXCC: 30, TIME: '2024-01-01/2025-12-31' },
+                        credit: 'Copernicus Sentinel-2 / ESA'
+                    })
+                );
+                sentinel2Layer.alpha = 0.85;
+            }
+            sentinel2Layer.show = true;
+
+            var html = '';
+            html += '<div style="background:rgba(156,39,176,.08);border:1px solid rgba(156,39,176,.25);border-radius:6px;padding:12px;margin-bottom:12px">';
+            html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">';
+            html += '<div style="font-size:28px">🛰️</div>';
+            html += '<div><div style="font-size:14px;font-weight:700;color:#ce93d8">Sentinel-2</div>';
+            html += '<div style="font-size:11px;color:#aaa">European Space Agency (ESA) / Copernicus</div></div></div>';
+            html += '<a href="https://browser.dataspace.copernicus.eu/" target="_blank" rel="noopener" style="display:block;text-align:center;background:rgba(156,39,176,.15);border:1px solid #ce93d8;color:#ce93d8;padding:8px;border-radius:6px;text-decoration:none;font-size:12px;font-weight:600;margin-bottom:8px">🔗 เปิด Copernicus Browser</a>';
+            html += '<div style="font-size:10px;color:#888">⚠️ ภาพ Sentinel-2 อาจไม่แสดงในบางพื้นที่ (ต้อง Sentinel Hub account สำหรับ WMS เต็มรูปแบบ)</div></div>';
+
+            html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px">';
+            html += '<div class="dt-card"><div class="dt-val" style="color:#ce93d8;font-size:16px">10m</div><div class="dt-label">ความละเอียด</div></div>';
+            html += '<div class="dt-card"><div class="dt-val" style="color:#64b5f6;font-size:16px">5 วัน</div><div class="dt-label">รอบถ่ายซ้ำ</div></div>';
+            html += '<div class="dt-card"><div class="dt-val" style="color:#4caf50;font-size:16px">13</div><div class="dt-label">แบนด์สเปกตรัม</div></div>';
+            html += '</div>';
+
+            var bands = [
+                {name:'True Color (B4,B3,B2)', desc:'ภาพสีธรรมชาติ — ดูพื้นที่จริงก่อนติดตั้ง', color:'#4caf50'},
+                {name:'NDVI (B8,B4)', desc:'ดัชนีพืชพรรณ — แยกพื้นที่เกษตร/ป่า/เมือง', color:'#8bc34a'},
+                {name:'False Color (B8,B4,B3)', desc:'ภาพเท็จสี — แยกพืช/ดิน/น้ำ ชัดเจน', color:'#ff5722'},
+                {name:'SWIR (B12,B8A,B4)', desc:'ตรวจจับไฟ ความชื้นดิน ชนิดดิน', color:'#795548'}
+            ];
+            html += '<div style="font-size:13px;font-weight:700;color:#ce93d8;margin-bottom:8px">🔬 แบนด์ที่มีประโยชน์สำหรับโซลาร์</div>';
+            bands.forEach(function(b) {
+                html += '<div style="background:rgba(255,255,255,.04);border-radius:6px;padding:8px;margin-bottom:6px;border-left:3px solid ' + b.color + '">';
+                html += '<div style="font-size:12px;font-weight:700;color:#eee">' + b.name + '</div>';
+                html += '<div style="font-size:11px;color:#bbb">' + b.desc + '</div></div>';
+            });
+
+            html += '<div class="dt-learn" style="font-size:11px;margin-top:12px">';
+            html += '<b style="color:#ce93d8">📖 เกี่ยวกับ Sentinel-2:</b><br><br>';
+            html += '<b>เจ้าของ:</b> European Space Agency (ESA)<br>';
+            html += '<b>โครงการ:</b> Copernicus (EU Earth Observation Programme)<br>';
+            html += '<b>ปล่อยขึ้นวงโคจร:</b> Sentinel-2A (มิ.ย. 2015), Sentinel-2B (มี.ค. 2017)<br>';
+            html += '<b>ความละเอียด:</b> 10m (VNIR), 20m (SWIR), 60m (atmospheric)<br>';
+            html += '<b>วงโคจร:</b> Sun-synchronous, 786 km, 10:30 AM local time<br><br>';
+            html += '<b style="color:#ffd740">ประโยชน์สำหรับโซลาร์:</b><br>';
+            html += '🔹 ตรวจสอบพื้นที่ก่อนติดตั้ง (ดูสิ่งปกคลุมดิน, อาคาร, น้ำ)<br>';
+            html += '🔹 ติดตามการเปลี่ยนแปลงพื้นที่หลังติดตั้ง<br>';
+            html += '🔹 วิเคราะห์ NDVI เพื่อดูผลกระทบสิ่งแวดล้อม<br><br>';
+            html += '<b>ที่มา:</b> <a href="https://dataspace.copernicus.eu/" target="_blank" style="color:#ce93d8">dataspace.copernicus.eu</a> (ฟรี)';
+            html += '</div>';
+            body.innerHTML = html;
+        }
+        window.loadSentinel2 = loadSentinel2;
+
+        /* =========================================================
+           23) 🔌 OSM Power Grid — สายส่งไฟฟ้า
+           ========================================================= */
+        var osmGridEntities = [];
+
+        async function loadOSMGrid() {
+            openPanel('🔌 สายส่งไฟฟ้า — OpenStreetMap');
+            var body = document.getElementById('panelBody');
+            body.innerHTML = '<div style="text-align:center;padding:40px;color:#aaa"><div class="spinner"></div><br>กำลังดึงข้อมูลสายส่งไฟฟ้า...</div>';
+            try {
+                osmGridEntities.forEach(function(e) { viewer.entities.remove(e); });
+                osmGridEntities = [];
+
+                var cam = viewer.camera.positionCartographic;
+                var lat = Cesium.Math.toDegrees(cam.latitude);
+                var lng = Cesium.Math.toDegrees(cam.longitude);
+                var r = 0.15;
+                var bbox = (lat - r) + ',' + (lng - r) + ',' + (lat + r) + ',' + (lng + r);
+
+                var corsProxy = 'https://cors-get-proxy.sirjosh.workers.dev/get?url=';
+                var query = '[out:json][timeout:15];(way["power"="line"](' + bbox + ');node["power"="substation"](' + bbox + ');node["power"="plant"](' + bbox + '););out geom;';
+                var url = 'https://overpass-api.de/api/interpreter?data=' + encodeURIComponent(query);
+                var resp = await fetch(corsProxy + encodeURIComponent(url), { signal: AbortSignal.timeout(20000) });
+                var data = await resp.json();
+
+                var lineCount = 0, substationCount = 0, plantCount = 0;
+
+                data.elements.forEach(function(el) {
+                    if (el.type === 'way' && el.geometry) {
+                        var coords = [];
+                        el.geometry.forEach(function(pt) { coords.push(pt.lon, pt.lat); });
+                        var voltage = parseInt(el.tags.voltage || '0');
+                        var color = voltage >= 230000 ? '#f44336' : voltage >= 115000 ? '#ff9800' : voltage >= 22000 ? '#ffd740' : '#69f0ae';
+                        var width = voltage >= 230000 ? 4 : voltage >= 115000 ? 3 : 2;
+                        var ent = viewer.entities.add({
+                            polyline: {
+                                positions: Cesium.Cartesian3.fromDegreesArray(coords),
+                                width: width,
+                                material: Cesium.Color.fromCssColorString(color).withAlpha(0.8),
+                                clampToGround: true
+                            }
+                        });
+                        osmGridEntities.push(ent);
+                        lineCount++;
+                    } else if (el.type === 'node') {
+                        var isPlant = el.tags.power === 'plant';
+                        var ent = viewer.entities.add({
+                            position: Cesium.Cartesian3.fromDegrees(el.lon, el.lat, 0),
+                            billboard: {
+                                image: createTextPin(isPlant ? '⚡' : '🏭', isPlant ? '#f44336' : '#ff9800'),
+                                width: 40, height: 50,
+                                verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+                                heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+                                disableDepthTestDistance: Number.POSITIVE_INFINITY
+                            },
+                            label: {
+                                text: el.tags.name || (isPlant ? 'โรงไฟฟ้า' : 'สถานีไฟฟ้า'),
+                                font: 'bold 11px sans-serif',
+                                fillColor: Cesium.Color.WHITE,
+                                backgroundColor: Cesium.Color.fromCssColorString(isPlant ? '#f44336' : '#ff9800').withAlpha(0.85),
+                                showBackground: true,
+                                backgroundPadding: new Cesium.Cartesian2(6, 3),
+                                outlineWidth: 2, outlineColor: Cesium.Color.BLACK,
+                                style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+                                pixelOffset: new Cesium.Cartesian2(0, -55),
+                                heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+                                disableDepthTestDistance: Number.POSITIVE_INFINITY
+                            }
+                        });
+                        osmGridEntities.push(ent);
+                        if (isPlant) plantCount++; else substationCount++;
+                    }
+                });
+
+                var html = '';
+                html += '<div style="background:rgba(255,152,0,.08);border:1px solid rgba(255,152,0,.25);border-radius:6px;padding:12px;margin-bottom:12px">';
+                html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">';
+                html += '<div style="font-size:28px">🔌</div>';
+                html += '<div><div style="font-size:14px;font-weight:700;color:#ff9800">สายส่งไฟฟ้า — OpenStreetMap</div>';
+                html += '<div style="font-size:11px;color:#aaa">ข้อมูลโครงข่ายไฟฟ้าจาก OSM Community</div></div></div>';
+                html += '<a href="https://openinframap.org/" target="_blank" rel="noopener" style="display:block;text-align:center;background:rgba(255,152,0,.15);border:1px solid #ff9800;color:#ff9800;padding:8px;border-radius:6px;text-decoration:none;font-size:12px;font-weight:600;margin-bottom:8px">🔗 เปิด Open Infrastructure Map</a>';
+                html += '<div style="font-size:10px;color:#888">📍 บริเวณ: ' + lat.toFixed(2) + ', ' + lng.toFixed(2) + ' · รัศมี ~15 กม.</div></div>';
+
+                html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px">';
+                html += '<div class="dt-card"><div class="dt-val" style="color:#ffd740;font-size:18px">' + lineCount + '</div><div class="dt-label">🔌 สายส่ง</div></div>';
+                html += '<div class="dt-card"><div class="dt-val" style="color:#ff9800;font-size:18px">' + substationCount + '</div><div class="dt-label">🏭 สถานีไฟฟ้า</div></div>';
+                html += '<div class="dt-card"><div class="dt-val" style="color:#f44336;font-size:18px">' + plantCount + '</div><div class="dt-label">⚡ โรงไฟฟ้า</div></div>';
+                html += '</div>';
+
+                html += '<div style="font-size:12px;font-weight:700;color:#ff9800;margin-bottom:6px">🎨 สีสายส่งตามแรงดัน</div>';
+                html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:12px;font-size:11px">';
+                html += '<div style="color:#f44336">━━ 230+ kV (สายส่งหลัก)</div>';
+                html += '<div style="color:#ff9800">━━ 115 kV (สายจำหน่าย)</div>';
+                html += '<div style="color:#ffd740">━━ 22 kV (จำหน่ายย่อย)</div>';
+                html += '<div style="color:#69f0ae">━━ < 22 kV (แรงต่ำ)</div>';
+                html += '</div>';
+
+                html += '<div class="dt-learn" style="font-size:11px">';
+                html += '<b style="color:#ff9800">📖 เกี่ยวกับ OSM Power Grid:</b><br><br>';
+                html += '<b>เจ้าของข้อมูล:</b> OpenStreetMap Foundation (OSM Community)<br>';
+                html += '<b>เริ่มดำเนินการ:</b> 2004 (OSM), power grid mapping 2010+<br>';
+                html += '<b>ครอบคลุม:</b> ทั่วโลก — ข้อมูลไทยค่อนข้างสมบูรณ์ในเมืองใหญ่<br><br>';
+                html += '<b style="color:#ffd740">ประโยชน์สำหรับโซลาร์:</b><br>';
+                html += '🔹 หาสถานีไฟฟ้าใกล้ที่สุดสำหรับเชื่อมต่อ solar farm<br>';
+                html += '🔹 ดูแรงดันสายส่ง — กำหนดขนาดระบบที่เชื่อมต่อได้<br>';
+                html += '🔹 วิเคราะห์ระยะทางจากโซลาร์ฟาร์มถึง grid<br><br>';
+                html += '<b>ที่มา:</b> <a href="https://www.openstreetmap.org/" target="_blank" style="color:#ff9800">openstreetmap.org</a> + <a href="https://openinframap.org/" target="_blank" style="color:#ff9800">openinframap.org</a>';
+                html += '</div>';
+                body.innerHTML = html;
+            } catch(e) {
+                body.innerHTML = '<div style="color:#f44336;padding:20px">❌ ' + e.message + '</div>';
+            }
+        }
+        window.loadOSMGrid = loadOSMGrid;
+
+        /* =========================================================
+           24) ⚡ Smart Grid ไทย
+           ========================================================= */
+        function loadSmartGrid() {
+            openPanel('⚡ Smart Grid ไทย');
+            var body = document.getElementById('panelBody');
+            var html = '';
+            html += '<div style="background:rgba(255,235,59,.08);border:1px solid rgba(255,235,59,.25);border-radius:6px;padding:12px;margin-bottom:12px">';
+            html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">';
+            html += '<div style="font-size:28px">⚡</div>';
+            html += '<div><div style="font-size:14px;font-weight:700;color:#ffeb3b">Smart Grid ประเทศไทย</div>';
+            html += '<div style="font-size:11px;color:#aaa">การไฟฟ้าฝ่ายผลิต (EGAT) / กฟภ. (PEA) / กฟน. (MEA)</div></div></div>';
+            html += '<div style="display:flex;gap:6px;margin-bottom:8px">';
+            html += '<a href="https://www.egat.co.th/" target="_blank" rel="noopener" style="flex:1;text-align:center;background:rgba(255,235,59,.15);border:1px solid #ffeb3b;color:#ffeb3b;padding:6px;border-radius:6px;text-decoration:none;font-size:11px">🔗 EGAT</a>';
+            html += '<a href="https://www.pea.co.th/" target="_blank" rel="noopener" style="flex:1;text-align:center;background:rgba(255,235,59,.15);border:1px solid #ffeb3b;color:#ffeb3b;padding:6px;border-radius:6px;text-decoration:none;font-size:11px">🔗 PEA</a>';
+            html += '<a href="https://www.mea.or.th/" target="_blank" rel="noopener" style="flex:1;text-align:center;background:rgba(255,235,59,.15);border:1px solid #ffeb3b;color:#ffeb3b;padding:6px;border-radius:6px;text-decoration:none;font-size:11px">🔗 MEA</a>';
+            html += '</div></div>';
+
+            html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px">';
+            html += '<div class="dt-card"><div class="dt-val" style="color:#ffd740;font-size:16px">46,763</div><div class="dt-label">MW กำลังผลิตรวม</div></div>';
+            html += '<div class="dt-card"><div class="dt-val" style="color:#69f0ae;font-size:16px">~5,500</div><div class="dt-label">MW โซลาร์รวม</div></div>';
+            html += '<div class="dt-card"><div class="dt-val" style="color:#64b5f6;font-size:16px">230/500</div><div class="dt-label">kV สายส่งหลัก</div></div>';
+            html += '</div>';
+
+            var gridInfo = [
+                {name:'EGAT — การไฟฟ้าฝ่ายผลิต', role:'ผลิตไฟฟ้า + สายส่ง 230-500 kV', icon:'🏗️', color:'#f44336', details:'โรงไฟฟ้า 50+ แห่ง · สถานีไฟฟ้าแรงสูง 200+ แห่ง'},
+                {name:'PEA — การไฟฟ้าส่วนภูมิภาค', role:'จำหน่ายไฟฟ้า 74 จังหวัด (ยกเว้น กทม.)', icon:'⚡', color:'#ff9800', details:'สถานีจ่ายไฟ 800+ แห่ง · ระบบ 22-33 kV'},
+                {name:'MEA — การไฟฟ้านครหลวง', role:'จำหน่ายไฟฟ้า กทม. นนทบุรี สมุทรปราการ', icon:'🏙️', color:'#ffeb3b', details:'ระบบ 12-24 kV · Smart Meter 100,000+ จุด'},
+                {name:'ERC — กกพ.', role:'กำกับดูแล อัตราค่าไฟ ใบอนุญาต', icon:'📋', color:'#64b5f6', details:'กำหนด FT ทุกงวด · ออกใบอนุญาตผลิตไฟฟ้า'}
+            ];
+            html += '<div style="font-size:13px;font-weight:700;color:#ffeb3b;margin-bottom:8px;border-bottom:1px solid #333;padding-bottom:6px">🏢 โครงสร้างระบบไฟฟ้าไทย</div>';
+            gridInfo.forEach(function(g) {
+                html += '<div style="background:rgba(255,255,255,.04);border-radius:6px;padding:10px;margin-bottom:6px;border-left:3px solid ' + g.color + '">';
+                html += '<div style="font-size:13px;font-weight:700;color:#eee">' + g.icon + ' ' + g.name + '</div>';
+                html += '<div style="font-size:11px;color:#bbb;margin:4px 0">' + g.role + '</div>';
+                html += '<div style="font-size:10px;color:#888">' + g.details + '</div></div>';
+            });
+
+            html += '<div style="font-size:13px;font-weight:700;color:#69f0ae;margin:12px 0 8px;border-bottom:1px solid #333;padding-bottom:6px">🔌 การเชื่อมต่อโซลาร์กับ Grid</div>';
+            html += '<div style="background:rgba(255,255,255,.04);border-radius:6px;padding:10px;margin-bottom:12px;font-size:11px;color:#bbb;line-height:1.6">';
+            html += '<b style="color:#69f0ae">ระบบ Solar Rooftop (< 1 MW):</b> เชื่อมต่อกับ PEA/MEA 22 kV<br>';
+            html += '<b style="color:#ffd740">Solar Farm (1-90 MW):</b> เชื่อมต่อกับ EGAT 115-230 kV<br>';
+            html += '<b style="color:#ff9800">Solar Farm ขนาดใหญ่ (> 90 MW):</b> เชื่อมต่อกับ EGAT 500 kV<br><br>';
+            html += '<b>ขั้นตอน:</b> ยื่นขอ กกพ. → ศึกษา Grid Impact → สัญญาซื้อขายไฟฟ้า (PPA) → ก่อสร้าง → COD';
+            html += '</div>';
+
+            html += '<div class="dt-learn" style="font-size:11px">';
+            html += '<b style="color:#ffeb3b">📖 เกี่ยวกับ Smart Grid ไทย:</b><br><br>';
+            html += '<b>แผนพัฒนา:</b> Smart Grid Master Plan 2015-2036 (สนพ.)<br>';
+            html += '<b>เป้าหมาย:</b> RE 30% ของกำลังผลิตรวม ภายในปี 2036<br>';
+            html += '<b>สถานะ:</b> กำลังขยาย Smart Meter, EV charging, Energy Storage<br><br>';
+            html += '<b>ที่มา:</b> <a href="https://www.egat.co.th/" target="_blank" style="color:#ffeb3b">egat.co.th</a> · <a href="https://www.erc.or.th/" target="_blank" style="color:#ffeb3b">erc.or.th</a>';
+            html += '</div>';
+            body.innerHTML = html;
+        }
+        window.loadSmartGrid = loadSmartGrid;
+
+        /* =========================================================
+           25) 💰 ค่าไฟ / FT — อัตราค่าไฟฟ้าไทย + ROI Calculator
+           ========================================================= */
+        function loadTariff() {
+            openPanel('💰 ค่าไฟ/FT — อัตราค่าไฟฟ้าไทย');
+            var body = document.getElementById('panelBody');
+            var html = '';
+            html += '<div style="background:rgba(76,175,80,.08);border:1px solid rgba(76,175,80,.25);border-radius:6px;padding:12px;margin-bottom:12px">';
+            html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">';
+            html += '<div style="font-size:28px">💰</div>';
+            html += '<div><div style="font-size:14px;font-weight:700;color:#4caf50">อัตราค่าไฟฟ้าไทย</div>';
+            html += '<div style="font-size:11px;color:#aaa">สำนักงาน กกพ. (ERC)</div></div></div>';
+            html += '<a href="https://www.erc.or.th/" target="_blank" rel="noopener" style="display:block;text-align:center;background:rgba(76,175,80,.15);border:1px solid #4caf50;color:#4caf50;padding:8px;border-radius:6px;text-decoration:none;font-size:12px;font-weight:600;margin-bottom:8px">🔗 เปิดเว็บ กกพ. (ERC)</a></div>';
+
+            html += '<div style="font-size:13px;font-weight:700;color:#4caf50;margin-bottom:8px;border-bottom:1px solid #333;padding-bottom:6px">⚡ อัตราค่าไฟฟ้า (ม.ค.-เม.ย. 2569)</div>';
+            var rates = [
+                {type:'บ้านอยู่อาศัย', range:'0-150 หน่วย', rate:'3.24', ft:'-0.3979'},
+                {type:'บ้านอยู่อาศัย', range:'151-400 หน่วย', rate:'4.22', ft:'-0.3979'},
+                {type:'บ้านอยู่อาศัย', range:'> 400 หน่วย', rate:'4.42', ft:'-0.3979'},
+                {type:'กิจการขนาดเล็ก', range:'< 30 kW', rate:'4.18', ft:'-0.3979'},
+                {type:'กิจการขนาดกลาง', range:'30-999 kW', rate:'4.30', ft:'-0.3979'},
+                {type:'กิจการขนาดใหญ่', range:'≥ 1,000 kW', rate:'3.99', ft:'-0.3979'}
+            ];
+            html += '<div style="overflow-x:auto;margin-bottom:12px"><table style="width:100%;border-collapse:collapse;font-size:11px">';
+            html += '<tr style="background:#222"><th style="padding:6px;text-align:left;color:#4caf50;border-bottom:1px solid #444">ประเภท</th><th style="padding:6px;text-align:left;color:#4caf50;border-bottom:1px solid #444">ช่วง</th><th style="padding:6px;text-align:right;color:#4caf50;border-bottom:1px solid #444">ค่าไฟ (บาท/หน่วย)</th></tr>';
+            rates.forEach(function(r) {
+                html += '<tr><td style="padding:5px;color:#ddd;border-bottom:1px solid #333">' + r.type + '</td><td style="padding:5px;color:#aaa;border-bottom:1px solid #333">' + r.range + '</td><td style="padding:5px;text-align:right;color:#ffd740;font-weight:700;border-bottom:1px solid #333">' + r.rate + '</td></tr>';
+            });
+            html += '</table></div>';
+
+            html += '<div style="font-size:13px;font-weight:700;color:#ffd740;margin-bottom:8px;border-bottom:1px solid #333;padding-bottom:6px">🧮 คำนวณ ROI โซลาร์เบื้องต้น</div>';
+            html += '<div style="background:rgba(255,255,255,.04);border-radius:6px;padding:12px;margin-bottom:12px">';
+            html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">';
+            html += '<div><label style="font-size:11px;color:#aaa">ขนาดระบบ (kWp):</label><br><input id="roiKwp" type="number" value="10" style="width:100%;padding:6px;background:#222;border:1px solid #444;color:#fff;border-radius:4px;font-size:13px"></div>';
+            html += '<div><label style="font-size:11px;color:#aaa">ค่าติดตั้ง (บาท/Wp):</label><br><input id="roiCost" type="number" value="25" style="width:100%;padding:6px;background:#222;border:1px solid #444;color:#fff;border-radius:4px;font-size:13px"></div>';
+            html += '<div><label style="font-size:11px;color:#aaa">Peak Sun Hours (ชม./วัน):</label><br><input id="roiPSH" type="number" value="4.5" step="0.1" style="width:100%;padding:6px;background:#222;border:1px solid #444;color:#fff;border-radius:4px;font-size:13px"></div>';
+            html += '<div><label style="font-size:11px;color:#aaa">ค่าไฟ (บาท/หน่วย):</label><br><input id="roiTariff" type="number" value="4.22" step="0.01" style="width:100%;padding:6px;background:#222;border:1px solid #444;color:#fff;border-radius:4px;font-size:13px"></div>';
+            html += '</div>';
+            html += '<button onclick="calcROI()" style="width:100%;padding:10px;background:#4caf50;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer">🧮 คำนวณ ROI</button>';
+            html += '<div id="roiResult" style="margin-top:10px"></div>';
+            html += '</div>';
+
+            html += '<div class="dt-learn" style="font-size:11px">';
+            html += '<b style="color:#4caf50">📖 เกี่ยวกับค่าไฟไทย:</b><br><br>';
+            html += '<b>กำหนดโดย:</b> สำนักงาน กกพ. (คณะกรรมการกำกับกิจการพลังงาน)<br>';
+            html += '<b>ปรับ FT:</b> ทุก 4 เดือน (ม.ค./พ.ค./ก.ย.)<br>';
+            html += '<b>FT คือ:</b> ค่าไฟฟ้าผันแปร — สะท้อนต้นทุนเชื้อเพลิง ค่าเงิน นโยบาย<br><br>';
+            html += '<b>ที่มา:</b> <a href="https://www.erc.or.th/" target="_blank" style="color:#4caf50">erc.or.th</a>';
+            html += '</div>';
+            body.innerHTML = html;
+        }
+        window.loadTariff = loadTariff;
+
+        function calcROI() {
+            var kwp = parseFloat(document.getElementById('roiKwp').value) || 10;
+            var costPerWp = parseFloat(document.getElementById('roiCost').value) || 25;
+            var psh = parseFloat(document.getElementById('roiPSH').value) || 4.5;
+            var tariff = parseFloat(document.getElementById('roiTariff').value) || 4.22;
+
+            var totalCost = kwp * 1000 * costPerWp;
+            var dailyKwh = kwp * psh * 0.8;
+            var yearlyKwh = dailyKwh * 365;
+            var yearlySaving = yearlyKwh * tariff;
+            var payback = totalCost / yearlySaving;
+            var roi25y = (yearlySaving * 25 - totalCost);
+
+            var html = '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:8px">';
+            html += '<div class="dt-card"><div class="dt-val" style="color:#ffd740;font-size:14px">' + (totalCost / 1000).toFixed(0) + 'K</div><div class="dt-label">💰 ค่าติดตั้ง (บาท)</div></div>';
+            html += '<div class="dt-card"><div class="dt-val" style="color:#69f0ae;font-size:14px">' + yearlyKwh.toFixed(0) + '</div><div class="dt-label">⚡ ผลิตได้/ปี (kWh)</div></div>';
+            html += '<div class="dt-card"><div class="dt-val" style="color:#4caf50;font-size:14px">' + (yearlySaving / 1000).toFixed(1) + 'K</div><div class="dt-label">💵 ประหยัด/ปี (บาท)</div></div>';
+            html += '<div class="dt-card"><div class="dt-val" style="color:' + (payback < 7 ? '#4caf50' : '#ff9800') + ';font-size:14px">' + payback.toFixed(1) + ' ปี</div><div class="dt-label">📅 คืนทุน</div></div>';
+            html += '</div>';
+            html += '<div class="dt-card" style="margin-top:6px"><div class="dt-val" style="color:#69f0ae;font-size:16px">+' + (roi25y / 1000).toFixed(0) + 'K บาท</div><div class="dt-label">📈 กำไรสุทธิ 25 ปี (หลังหักค่าติดตั้ง)</div></div>';
+            document.getElementById('roiResult').innerHTML = html;
+        }
+        window.calcROI = calcROI;
+
+        /* =========================================================
+           26) 🌱 Carbon Intensity — ปริมาณ CO2 ต่อ kWh
+           ========================================================= */
+        function loadCarbon() {
+            openPanel('🌱 Carbon Intensity');
+            var body = document.getElementById('panelBody');
+            var thEmission = 0.4999;
+            var html = '';
+            html += '<div style="background:rgba(76,175,80,.08);border:1px solid rgba(76,175,80,.25);border-radius:6px;padding:12px;margin-bottom:12px">';
+            html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">';
+            html += '<div style="font-size:28px">🌱</div>';
+            html += '<div><div style="font-size:14px;font-weight:700;color:#66bb6a">Carbon Intensity — ก๊าซเรือนกระจก</div>';
+            html += '<div style="font-size:11px;color:#aaa">Electricity Maps / IEA / อบก.</div></div></div>';
+            html += '<a href="https://app.electricitymaps.com/map" target="_blank" rel="noopener" style="display:block;text-align:center;background:rgba(76,175,80,.15);border:1px solid #66bb6a;color:#66bb6a;padding:8px;border-radius:6px;text-decoration:none;font-size:12px;font-weight:600;margin-bottom:8px">🔗 เปิด Electricity Maps</a></div>';
+
+            html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px">';
+            html += '<div class="dt-card"><div class="dt-val" style="color:#ff9800;font-size:16px">' + (thEmission * 1000).toFixed(0) + '</div><div class="dt-label">gCO2/kWh ไทย</div></div>';
+            html += '<div class="dt-card"><div class="dt-val" style="color:#f44336;font-size:16px">~60%</div><div class="dt-label">ก๊าซ + ถ่านหิน</div></div>';
+            html += '<div class="dt-card"><div class="dt-val" style="color:#4caf50;font-size:16px">~12%</div><div class="dt-label">พลังงานหมุนเวียน</div></div>';
+            html += '</div>';
+
+            html += '<div style="font-size:13px;font-weight:700;color:#66bb6a;margin-bottom:8px;border-bottom:1px solid #333;padding-bottom:6px">🧮 คำนวณ Carbon Credit จากโซลาร์</div>';
+            html += '<div style="background:rgba(255,255,255,.04);border-radius:6px;padding:12px;margin-bottom:12px">';
+            html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">';
+            html += '<div><label style="font-size:11px;color:#aaa">ขนาดระบบ (kWp):</label><br><input id="carbKwp" type="number" value="100" style="width:100%;padding:6px;background:#222;border:1px solid #444;color:#fff;border-radius:4px;font-size:13px"></div>';
+            html += '<div><label style="font-size:11px;color:#aaa">Peak Sun Hours:</label><br><input id="carbPSH" type="number" value="4.5" step="0.1" style="width:100%;padding:6px;background:#222;border:1px solid #444;color:#fff;border-radius:4px;font-size:13px"></div>';
+            html += '</div>';
+            html += '<button onclick="calcCarbon()" style="width:100%;padding:10px;background:#66bb6a;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer">🌱 คำนวณ Carbon Offset</button>';
+            html += '<div id="carbonResult" style="margin-top:10px"></div>';
+            html += '</div>';
+
+            var countries = [
+                {name:'🇹🇭 ไทย', co2: 499, pct:'ก๊าซ 55% ถ่านหิน 18%'},
+                {name:'🇩🇪 เยอรมนี', co2: 350, pct:'ลม 30% โซลาร์ 12%'},
+                {name:'🇫🇷 ฝรั่งเศส', co2: 56, pct:'นิวเคลียร์ 70%'},
+                {name:'🇮🇳 อินเดีย', co2: 708, pct:'ถ่านหิน 70%'},
+                {name:'🇨🇳 จีน', co2: 555, pct:'ถ่านหิน 60%'},
+                {name:'🇸🇬 สิงคโปร์', co2: 408, pct:'ก๊าซ 95%'}
+            ];
+            html += '<div style="font-size:13px;font-weight:700;color:#ffd740;margin-bottom:8px;border-bottom:1px solid #333;padding-bottom:6px">🌍 เปรียบเทียบ Carbon Intensity</div>';
+            html += '<div style="overflow-x:auto;margin-bottom:12px"><table style="width:100%;border-collapse:collapse;font-size:11px">';
+            html += '<tr style="background:#222"><th style="padding:6px;text-align:left;color:#66bb6a">ประเทศ</th><th style="padding:6px;text-align:right;color:#66bb6a">gCO2/kWh</th><th style="padding:6px;text-align:left;color:#66bb6a">แหล่งผลิตหลัก</th></tr>';
+            countries.forEach(function(c) {
+                var barW = (c.co2 / 800 * 100).toFixed(0);
+                html += '<tr><td style="padding:5px;color:#ddd;border-bottom:1px solid #333">' + c.name + '</td>';
+                html += '<td style="padding:5px;border-bottom:1px solid #333"><div style="display:flex;align-items:center;gap:4px;justify-content:flex-end"><span style="color:#ffd740;font-weight:700">' + c.co2 + '</span><div style="width:' + barW + 'px;height:8px;background:' + (c.co2 > 500 ? '#f44336' : c.co2 > 200 ? '#ff9800' : '#4caf50') + ';border-radius:2px"></div></div></td>';
+                html += '<td style="padding:5px;color:#888;border-bottom:1px solid #333">' + c.pct + '</td></tr>';
+            });
+            html += '</table></div>';
+
+            html += '<div class="dt-learn" style="font-size:11px">';
+            html += '<b style="color:#66bb6a">📖 เกี่ยวกับ Carbon Intensity:</b><br><br>';
+            html += '<b>ข้อมูลไทย:</b> อบก. (องค์การบริหารจัดการก๊าซเรือนกระจก) — Emission Factor 0.4999 tCO2/MWh (2023)<br>';
+            html += '<b>ข้อมูลโลก:</b> Electricity Maps (เดนมาร์ก, เริ่ม 2017) — เรียลไทม์ทั่วโลก<br>';
+            html += '<b>มาตรฐาน:</b> IEA (International Energy Agency)<br><br>';
+            html += '<b style="color:#ffd740">Carbon Credit:</b><br>';
+            html += '🔹 T-VER (Thailand Voluntary Emission Reduction) — อบก. รับรอง<br>';
+            html += '🔹 ราคา Carbon Credit ไทย: ~100-300 บาท/tCO2<br>';
+            html += '🔹 ตลาดสากล: ~$5-50/tCO2 (VCS, Gold Standard)<br><br>';
+            html += '<b>ที่มา:</b> <a href="https://app.electricitymaps.com/" target="_blank" style="color:#66bb6a">electricitymaps.com</a> · <a href="http://www.tgo.or.th/" target="_blank" style="color:#66bb6a">tgo.or.th</a>';
+            html += '</div>';
+            body.innerHTML = html;
+        }
+        window.loadCarbon = loadCarbon;
+
+        function calcCarbon() {
+            var kwp = parseFloat(document.getElementById('carbKwp').value) || 100;
+            var psh = parseFloat(document.getElementById('carbPSH').value) || 4.5;
+            var ef = 0.4999;
+            var yearlyMwh = kwp * psh * 0.8 * 365 / 1000;
+            var yearlyCO2 = yearlyMwh * ef;
+            var co225y = yearlyCO2 * 25;
+            var trees = (yearlyCO2 / 0.022).toFixed(0);
+            var creditValue = (yearlyCO2 * 200).toFixed(0);
+
+            var html = '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:8px">';
+            html += '<div class="dt-card"><div class="dt-val" style="color:#69f0ae;font-size:14px">' + yearlyMwh.toFixed(1) + '</div><div class="dt-label">⚡ MWh/ปี</div></div>';
+            html += '<div class="dt-card"><div class="dt-val" style="color:#66bb6a;font-size:14px">' + yearlyCO2.toFixed(1) + '</div><div class="dt-label">🌱 tCO2 ลด/ปี</div></div>';
+            html += '<div class="dt-card"><div class="dt-val" style="color:#4caf50;font-size:14px">' + co225y.toFixed(0) + '</div><div class="dt-label">🌲 tCO2 ลด 25 ปี</div></div>';
+            html += '<div class="dt-card"><div class="dt-val" style="color:#ffd740;font-size:14px">' + trees + '</div><div class="dt-label">🌳 เทียบเท่าต้นไม้/ปี</div></div>';
+            html += '</div>';
+            html += '<div class="dt-card" style="margin-top:6px"><div class="dt-val" style="color:#69f0ae;font-size:16px">~' + (creditValue / 1000).toFixed(0) + 'K บาท/ปี</div><div class="dt-label">💰 มูลค่า Carbon Credit (ประมาณ 200 บาท/tCO2)</div></div>';
+            document.getElementById('carbonResult').innerHTML = html;
+        }
+        window.calcCarbon = calcCarbon;
+
+        /* =========================================================
+           27) ☀️ Solcast — พยากรณ์โซลาร์แม่นยำสูง
+           ========================================================= */
+        function loadSolcast() {
+            openPanel('☀️ Solcast — Solar Forecasting');
+            var body = document.getElementById('panelBody');
+            var html = '';
+            html += '<div style="background:rgba(255,193,7,.08);border:1px solid rgba(255,193,7,.25);border-radius:6px;padding:12px;margin-bottom:12px">';
+            html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">';
+            html += '<div style="font-size:28px">☀️</div>';
+            html += '<div><div style="font-size:14px;font-weight:700;color:#ffc107">Solcast</div>';
+            html += '<div style="font-size:11px;color:#aaa">Solcast Pty Ltd (ออสเตรเลีย)</div></div></div>';
+            html += '<a href="https://solcast.com/" target="_blank" rel="noopener" style="display:block;text-align:center;background:rgba(255,193,7,.15);border:1px solid #ffc107;color:#ffc107;padding:8px;border-radius:6px;text-decoration:none;font-size:12px;font-weight:600;margin-bottom:8px">🔗 เปิด Solcast.com</a>';
+            html += '<div style="font-size:10px;color:#888">ฟรี 1,000 API calls/เดือน (ลงทะเบียน)</div></div>';
+
+            html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px">';
+            html += '<div class="dt-card"><div class="dt-val" style="color:#ffc107;font-size:16px">1-2 กม.</div><div class="dt-label">ความละเอียด</div></div>';
+            html += '<div class="dt-card"><div class="dt-val" style="color:#64b5f6;font-size:16px">5-15 นาที</div><div class="dt-label">ความถี่ข้อมูล</div></div>';
+            html += '<div class="dt-card"><div class="dt-val" style="color:#69f0ae;font-size:16px">14 วัน</div><div class="dt-label">พยากรณ์ล่วงหน้า</div></div>';
+            html += '</div>';
+
+            html += '<div style="font-size:13px;font-weight:700;color:#ffc107;margin-bottom:8px;border-bottom:1px solid #333;padding-bottom:6px">📊 ข้อมูลที่ Solcast ให้</div>';
+            var datasets = [
+                {name:'Forecast', desc:'พยากรณ์ GHI/DNI/DHI ล่วงหน้า 14 วัน ทุก 15 นาที', icon:'🔮', free:'✅'},
+                {name:'Live & Estimated Actuals', desc:'ค่าจริง ณ ปัจจุบัน + ย้อนหลัง 7 วัน', icon:'📡', free:'✅'},
+                {name:'TMY (Typical Meteorological Year)', desc:'ข้อมูลสำหรับออกแบบ PV system', icon:'📅', free:'✅'},
+                {name:'Historical Timeseries', desc:'ข้อมูลย้อนหลัง 10+ ปี ทุก 15 นาที', icon:'📈', free:'💰'},
+                {name:'Rooftop PV Power', desc:'ประมาณผลผลิต rooftop solar จากแบบจำลอง', icon:'🏠', free:'✅'}
+            ];
+            datasets.forEach(function(d) {
+                html += '<div style="background:rgba(255,255,255,.04);border-radius:6px;padding:8px;margin-bottom:6px;border-left:3px solid #ffc107">';
+                html += '<div style="display:flex;justify-content:space-between;align-items:center">';
+                html += '<div style="font-size:12px;font-weight:700;color:#eee">' + d.icon + ' ' + d.name + '</div>';
+                html += '<span style="font-size:10px;color:' + (d.free === '✅' ? '#4caf50' : '#ff9800') + '">' + d.free + '</span></div>';
+                html += '<div style="font-size:11px;color:#bbb;margin-top:3px">' + d.desc + '</div></div>';
+            });
+
+            html += '<div style="font-size:13px;font-weight:700;color:#69f0ae;margin:12px 0 8px;border-bottom:1px solid #333;padding-bottom:6px">🔑 ตั้งค่า API Key (ถ้ามี)</div>';
+            html += '<div style="background:rgba(255,255,255,.04);border-radius:6px;padding:12px;margin-bottom:12px">';
+            html += '<div style="font-size:11px;color:#aaa;margin-bottom:6px">ลงทะเบียนฟรีที่ <a href="https://toolkit.solcast.com.au/register" target="_blank" style="color:#ffc107">toolkit.solcast.com.au</a></div>';
+            html += '<input id="solcastKey" type="text" placeholder="Solcast API Key" style="width:100%;padding:6px;background:#222;border:1px solid #444;color:#fff;border-radius:4px;font-size:12px;margin-bottom:6px">';
+            html += '<button onclick="saveSolcastKey()" style="width:100%;padding:8px;background:#ffc107;color:#000;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">💾 บันทึก API Key</button>';
+            html += '</div>';
+
+            html += '<div class="dt-learn" style="font-size:11px">';
+            html += '<b style="color:#ffc107">📖 เกี่ยวกับ Solcast:</b><br><br>';
+            html += '<b>เจ้าของ:</b> Solcast Pty Ltd (ซิดนีย์, ออสเตรเลีย) — ก่อตั้ง 2016 โดย Dr. Nick Engerer<br>';
+            html += '<b>ถูกซื้อโดย:</b> DNV (2023) — บริษัทที่ปรึกษาด้านพลังงานชั้นนำของโลก<br>';
+            html += '<b>ครอบคลุม:</b> ทั่วโลก — ข้อมูลจากดาวเทียม Himawari-8/9, Meteosat, GOES<br>';
+            html += '<b>ลูกค้า:</b> > 6,000 บริษัท ใน 150+ ประเทศ<br><br>';
+            html += '<b style="color:#ffd740">เปรียบเทียบกับแหล่งอื่น:</b><br>';
+            html += '• PVGIS: ค่าเฉลี่ยรายปี · Solcast: ทุก 15 นาที เรียลไทม์<br>';
+            html += '• NASA POWER: 0.5° (~50 กม.) · Solcast: 1-2 กม.<br>';
+            html += '• Global Solar Atlas: เฉลี่ย 20 ปี · Solcast: พยากรณ์ + ย้อนหลัง<br><br>';
+            html += '<b>ที่มา:</b> <a href="https://solcast.com/" target="_blank" style="color:#ffc107">solcast.com</a>';
+            html += '</div>';
+            body.innerHTML = html;
+
+            try { var k = localStorage.getItem('solcast_api_key'); if (k) document.getElementById('solcastKey').value = k; } catch(e) {}
+        }
+        window.loadSolcast = loadSolcast;
+
+        function saveSolcastKey() {
+            var k = document.getElementById('solcastKey').value.trim();
+            if (!k) { alert('กรุณากรอก API Key'); return; }
+            try { localStorage.setItem('solcast_api_key', k); } catch(e) {}
+            alert('บันทึก Solcast API Key แล้ว!');
+        }
+        window.saveSolcastKey = saveSolcastKey;
 
     </script>
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js" async></script>
