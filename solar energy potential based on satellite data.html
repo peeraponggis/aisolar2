@@ -3499,7 +3499,9 @@
 
                 await addBatch(0);
                 say('✅ โหลดเสร็จ — ลำน้ำหลัก <b>' + totalLines.toLocaleString() + '</b> · แหล่งน้ำ <b>' + totalBodies.toLocaleString() + '</b> · เขื่อน/ฝาย <b>' + totalDams.toLocaleString() + '</b> · ป้าย <b>' + totalLabels + '</b>' +
-                    '<br><button onclick="openWaterwayMapOverlay()" style="margin-top:8px;background:#0288d1;color:#fff;border:none;padding:6px 16px;border-radius:4px;cursor:pointer">🗺️ ดูแผนที่ลำน้ำแบบละเอียด (Vector Tiles)</button>');
+                    '<br><small style="color:#81d4fa">🗺️ เปิดแผนที่ลำน้ำละเอียด (Vector Tiles) อัตโนมัติ — ดูลำน้ำสายย่อยทุกสาย</small>' +
+                    '<br><button onclick="openWaterwayMapOverlay()" style="margin-top:6px;background:#0288d1;color:#fff;border:none;padding:5px 14px;border-radius:4px;cursor:pointer;font-size:11px">🗺️ เปิด/ปิดแผนที่ลำน้ำ</button>');
+                openWaterwayMapOverlay();
             } catch(e) {
                 say('<span style="color:#ffcc80">⚠️ โหลดไม่สำเร็จ: ' + e.message + '</span><br><button onclick="loadThailandRivers()" style="margin-top:8px;background:#29b6f6;color:#000;border:none;padding:6px 16px;border-radius:4px;cursor:pointer">ลองใหม่</button>');
             }
@@ -3612,9 +3614,15 @@
                         map.addLayer({ id: 'water-label', type: 'symbol', source: 'ofm', 'source-layer': 'water_name',
                             layout: { 'text-field': ['get', 'name'], 'text-size': 12, 'text-font': ['Noto Sans Regular'] },
                             paint: { 'text-color': '#b3e5fc', 'text-halo-color': 'rgba(0,0,0,0.7)', 'text-halo-width': 1.5 } });
+                        map.addLayer({ id: 'boundary', type: 'line', source: 'ofm', 'source-layer': 'boundary',
+                            filter: ['<=', 'admin_level', 6],
+                            paint: { 'line-color': '#616161', 'line-width': 1, 'line-dasharray': [3, 2], 'line-opacity': 0.5 } });
+                        map.addLayer({ id: 'road', type: 'line', source: 'ofm', 'source-layer': 'transportation',
+                            filter: ['in', 'class', 'motorway', 'trunk', 'primary'],
+                            paint: { 'line-color': '#555', 'line-width': ['interpolate', ['linear'], ['zoom'], 5, 0.3, 12, 1.5], 'line-opacity': 0.4 } });
                         map.addLayer({ id: 'place-label', type: 'symbol', source: 'ofm', 'source-layer': 'place',
-                            filter: ['in', 'class', 'city', 'town'],
-                            layout: { 'text-field': ['get', 'name'], 'text-size': ['match', ['get', 'class'], 'city', 14, 11], 'text-font': ['Noto Sans Regular'] },
+                            filter: ['in', 'class', 'city', 'town', 'village'],
+                            layout: { 'text-field': ['get', 'name'], 'text-size': ['match', ['get', 'class'], 'city', 14, 'town', 12, 10], 'text-font': ['Noto Sans Regular'] },
                             paint: { 'text-color': '#ffcc80', 'text-halo-color': 'rgba(0,0,0,0.7)', 'text-halo-width': 1.5 } });
                     });
                 });
@@ -3629,6 +3637,23 @@
                     var firstOFM = map.getStyle().layers.find(function(l) { return l.source === 'ofm'; });
                     map.addLayer({ id: 'basemap', type: 'raster', source: 'basemap' }, firstOFM ? firstOFM.id : undefined);
                 });
+
+                // Sync CesiumJS camera → MapLibre
+                var syncThrottle = null;
+                viewer.camera.changed.addEventListener(function() {
+                    if (syncThrottle) return;
+                    syncThrottle = requestAnimationFrame(function() {
+                        syncThrottle = null;
+                        if (!window._wwMap || document.getElementById('waterwayMapOverlay').style.display === 'none') return;
+                        var c = viewer.camera.positionCartographic;
+                        var lng = Cesium.Math.toDegrees(c.longitude);
+                        var lat = Cesium.Math.toDegrees(c.latitude);
+                        var h = c.height;
+                        var z = Math.max(5, Math.min(18, Math.round(17 - Math.log2(h / 500))));
+                        window._wwMap.jumpTo({ center: [lng, lat], zoom: z });
+                    });
+                });
+                viewer.camera.percentageChanged = 0.01;
             }
 
             if (typeof maplibregl !== 'undefined') {
