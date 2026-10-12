@@ -406,6 +406,7 @@ button{cursor:pointer}
                 <button class="btn btn-success btn-sm" onclick="addMainItem()">➕ เพิ่มหัวข้อหลัก</button>
                 <span class="text-muted" style="font-size:11px">ลาก ⠿ เพื่อจัดเรียง (ภายในกลุ่มเดียวกัน) | ลากงานจากซ้ายมาวางที่นี่</span>
               </div>
+              <div id="date-warnings" style="display:none;background:#fff3cd;border:1px solid #ffc107;border-radius:6px;padding:8px 12px;margin-bottom:8px;font-size:12px;color:#856404"></div>
               <div class="task-table-wrap"
                 id="task-drop-area"
                 ondragover="onTaskDropOver(event)" ondragleave="onTaskDropLeave(event)" ondrop="onDropToTask(event)">
@@ -774,6 +775,43 @@ function recalcMainFromSubs(m){
   if(ends.length) m.endDate=ends[ends.length-1];
   m.days=calDays(m.startDate,m.endDate);
   m.workDays=calcWorkDays(m.startDate,m.endDate);
+}
+function recalcProjectDatesFromItems(){
+  if(!currentProject||!currentProject.items||currentProject.items.length===0) return;
+  const allEnds=currentProject.items.map(m=>m.endDate).filter(Boolean).sort();
+  const allStarts=currentProject.items.map(m=>m.startDate).filter(Boolean).sort();
+  if(allStarts.length){
+    const first=allStarts[0];
+    if(!currentProject.startDate||first<currentProject.startDate){ currentProject.startDate=first; }
+  }
+  if(allEnds.length){
+    const last=allEnds[allEnds.length-1];
+    if(!currentProject.endDate||last>currentProject.endDate){ currentProject.endDate=last; }
+  }
+  if(currentProject.startDate&&currentProject.endDate){
+    currentProject.workDays=calcWorkDays(currentProject.startDate,currentProject.endDate);
+  }
+  fillProjectForm();
+}
+function validateDateContinuity(){
+  if(!currentProject||!currentProject.items) return;
+  const warnings=[];
+  currentProject.items.forEach(m=>{
+    if(!m.subItems||m.subItems.length<2) return;
+    for(let i=1;i<m.subItems.length;i++){
+      const prev=m.subItems[i-1], cur=m.subItems[i];
+      if(!prev.endDate||!cur.startDate) continue;
+      const expected=nextWorkDay(prev.endDate);
+      if(cur.startDate!==expected){
+        warnings.push(`${cur.itemNo}: วันเริ่ม ${thaiDate(cur.startDate)} ไม่ต่อเนื่องจาก ${prev.itemNo} (ควรเป็น ${thaiDate(expected)})`);
+      }
+    }
+  });
+  const el=document.getElementById('date-warnings');
+  if(!el) return;
+  if(warnings.length===0){ el.style.display='none'; el.innerHTML=''; return; }
+  el.style.display='block';
+  el.innerHTML='<b>⚠️ วันที่ไม่ต่อเนื่อง:</b><ul style="margin:4px 0 0 16px;padding:0">'+warnings.map(w=>'<li>'+w+'</li>').join('')+'</ul>';
 }
 
 /* File name: projectName_ThaiDate_HHmm.ext */
@@ -1751,6 +1789,8 @@ function renderTaskTable(){
   });
 
   initSortables();
+  recalcProjectDatesFromItems();
+  validateDateContinuity();
 }
 
 function destroySortables(){
@@ -1848,13 +1888,13 @@ function renderGantt(){
       <th style="background:var(--primary);color:#fff;padding:5px 8px;border:1px solid rgba(255,255,255,.15);width:45px">วันทำงาน</th>
       <th style="background:var(--primary);color:#fff;padding:5px 8px;border:1px solid rgba(255,255,255,.15);width:38px">%</th>
     </tr></thead><tbody>`;
-  allRows.forEach(r=>{
+  allRows.forEach((r,ri)=>{
     const o=r.obj, isMain=r.type==='main';
     const bg=isMain?'background:var(--surface2);font-weight:600':'background:var(--surface)';
     const pl=isMain?'':'padding-left:14px';
-    html+=`<tr style="${bg}">
+    html+=`<tr class="gantt-left-row" data-ri="${ri}" style="${bg}">
       <td style="padding:5px 6px;border:1px solid var(--border);color:var(--primary);font-weight:700">${o.itemNo||''}</td>
-      <td style="padding:5px 6px;border:1px solid var(--border);${pl}">${esc(o.description)}</td>
+      <td style="padding:5px 6px;border:1px solid var(--border);${pl};max-width:220px">${esc(o.description)}</td>
       <td style="padding:5px 6px;border:1px solid var(--border)">${esc(o.lead)||''}</td>
       <td style="padding:5px 6px;border:1px solid var(--border);font-size:11px">${thaiDate(o.startDate)}</td>
       <td style="padding:5px 6px;border:1px solid var(--border);font-size:11px">${thaiDate(o.endDate)}</td>
@@ -1868,11 +1908,11 @@ function renderGantt(){
   html+=`<div style="flex:1;overflow-x:auto"><div style="display:flex;border-bottom:2px solid var(--primary)">`;
   months.forEach(m=>{ html+=`<div style="width:${COL_W}px;min-width:${COL_W}px;text-align:center;padding:5px 2px;font-weight:700;color:var(--primary);font-size:11px;border-right:1px solid var(--border);flex-shrink:0">${m.label}</div>`; });
   html+=`</div>`;
-  allRows.forEach(r=>{
+  allRows.forEach((r,ri)=>{
     const o=r.obj, isMain=r.type==='main';
     const bg=isMain?'background:var(--surface2)':'background:var(--surface)';
     const todayX=(new Date()-pStart)/(pEnd-pStart)*months.length*COL_W;
-    html+=`<div style="display:flex;height:30px;border-bottom:1px solid var(--border);${bg};position:relative">`;
+    html+=`<div class="gantt-right-row" data-ri="${ri}" style="display:flex;border-bottom:1px solid var(--border);${bg};position:relative;min-height:30px">`;
     months.forEach(m=>{
       let bl=0,bw=0,pw=0;
       if(o.startDate&&o.endDate){
@@ -1897,6 +1937,17 @@ function renderGantt(){
   html+=`</div></div>`;
   if(p.notes) html+=`<div class="card mt16"><div class="card-title">บันทึกเพิ่มเติม</div><p style="white-space:pre-wrap;font-size:13px">${esc(p.notes)}</p></div>`;
   document.getElementById('gantt-container').innerHTML=html;
+  // Sync left/right row heights after layout settles
+  setTimeout(()=>{
+    const leftRows=document.querySelectorAll('.gantt-left-row');
+    const rightRows=document.querySelectorAll('.gantt-right-row');
+    leftRows.forEach((lr,i)=>{
+      const rr=rightRows[i]; if(!rr) return;
+      const h=Math.max(lr.offsetHeight,rr.offsetHeight,30);
+      lr.style.height=h+'px';
+      rr.style.height=h+'px';
+    });
+  },50);
 }
 
 function buildMonths(pStart,pEnd){
