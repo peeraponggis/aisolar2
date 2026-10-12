@@ -2823,6 +2823,10 @@
         function removeVectorWaterEntities() {
             vectorWaterEntities.forEach(e => viewer.entities.remove(e));
             vectorWaterEntities = [];
+            if (typeof waterwayDataSource !== 'undefined' && waterwayDataSource) {
+                viewer.dataSources.remove(waterwayDataSource, true);
+                waterwayDataSource = null;
+            }
         }
         window.clearVectorWater = function () {
             removeVectorWaterEntities();
@@ -3407,169 +3411,113 @@
             'Bang Pakong River': 'แม่น้ำบางปะกง'
         };
 
+        var waterwayDataSource = null;
+
         async function loadThailandRivers() {
             if (osmLoading) return;
             var status = document.getElementById('osmStatus');
             function say(html) { if (status) status.innerHTML = html; }
 
             osmLoading = true;
+            // ลบ datasource เก่า
+            if (waterwayDataSource) { viewer.dataSources.remove(waterwayDataSource, true); waterwayDataSource = null; }
             removeVectorWaterEntities();
             say('🔄 กำลังโหลดแม่น้ำ คลอง แหล่งน้ำ เขื่อน ฝาย...');
 
             await ensureRiverDischarge();
 
-            var totalLines = 0, totalBodies = 0, totalDams = 0, totalLabels = 0;
-            var labelled = {};
-
-            function addWaterwayFeature(feat) {
-                var props = feat.properties || {};
-                var geom = feat.geometry;
-                var nm = props.name || '';
-                var tp = props.type || '';
-
-                if (tp === 'dam' || tp === 'weir') {
-                    var isDam = tp === 'dam';
-                    var damCol = isDam ? '#ff6f00' : '#8d6e63';
-                    if (geom.type === 'Point') {
-                        vectorWaterEntities.push(viewer.entities.add({
-                            position: Cesium.Cartesian3.fromDegrees(geom.coordinates[0], geom.coordinates[1]),
-                            billboard: { image: createTextPin(isDam ? '🏗️' : '🌊', damCol), width: isDam ? 40 : 32, height: isDam ? 50 : 40, verticalOrigin: Cesium.VerticalOrigin.BOTTOM, heightReference: Cesium.HeightReference.CLAMP_TO_GROUND, disableDepthTestDistance: Number.POSITIVE_INFINITY, scaleByDistance: new Cesium.NearFarScalar(1e4, 1.0, 5e5, 0.3) },
-                            name: (isDam ? 'เขื่อน ' : 'ฝาย ') + (nm || 'ไม่ระบุชื่อ'), show: true
-                        }));
-                    } else if (geom.type === 'LineString' && geom.coordinates.length >= 2) {
-                        var flat = []; geom.coordinates.forEach(function(c) { flat.push(c[0], c[1]); });
-                        vectorWaterEntities.push(viewer.entities.add({
-                            name: (isDam ? 'เขื่อน ' : 'ฝาย ') + (nm || 'ไม่ระบุชื่อ'),
-                            polyline: { positions: Cesium.Cartesian3.fromDegreesArray(flat), width: isDam ? 6 : 4, material: Cesium.Color.fromCssColorString(damCol), clampToGround: true }, show: true
-                        }));
-                    } else if (geom.type === 'Polygon' && geom.coordinates[0]) {
-                        var flat = []; geom.coordinates[0].forEach(function(c) { flat.push(c[0], c[1]); });
-                        vectorWaterEntities.push(viewer.entities.add({
-                            name: (isDam ? 'เขื่อน ' : 'ฝาย ') + (nm || 'ไม่ระบุชื่อ'),
-                            polyline: { positions: Cesium.Cartesian3.fromDegreesArray(flat), width: isDam ? 6 : 4, material: Cesium.Color.fromCssColorString(damCol), clampToGround: true }, show: true
-                        }));
-                    }
-                    if (nm && !labelled[nm]) {
-                        labelled[nm] = 1;
-                        var lc = geom.type === 'Point' ? geom.coordinates : geom.coordinates[Math.floor(geom.coordinates.length / 2)] || geom.coordinates[0];
-                        if (geom.type === 'Polygon') lc = geom.coordinates[0][0];
-                        vectorWaterEntities.push(viewer.entities.add({
-                            position: Cesium.Cartesian3.fromDegrees(lc[0], lc[1]),
-                            label: { text: (isDam ? '🏗️ ' : '🌊 ') + nm, font: 'bold 11px sans-serif', fillColor: Cesium.Color.fromCssColorString(damCol), outlineColor: Cesium.Color.BLACK, outlineWidth: 3, style: Cesium.LabelStyle.FILL_AND_OUTLINE, disableDepthTestDistance: Number.POSITIVE_INFINITY, scaleByDistance: new Cesium.NearFarScalar(5e3, 1.0, 3e5, 0.0) }, show: true
-                        }));
-                        totalLabels++;
-                    }
-                    totalDams++;
-                } else if (tp === 'river' || tp === 'canal') {
-                    if (geom.type !== 'LineString' || geom.coordinates.length < 2) return;
-                    var flat = []; geom.coordinates.forEach(function(c) { flat.push(c[0], c[1]); });
-                    var isMain = nm && MAIN_RIVER_NAMES.indexOf(nm) > -1;
-                    var col = isMain ? '#00b0ff' : tp === 'canal' ? '#4dd0e1' : '#29b6f6';
-                    var wdt = isMain ? 5 : tp === 'river' ? 3 : 2;
-                    var dm = null;
-                    if (nm) {
-                        if (riverDischarge[nm]) dm = { rec: riverDischarge[nm] };
-                        else { var a = NAME_ALIAS_RIVER[nm]; if (a && riverDischarge[a]) dm = { rec: riverDischarge[a] }; }
-                    }
-                    if (dm) { var dSt = dischargeStyle(dm.rec.today); col = dSt.col; wdt = Math.max(wdt, dSt.w + 1); }
-                    if (isMain) {
-                        vectorWaterEntities.push(viewer.entities.add({ polyline: { positions: Cesium.Cartesian3.fromDegreesArray(flat), width: wdt + 4, material: Cesium.Color.WHITE.withAlpha(0.3), clampToGround: true }, show: true }));
-                    }
-                    vectorWaterEntities.push(viewer.entities.add({
-                        name: nm || 'ลำน้ำ',
-                        polyline: { positions: Cesium.Cartesian3.fromDegreesArray(flat), width: wdt, material: Cesium.Color.fromCssColorString(col).withAlpha(0.85), clampToGround: true }, show: true
-                    }));
-                    totalLines++;
-                    if (nm && !labelled[nm]) {
-                        labelled[nm] = 1;
-                        var mi = Math.floor(flat.length / 4) * 2;
-                        vectorWaterEntities.push(viewer.entities.add({
-                            position: Cesium.Cartesian3.fromDegrees(flat[mi], flat[mi + 1]),
-                            label: { text: nm + (dm ? '\n' + dm.rec.today.toFixed(0) + ' ลบ.ม./วิ' : ''), font: (isMain ? 'bold 13px' : 'bold 11px') + ' sans-serif', fillColor: Cesium.Color.fromCssColorString(col), outlineColor: Cesium.Color.BLACK, outlineWidth: 3.5, style: Cesium.LabelStyle.FILL_AND_OUTLINE, disableDepthTestDistance: Number.POSITIVE_INFINITY, scaleByDistance: new Cesium.NearFarScalar(5e3, 1.15, isMain ? 8e5 : 3e5, 0.0) }, show: true
-                        }));
-                        totalLabels++;
-                    }
-                } else if (tp === 'water' || tp === 'reservoir' || tp === 'lake' || tp === 'pond') {
-                    var coords = geom.type === 'Polygon' ? geom.coordinates[0] : null;
-                    if (!coords || coords.length < 3) return;
-                    var flat = []; coords.forEach(function(c) { flat.push(c[0], c[1]); });
-                    var bodyCol = tp === 'reservoir' ? '#0d47a1' : '#1565c0';
-                    vectorWaterEntities.push(viewer.entities.add({
-                        polygon: { hierarchy: Cesium.Cartesian3.fromDegreesArray(flat), material: Cesium.Color.fromCssColorString(bodyCol).withAlpha(0.5), outline: true, outlineColor: Cesium.Color.fromCssColorString('#4fc3f7'), height: 0 },
-                        name: nm || (tp === 'reservoir' ? 'อ่างเก็บน้ำ' : 'แหล่งน้ำ'), show: true
-                    }));
-                    totalBodies++;
-                    if (nm && !labelled[nm]) {
-                        labelled[nm] = 1;
-                        var cx = 0, cy = 0;
-                        for (var k = 0; k < flat.length; k += 2) { cx += flat[k]; cy += flat[k + 1]; }
-                        var n2 = flat.length / 2;
-                        vectorWaterEntities.push(viewer.entities.add({
-                            position: Cesium.Cartesian3.fromDegrees(cx / n2, cy / n2),
-                            label: { text: nm, font: 'bold 11px sans-serif', fillColor: Cesium.Color.fromCssColorString('#b3e5fc'), outlineColor: Cesium.Color.BLACK, outlineWidth: 3, style: Cesium.LabelStyle.FILL_AND_OUTLINE, disableDepthTestDistance: Number.POSITIVE_INFINITY, scaleByDistance: new Cesium.NearFarScalar(5e3, 1.0, 2e5, 0.0) }, show: true
-                        }));
-                        totalLabels++;
-                    }
-                }
-            }
-
-            // ลองโหลดจากไฟล์ GeoJSON ถาวรก่อน (เร็วมาก)
+            // ใช้ Cesium.GeoJsonDataSource — รองรับ features จำนวนมากได้ดี
             var geojsonLoaded = false;
             try {
-                say('🔄 กำลังโหลดข้อมูลลำน้ำถาวร...');
-                var gjResp = await fetch('data/thailand_waterways_lite.geojson', { signal: AbortSignal.timeout(30000) });
-                if (gjResp.ok) {
-                    var gj = await gjResp.json();
-                    if (gj.features && gj.features.length > 0) {
-                        say('🔄 กำลังแสดงข้อมูล ' + gj.features.length + ' รายการบนลูกโลก...');
-                        gj.features.forEach(addWaterwayFeature);
-                        geojsonLoaded = true;
+                say('🔄 กำลังโหลดข้อมูลลำน้ำถาวร (GeoJSON)...');
+                waterwayDataSource = await Cesium.GeoJsonDataSource.load('data/thailand_waterways_lite.geojson', {
+                    clampToGround: true,
+                    stroke: Cesium.Color.fromCssColorString('#29b6f6').withAlpha(0.8),
+                    strokeWidth: 2,
+                    fill: Cesium.Color.fromCssColorString('#1565c0').withAlpha(0.4),
+                    markerSize: 0
+                });
+                viewer.dataSources.add(waterwayDataSource);
+
+                // ปรับสีตามประเภท
+                var entities = waterwayDataSource.entities.values;
+                var totalLines = 0, totalBodies = 0, totalDams = 0, totalLabels = 0;
+                var labelled = {};
+
+                for (var i = 0; i < entities.length; i++) {
+                    var ent = entities[i];
+                    var props = ent.properties;
+                    if (!props) continue;
+                    var tp = props.type ? props.type.getValue() : '';
+                    var nm = props.name ? props.name.getValue() : '';
+
+                    if (ent.polyline) {
+                        var isMain = nm && MAIN_RIVER_NAMES.indexOf(nm) > -1;
+                        var col, wdt;
+                        if (tp === 'dam') { col = '#ff6f00'; wdt = 5; totalDams++; }
+                        else if (tp === 'weir') { col = '#8d6e63'; wdt = 4; totalDams++; }
+                        else if (tp === 'canal') { col = '#4dd0e1'; wdt = 2; totalLines++; }
+                        else { col = isMain ? '#00b0ff' : '#29b6f6'; wdt = isMain ? 4 : 2.5; totalLines++; }
+
+                        // ใช้สีตามอัตราการไหลถ้ามี
+                        if (nm && tp !== 'dam' && tp !== 'weir') {
+                            var dm = riverDischarge[nm] || (NAME_ALIAS_RIVER[nm] ? riverDischarge[NAME_ALIAS_RIVER[nm]] : null);
+                            if (dm) { var dSt = dischargeStyle(dm.today); col = dSt.col; wdt = Math.max(wdt, dSt.w); }
+                        }
+
+                        ent.polyline.width = wdt;
+                        ent.polyline.material = Cesium.Color.fromCssColorString(col).withAlpha(0.85);
+
+                        // ป้ายชื่อเฉพาะแม่น้ำหลักและเขื่อน
+                        if (nm && !labelled[nm] && (isMain || tp === 'dam' || tp === 'river')) {
+                            labelled[nm] = 1;
+                            var pos = ent.polyline.positions.getValue();
+                            if (pos && pos.length > 1) {
+                                var midIdx = Math.floor(pos.length / 2);
+                                vectorWaterEntities.push(viewer.entities.add({
+                                    position: pos[midIdx],
+                                    label: {
+                                        text: (tp === 'dam' ? '🏗️ ' : tp === 'weir' ? '🌊 ' : '') + nm,
+                                        font: (isMain ? 'bold 12px' : '11px') + ' sans-serif',
+                                        fillColor: Cesium.Color.fromCssColorString(col),
+                                        outlineColor: Cesium.Color.BLACK, outlineWidth: 3,
+                                        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+                                        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+                                        scaleByDistance: new Cesium.NearFarScalar(5e3, 1.0, isMain ? 6e5 : 2e5, 0.0)
+                                    }, show: true
+                                }));
+                                totalLabels++;
+                            }
+                        }
+                    } else if (ent.polygon) {
+                        var bodyCol = tp === 'reservoir' ? '#0d47a1' : '#1565c0';
+                        ent.polygon.material = Cesium.Color.fromCssColorString(bodyCol).withAlpha(0.45);
+                        ent.polygon.outlineColor = Cesium.Color.fromCssColorString('#4fc3f7');
+                        totalBodies++;
+                    } else if (ent.billboard) {
+                        // เขื่อน/ฝาย จุด — ซ่อน default marker, สร้าง pin เอง
+                        ent.billboard.show = false;
+                        if (tp === 'dam' || tp === 'weir') {
+                            var isDam = tp === 'dam';
+                            var pos = ent.position ? ent.position.getValue(Cesium.JulianDate.now()) : null;
+                            if (pos) {
+                                vectorWaterEntities.push(viewer.entities.add({
+                                    position: pos,
+                                    billboard: { image: createTextPin(isDam ? '🏗️' : '🌊', isDam ? '#ff6f00' : '#8d6e63'), width: 36, height: 45, verticalOrigin: Cesium.VerticalOrigin.BOTTOM, heightReference: Cesium.HeightReference.CLAMP_TO_GROUND, disableDepthTestDistance: Number.POSITIVE_INFINITY, scaleByDistance: new Cesium.NearFarScalar(1e4, 1.0, 5e5, 0.3) },
+                                    name: (isDam ? 'เขื่อน ' : 'ฝาย ') + nm, show: true
+                                }));
+                                totalDams++;
+                            }
+                        }
                     }
                 }
-            } catch(e) { /* ไม่มีไฟล์ GeoJSON — ใช้ Overpass แทน */ }
 
-            // ถ้าไม่มีไฟล์ GeoJSON → โหลดจาก Overpass เฉพาะบริเวณที่กำลังดู
-            if (!geojsonLoaded) {
-                say('🔄 กำลังดึงลำน้ำจาก OSM บริเวณที่กำลังดู...<br><small>ซูมเข้าใกล้จะโหลดเร็วขึ้น</small>');
-                var cam = viewer.camera.positionCartographic;
-                var lat = Cesium.Math.toDegrees(cam.latitude);
-                var lng = Cesium.Math.toDegrees(cam.longitude);
-                var h = cam.height;
-                var r = Math.min(Math.max(h / 300000, 0.2), 1.5);
-                var bbox = (lat - r) + ',' + (lng - r) + ',' + (lat + r) + ',' + (lng + r);
-                var query = '[out:json][timeout:30];(way["waterway"~"^(river|canal|dam|weir)$"](' + bbox + ');node["waterway"~"^(dam|weir)$"](' + bbox + ');way["landuse"="reservoir"](' + bbox + '););out geom;';
-                var overpassUrls = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
-                for (var oi = 0; oi < overpassUrls.length; oi++) {
-                    try {
-                        var resp = await fetch(overpassUrls[oi], { method: 'POST', body: 'data=' + encodeURIComponent(query), headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, signal: AbortSignal.timeout(30000) });
-                        var data = await resp.json();
-                        if (data && data.elements) {
-                            data.elements.forEach(function(el) {
-                                var tags = el.tags || {};
-                                var tp = tags.waterway || tags.landuse || tags.natural || '';
-                                var nm = tags['name:th'] || tags.name || '';
-                                var feat = null;
-                                if (el.type === 'node') {
-                                    feat = { type: 'Feature', geometry: { type: 'Point', coordinates: [el.lon, el.lat] }, properties: { name: nm, type: tp } };
-                                } else if (el.geometry) {
-                                    var coords = el.geometry.map(function(p) { return [p.lon, p.lat]; });
-                                    if (tp === 'reservoir' || tp === 'water') {
-                                        if (coords.length >= 3) { if (coords[0][0] !== coords[coords.length-1][0]) coords.push(coords[0]); feat = { type: 'Feature', geometry: { type: 'Polygon', coordinates: [coords] }, properties: { name: nm, type: tp } }; }
-                                    } else {
-                                        if (coords.length >= 2) feat = { type: 'Feature', geometry: { type: 'LineString', coordinates: coords }, properties: { name: nm, type: tp } };
-                                    }
-                                }
-                                if (feat) addWaterwayFeature(feat);
-                            });
-                            break;
-                        }
-                    } catch(e) {}
-                }
+                say('✅ โหลดเสร็จ — ลำน้ำ <b>' + totalLines.toLocaleString() + '</b> · แหล่งน้ำ <b>' + totalBodies.toLocaleString() + '</b> · เขื่อน/ฝาย <b>' + totalDams.toLocaleString() + '</b> · ป้าย <b>' + totalLabels + '</b>');
+                geojsonLoaded = true;
+            } catch(e) {
+                say('<span style="color:#ffcc80">⚠️ โหลด GeoJSON ไม่สำเร็จ: ' + e.message + '</span><br><button onclick="loadThailandRivers()" style="margin-top:8px;background:#29b6f6;color:#000;border:none;padding:6px 16px;border-radius:4px;cursor:pointer">ลองใหม่</button>');
             }
 
-            var msg = '✅ โหลดเสร็จ — ลำน้ำ <b>' + totalLines.toLocaleString() + '</b> · แหล่งน้ำ <b>' + totalBodies.toLocaleString() + '</b> · เขื่อน/ฝาย <b>' + totalDams.toLocaleString() + '</b> · ป้าย <b>' + totalLabels + '</b>';
-            if (!geojsonLoaded) msg += '<br><small style="color:#ffcc80">โหลดเฉพาะบริเวณที่กำลังดู — เลื่อนแล้วกดใหม่เพื่อดูพื้นที่อื่น</small>';
-            say(msg);
             osmLoading = false;
         }
         window.loadThailandRivers = loadThailandRivers;
