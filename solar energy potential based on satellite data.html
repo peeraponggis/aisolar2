@@ -3107,7 +3107,8 @@
                                         positions: Cesium.Cartesian3.fromDegreesArray(flat),
                                         width: wdt + 5,
                                         material: Cesium.Color.WHITE.withAlpha(0.35),
-                                        arcType: Cesium.ArcType.GEODESIC
+                                        arcType: Cesium.ArcType.GEODESIC,
+                                        clampToGround: true
                                     }, show: true
                                 }));
                             }
@@ -3124,7 +3125,8 @@
                                             positions: Cesium.Cartesian3.fromDegreesArray(part),
                                             width: wdt + 3,
                                             material: new Cesium.PolylineArrowMaterialProperty(Cesium.Color.fromCssColorString(col)),
-                                            arcType: Cesium.ArcType.GEODESIC
+                                            arcType: Cesium.ArcType.GEODESIC,
+                                            clampToGround: true
                                         }, show: true
                                     }));
                                     nArrow++;
@@ -3136,7 +3138,8 @@
                                         positions: Cesium.Cartesian3.fromDegreesArray(flat),
                                         width: wdt,
                                         material: Cesium.Color.fromCssColorString(col).withAlpha(cls === 'stream' ? 0.6 : 0.9),
-                                        arcType: Cesium.ArcType.GEODESIC
+                                        arcType: Cesium.ArcType.GEODESIC,
+                                        clampToGround: true
                                     }, show: true
                                 }));
                             }
@@ -6632,7 +6635,7 @@
                 html += '<div class="dt-card"><div class="dt-val" style="color:#ef5350;font-size:16px">' + temp + '°C</div><div class="dt-label">อุณหภูมิเฉลี่ย</div></div>';
                 html += '</div>';
 
-                if (data.monthly) {
+                if (data.monthly && Array.isArray(data.monthly)) {
                     html += '<div style="background:rgba(255,255,255,.04);border-radius:6px;padding:12px;margin-bottom:12px">';
                     html += '<div style="font-size:12px;font-weight:700;color:#ffd740;margin-bottom:6px">📊 GHI รายเดือน (kWh/m²)</div>';
                     var months = data.monthly;
