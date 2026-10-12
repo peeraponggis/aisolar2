@@ -2821,12 +2821,12 @@
         }
 
         function dischargeStyle(q) {
-            if (q === null || q === undefined || isNaN(q)) return { w: 3, tag: 'ไม่มีข้อมูล', col: '#78909c' };
-            if (q >= 2000) return { w: 11, tag: 'ไหลหลากสูงมาก', col: '#d50000' };
-            if (q >= 800) return { w: 9, tag: 'ไหลแรง', col: '#ff6d00' };
-            if (q >= 200) return { w: 7, tag: 'ไหลปานกลาง', col: '#ffd600' };
-            if (q >= 40) return { w: 5, tag: 'ไหลน้อย', col: '#64dd17' };
-            return { w: 3.5, tag: 'ไหลน้อยมาก', col: '#00b0ff' };
+            if (q === null || q === undefined || isNaN(q)) return { w: 2, tag: 'ไม่มีข้อมูล', col: '#78909c' };
+            if (q >= 2000) return { w: 5, tag: 'ไหลหลากสูงมาก', col: '#d50000' };
+            if (q >= 800) return { w: 4.5, tag: 'ไหลแรง', col: '#ff6d00' };
+            if (q >= 200) return { w: 4, tag: 'ไหลปานกลาง', col: '#ffd600' };
+            if (q >= 40) return { w: 3, tag: 'ไหลน้อย', col: '#64dd17' };
+            return { w: 2.5, tag: 'ไหลน้อยมาก', col: '#00b0ff' };
         }
 
         /* ---------------------------------------------------------
@@ -3400,7 +3400,7 @@
                 var feats = gj.features || [];
                 var totalLines = 0, totalBodies = 0, totalDams = 0, totalLabels = 0;
                 var labelled = {};
-                var BATCH = 80;
+                var BATCH = 50;
 
                 function addBatch(start) {
                     var end = Math.min(start + BATCH, feats.length);
@@ -3433,8 +3433,7 @@
                                 polyline: {
                                     positions: Cesium.Cartesian3.fromDegreesArray(positions),
                                     width: wdt,
-                                    material: Cesium.Color.fromCssColorString(col).withAlpha(0.85),
-                                    clampToGround: true
+                                    material: Cesium.Color.fromCssColorString(col).withAlpha(0.85)
                                 }, show: true
                             }));
 
@@ -3442,15 +3441,18 @@
                                 labelled[nm] = 1;
                                 var midIdx = Math.floor(g.coordinates.length / 2);
                                 var mc = g.coordinates[midIdx];
+                                var lblFont = isMain ? 'bold 14px' : 'bold 12px';
+                                var lblCol = isMain ? '#4fc3f7' : '#81d4fa';
+                                var lblFar = isMain ? 2e6 : 6e5;
                                 vectorWaterEntities.push(viewer.entities.add({
                                     position: Cesium.Cartesian3.fromDegrees(mc[0], mc[1]),
                                     label: {
-                                        text: nm, font: (isMain ? 'bold 13px' : '11px') + ' sans-serif',
-                                        fillColor: Cesium.Color.fromCssColorString(isMain ? '#4fc3f7' : '#81d4fa'),
+                                        text: nm, font: lblFont + ' sans-serif',
+                                        fillColor: Cesium.Color.fromCssColorString(lblCol),
                                         outlineColor: Cesium.Color.BLACK, outlineWidth: 3,
                                         style: Cesium.LabelStyle.FILL_AND_OUTLINE,
                                         disableDepthTestDistance: Number.POSITIVE_INFINITY,
-                                        scaleByDistance: new Cesium.NearFarScalar(5e3, 1.0, isMain ? 8e5 : 2e5, 0.0)
+                                        scaleByDistance: new Cesium.NearFarScalar(5e3, 1.0, lblFar, 0.0)
                                     }, show: true
                                 }));
                                 totalLabels++;
@@ -3468,9 +3470,8 @@
                             vectorWaterEntities.push(viewer.entities.add({
                                 polygon: {
                                     hierarchy: Cesium.Cartesian3.fromDegreesArray(hArr),
-                                    material: Cesium.Color.fromCssColorString(bodyCol).withAlpha(0.45),
-                                    outline: true, outlineColor: Cesium.Color.fromCssColorString('#4fc3f7'),
-                                    classificationType: Cesium.ClassificationType.BOTH
+                                    material: Cesium.Color.fromCssColorString(bodyCol).withAlpha(0.35),
+                                    outline: true, outlineColor: Cesium.Color.fromCssColorString('#4fc3f7')
                                 }, show: true
                             }));
                             totalBodies++;
@@ -3481,12 +3482,12 @@
                                     position: Cesium.Cartesian3.fromDegrees(cx, cy),
                                     label: {
                                         text: (tp === 'reservoir' ? '💧 ' : '') + nm,
-                                        font: '11px sans-serif',
+                                        font: 'bold 11px sans-serif',
                                         fillColor: Cesium.Color.fromCssColorString('#80cbc4'),
                                         outlineColor: Cesium.Color.BLACK, outlineWidth: 3,
                                         style: Cesium.LabelStyle.FILL_AND_OUTLINE,
                                         disableDepthTestDistance: Number.POSITIVE_INFINITY,
-                                        scaleByDistance: new Cesium.NearFarScalar(5e3, 1.0, 2e5, 0.0)
+                                        scaleByDistance: new Cesium.NearFarScalar(5e3, 1.0, 4e5, 0.0)
                                     }, show: true
                                 }));
                                 totalLabels++;
