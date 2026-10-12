@@ -5383,7 +5383,8 @@
                         isThailand:isThailand, rank:idx, installDate:installDate, shading:shading, postcode:postcode, numPanels:numPanels, sid:sid});
                 });
 
-                addPVOEntitiesToMap(systems);
+                renderPVOutputPanel(systems);
+                await addPVOEntitiesToMap(systems);
                 renderPVOutputPanel(systems);
             } catch (e) {
                 body.innerHTML = '<div style="color:#f44336;padding:20px;text-align:center">❌ ไม่สามารถดึงข้อมูลได้: ' + e.message + '<br><br><span style="color:#888;font-size:11px">ลองรีเฟรชอีกครั้ง — เซิร์ฟเวอร์ CORS proxy อาจชั่วคราว</span></div>';
@@ -5531,7 +5532,7 @@
             var details = [
                 ['🏭 ชื่อระบบ', s.name],
                 ['⚡ ขนาดระบบ', s.size],
-                ['📍 ที่ตั้ง', (s.country || s.loc) + (s.postcode ? ' (' + s.postcode + ')' : '')]
+                ['📍 ที่ตั้ง', (s.country || s.loc) + (s.postcode ? ' (' + s.postcode + ')' : '') + (s.geocodedLat ? ' [' + s.geocodedLat.toFixed(4) + ', ' + s.geocodedLng.toFixed(4) + ']' : '')]
             ];
             if (s.installDate) details.push(['📅 ปีที่ติดตั้ง', s.installDate]);
             if (s.panels) details.push(['🔳 แผงโซลาร์', s.panels]);
@@ -5643,22 +5644,93 @@
             'South Africa':'africa'
         };
         var pvoSystemsCache = [];
+        var pvoGeocodeCache = {};
 
-        function addPVOEntitiesToMap(systems) {
+        var pvoCountryCodes = {
+            'Australia':'au','Thailand':'th','Japan':'jp','India':'in','Germany':'de',
+            'USA':'us','UK':'gb','France':'fr','Italy':'it','Spain':'es',
+            'Netherlands':'nl','Belgium':'be','Austria':'at','Switzerland':'ch',
+            'Brazil':'br','South Africa':'za','New Zealand':'nz','Canada':'ca',
+            'Singapore':'sg','Malaysia':'my','Indonesia':'id','Philippines':'ph',
+            'Vietnam':'vn','Korea':'kr','Taiwan':'tw','China':'cn','Israel':'il',
+            'UAE':'ae','Maldives':'mv'
+        };
+
+        async function geocodePVOSystems(systems) {
+            var toGeocode = {};
+            systems.forEach(function(s) {
+                if (!s.postcode) return;
+                var c = s.country || s.loc || '';
+                var cc = '';
+                Object.keys(pvoCountryCodes).forEach(function(k) {
+                    if (c.toLowerCase().includes(k.toLowerCase())) cc = pvoCountryCodes[k];
+                });
+                var key = (s.postcode + '_' + cc).toLowerCase();
+                if (!pvoGeocodeCache[key] && !toGeocode[key]) {
+                    toGeocode[key] = { postcode: s.postcode, cc: cc };
+                }
+            });
+
+            var keys = Object.keys(toGeocode);
+            for (var i = 0; i < keys.length; i++) {
+                var k = keys[i];
+                var pc = toGeocode[k].postcode;
+                var cc = toGeocode[k].cc;
+                try {
+                    var qUrl = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&postalcode=' +
+                        encodeURIComponent(pc) + (cc ? '&countrycodes=' + cc : '');
+                    var resp = await fetch(qUrl, {
+                        headers: { 'Accept': 'application/json', 'User-Agent': 'aiSolar-Platform/1.0' },
+                        signal: AbortSignal.timeout(5000)
+                    });
+                    if (resp.ok) {
+                        var data = await resp.json();
+                        if (data.length > 0) {
+                            pvoGeocodeCache[k] = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+                        }
+                    }
+                } catch(e) { console.warn('Geocode failed for ' + pc + ':', e.message); }
+                if (i < keys.length - 1) await new Promise(function(r){ setTimeout(r, 1100); });
+            }
+        }
+
+        function getPVOSystemCoords(s) {
+            if (s.geocodedLat && s.geocodedLng) return [s.geocodedLat, s.geocodedLng];
+            var c = s.country || s.loc || '';
+            if (s.postcode) {
+                var cc = '';
+                Object.keys(pvoCountryCodes).forEach(function(k) {
+                    if (c.toLowerCase().includes(k.toLowerCase())) cc = pvoCountryCodes[k];
+                });
+                var key = (s.postcode + '_' + cc).toLowerCase();
+                if (pvoGeocodeCache[key]) return pvoGeocodeCache[key];
+            }
+            var coords = null;
+            Object.keys(pvoCountryCoords).forEach(function(k) {
+                if (c.toLowerCase().includes(k.toLowerCase())) coords = pvoCountryCoords[k];
+            });
+            return coords;
+        }
+
+        async function addPVOEntitiesToMap(systems) {
             pvoSystemsCache = systems;
             viewer.entities.values.filter(function(e){return e.id && e.id.startsWith('pvo_');}).forEach(function(e){viewer.entities.remove(e);});
-            var countryOffset = {};
+
+            await geocodePVOSystems(systems);
+
+            var postcodeOffset = {};
             systems.forEach(function(s, idx) {
-                var c = s.country || s.loc || '';
-                var coords = null;
-                Object.keys(pvoCountryCoords).forEach(function(k) {
-                    if (c.toLowerCase().includes(k.toLowerCase())) coords = pvoCountryCoords[k];
-                });
+                var coords = getPVOSystemCoords(s);
                 if (!coords) return;
-                if (!countryOffset[c]) countryOffset[c] = 0;
-                countryOffset[c]++;
-                var offsetLng = (countryOffset[c] - 1) * 0.8;
-                var offsetLat = ((countryOffset[c] - 1) % 3) * 0.5;
+                s.geocodedLat = coords[0];
+                s.geocodedLng = coords[1];
+
+                var posKey = coords[0].toFixed(2) + ',' + coords[1].toFixed(2);
+                if (!postcodeOffset[posKey]) postcodeOffset[posKey] = 0;
+                postcodeOffset[posKey]++;
+                var offsetLng = (postcodeOffset[posKey] - 1) * 0.02;
+                var offsetLat = ((postcodeOffset[posKey] - 1) % 5) * 0.015;
+
                 var pw = parseFloat(s.power.replace(/[^\d.]/g,'')) || 0;
                 var color = pw > 100000 ? Cesium.Color.fromCssColorString('#ff6e40') :
                             pw > 10000 ? Cesium.Color.fromCssColorString('#ffd740') :
@@ -5704,14 +5776,12 @@
         function flyToPVOSystem(idx) {
             var s = pvoSystemsCache[idx];
             if (!s) return;
-            var c = s.country || s.loc || '';
-            var coords = null;
-            Object.keys(pvoCountryCoords).forEach(function(k) {
-                if (c.toLowerCase().includes(k.toLowerCase())) coords = pvoCountryCoords[k];
-            });
+            var coords = getPVOSystemCoords(s);
             if (!coords) { alert('ไม่พบพิกัดของระบบนี้'); return; }
+            var hasPostcode = (s.geocodedLat && s.geocodedLng) || (s.postcode && pvoGeocodeCache[(s.postcode + '_').toLowerCase()]);
+            var altitude = hasPostcode ? 50000 : 500000;
             viewer.camera.flyTo({
-                destination: Cesium.Cartesian3.fromDegrees(coords[1], coords[0], 500000),
+                destination: Cesium.Cartesian3.fromDegrees(coords[1], coords[0], altitude),
                 orientation: { heading: 0, pitch: Cesium.Math.toRadians(-60), roll: 0 },
                 duration: 1.5
             });

@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "aiSolar",
-      "runtimeExecutable": "npx",
-      "runtimeArgs": ["--yes", "serve", "C:\\aiSolar_temp", "-l", "8877"],
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8877", "--directory", "F:\\LocalAI\\aiSolar"],
       "port": 8877
     }
   ]
