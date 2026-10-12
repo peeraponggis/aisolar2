@@ -2823,10 +2823,6 @@
         function removeVectorWaterEntities() {
             vectorWaterEntities.forEach(e => viewer.entities.remove(e));
             vectorWaterEntities = [];
-            if (typeof waterwayDataSource !== 'undefined' && waterwayDataSource) {
-                viewer.dataSources.remove(waterwayDataSource, true);
-                waterwayDataSource = null;
-            }
         }
         window.clearVectorWater = function () {
             removeVectorWaterEntities();
@@ -3411,98 +3407,102 @@
             'Bang Pakong River': 'แม่น้ำบางปะกง'
         };
 
-        var waterwayDataSource = null;
-
         async function loadThailandRivers() {
             if (osmLoading) return;
             var status = document.getElementById('osmStatus');
             function say(html) { if (status) status.innerHTML = html; }
 
             osmLoading = true;
-            // ลบ datasource เก่า
-            if (waterwayDataSource) { viewer.dataSources.remove(waterwayDataSource, true); waterwayDataSource = null; }
             removeVectorWaterEntities();
-            say('🔄 กำลังโหลดแม่น้ำ คลอง แหล่งน้ำ เขื่อน ฝาย...');
+            say('🔄 กำลังโหลดแม่น้ำหลัก เขื่อน ฝาย อ่างเก็บน้ำ...');
 
             await ensureRiverDischarge();
 
-            // ใช้ Cesium.GeoJsonDataSource — รองรับ features จำนวนมากได้ดี
-            var geojsonLoaded = false;
             try {
-                say('🔄 กำลังโหลดข้อมูลลำน้ำถาวร (GeoJSON)...');
-                waterwayDataSource = await Cesium.GeoJsonDataSource.load('data/thailand_waterways_lite.geojson', {
-                    clampToGround: true,
-                    stroke: Cesium.Color.fromCssColorString('#29b6f6').withAlpha(0.8),
-                    strokeWidth: 2,
-                    fill: Cesium.Color.fromCssColorString('#1565c0').withAlpha(0.4),
-                    markerSize: 0
-                });
-                viewer.dataSources.add(waterwayDataSource);
-
-                // ปรับสีตามประเภท
-                var entities = waterwayDataSource.entities.values;
+                say('🔄 กำลังโหลดข้อมูลลำน้ำถาวร...');
+                var resp = await fetch('data/thailand_rivers_major.geojson');
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
+                var gj = await resp.json();
+                var feats = gj.features || [];
                 var totalLines = 0, totalBodies = 0, totalDams = 0, totalLabels = 0;
                 var labelled = {};
+                var BATCH = 80;
 
-                for (var i = 0; i < entities.length; i++) {
-                    var ent = entities[i];
-                    var props = ent.properties;
-                    if (!props) continue;
-                    var tp = props.type ? props.type.getValue() : '';
-                    var nm = props.name ? props.name.getValue() : '';
+                function addBatch(start) {
+                    var end = Math.min(start + BATCH, feats.length);
+                    for (var i = start; i < end; i++) {
+                        var feat = feats[i];
+                        var p = feat.properties || {};
+                        var tp = p.type || '';
+                        var nm = p.name || '';
+                        var g = feat.geometry;
+                        if (!g) continue;
 
-                    if (ent.polyline) {
-                        var isMain = nm && MAIN_RIVER_NAMES.indexOf(nm) > -1;
-                        var col, wdt;
-                        if (tp === 'dam') { col = '#ff6f00'; wdt = 5; totalDams++; }
-                        else if (tp === 'weir') { col = '#8d6e63'; wdt = 4; totalDams++; }
-                        else if (tp === 'canal') { col = '#4dd0e1'; wdt = 2; totalLines++; }
-                        else { col = isMain ? '#00b0ff' : '#29b6f6'; wdt = isMain ? 4 : 2.5; totalLines++; }
+                        if (g.type === 'LineString' && g.coordinates.length >= 2) {
+                            var isMain = nm && MAIN_RIVER_NAMES.indexOf(nm) > -1;
+                            var col, wdt;
+                            if (tp === 'dam') { col = '#ff6f00'; wdt = 5; totalDams++; }
+                            else if (tp === 'weir') { col = '#8d6e63'; wdt = 4; totalDams++; }
+                            else { col = isMain ? '#00b0ff' : '#29b6f6'; wdt = isMain ? 4 : 2.5; totalLines++; }
 
-                        // ใช้สีตามอัตราการไหลถ้ามี
-                        if (nm && tp !== 'dam' && tp !== 'weir') {
-                            var dm = riverDischarge[nm] || (NAME_ALIAS_RIVER[nm] ? riverDischarge[NAME_ALIAS_RIVER[nm]] : null);
-                            if (dm) { var dSt = dischargeStyle(dm.today); col = dSt.col; wdt = Math.max(wdt, dSt.w); }
-                        }
+                            if (nm && tp !== 'dam' && tp !== 'weir') {
+                                var dm = riverDischarge[nm] || (NAME_ALIAS_RIVER[nm] ? riverDischarge[NAME_ALIAS_RIVER[nm]] : null);
+                                if (dm) { var dSt = dischargeStyle(dm.today); col = dSt.col; wdt = Math.max(wdt, dSt.w); }
+                            }
 
-                        ent.polyline.width = wdt;
-                        ent.polyline.material = Cesium.Color.fromCssColorString(col).withAlpha(0.85);
+                            var positions = [];
+                            for (var j = 0; j < g.coordinates.length; j++) {
+                                positions.push(g.coordinates[j][0], g.coordinates[j][1]);
+                            }
 
-                        // ป้ายชื่อเฉพาะแม่น้ำหลักและเขื่อน
-                        if (nm && !labelled[nm] && (isMain || tp === 'dam' || tp === 'river')) {
-                            labelled[nm] = 1;
-                            var pos = ent.polyline.positions.getValue();
-                            if (pos && pos.length > 1) {
-                                var midIdx = Math.floor(pos.length / 2);
+                            vectorWaterEntities.push(viewer.entities.add({
+                                polyline: {
+                                    positions: Cesium.Cartesian3.fromDegreesArray(positions),
+                                    width: wdt,
+                                    material: Cesium.Color.fromCssColorString(col).withAlpha(0.85),
+                                    clampToGround: true
+                                }, show: true
+                            }));
+
+                            if (nm && !labelled[nm] && isMain) {
+                                labelled[nm] = 1;
+                                var midIdx = Math.floor(g.coordinates.length / 2);
+                                var mc = g.coordinates[midIdx];
                                 vectorWaterEntities.push(viewer.entities.add({
-                                    position: pos[midIdx],
+                                    position: Cesium.Cartesian3.fromDegrees(mc[0], mc[1]),
                                     label: {
-                                        text: (tp === 'dam' ? '🏗️ ' : tp === 'weir' ? '🌊 ' : '') + nm,
-                                        font: (isMain ? 'bold 12px' : '11px') + ' sans-serif',
+                                        text: nm, font: 'bold 12px sans-serif',
                                         fillColor: Cesium.Color.fromCssColorString(col),
                                         outlineColor: Cesium.Color.BLACK, outlineWidth: 3,
                                         style: Cesium.LabelStyle.FILL_AND_OUTLINE,
                                         disableDepthTestDistance: Number.POSITIVE_INFINITY,
-                                        scaleByDistance: new Cesium.NearFarScalar(5e3, 1.0, isMain ? 6e5 : 2e5, 0.0)
+                                        scaleByDistance: new Cesium.NearFarScalar(5e3, 1.0, 6e5, 0.0)
                                     }, show: true
                                 }));
                                 totalLabels++;
                             }
-                        }
-                    } else if (ent.polygon) {
-                        var bodyCol = tp === 'reservoir' ? '#0d47a1' : '#1565c0';
-                        ent.polygon.material = Cesium.Color.fromCssColorString(bodyCol).withAlpha(0.45);
-                        ent.polygon.outlineColor = Cesium.Color.fromCssColorString('#4fc3f7');
-                        totalBodies++;
-                    } else if (ent.billboard) {
-                        // เขื่อน/ฝาย จุด — ซ่อน default marker, สร้าง pin เอง
-                        ent.billboard.show = false;
-                        if (tp === 'dam' || tp === 'weir') {
-                            var isDam = tp === 'dam';
-                            var pos = ent.position ? ent.position.getValue(Cesium.JulianDate.now()) : null;
-                            if (pos) {
+                        } else if (g.type === 'Polygon' && g.coordinates.length > 0) {
+                            var ring = g.coordinates[0];
+                            if (ring.length < 3) continue;
+                            var hArr = [];
+                            for (var j = 0; j < ring.length; j++) {
+                                hArr.push(ring[j][0], ring[j][1]);
+                            }
+                            var bodyCol = tp === 'reservoir' ? '#0d47a1' : '#1565c0';
+                            vectorWaterEntities.push(viewer.entities.add({
+                                polygon: {
+                                    hierarchy: Cesium.Cartesian3.fromDegreesArray(hArr),
+                                    material: Cesium.Color.fromCssColorString(bodyCol).withAlpha(0.45),
+                                    outline: true, outlineColor: Cesium.Color.fromCssColorString('#4fc3f7'),
+                                    classificationType: Cesium.ClassificationType.BOTH
+                                }, show: true
+                            }));
+                            totalBodies++;
+                        } else if (g.type === 'Point') {
+                            if (tp === 'dam' || tp === 'weir') {
+                                var isDam = tp === 'dam';
                                 vectorWaterEntities.push(viewer.entities.add({
-                                    position: pos,
+                                    position: Cesium.Cartesian3.fromDegrees(g.coordinates[0], g.coordinates[1]),
                                     billboard: { image: createTextPin(isDam ? '🏗️' : '🌊', isDam ? '#ff6f00' : '#8d6e63'), width: 36, height: 45, verticalOrigin: Cesium.VerticalOrigin.BOTTOM, heightReference: Cesium.HeightReference.CLAMP_TO_GROUND, disableDepthTestDistance: Number.POSITIVE_INFINITY, scaleByDistance: new Cesium.NearFarScalar(1e4, 1.0, 5e5, 0.3) },
                                     name: (isDam ? 'เขื่อน ' : 'ฝาย ') + nm, show: true
                                 }));
@@ -3510,17 +3510,75 @@
                             }
                         }
                     }
+                    say('🔄 โหลดแล้ว ' + end + '/' + feats.length + ' features...');
+                    if (end < feats.length) {
+                        return new Promise(function(resolve) { requestAnimationFrame(function() { resolve(addBatch(end)); }); });
+                    }
                 }
 
-                say('✅ โหลดเสร็จ — ลำน้ำ <b>' + totalLines.toLocaleString() + '</b> · แหล่งน้ำ <b>' + totalBodies.toLocaleString() + '</b> · เขื่อน/ฝาย <b>' + totalDams.toLocaleString() + '</b> · ป้าย <b>' + totalLabels + '</b>');
-                geojsonLoaded = true;
+                await addBatch(0);
+                say('✅ โหลดเสร็จ — ลำน้ำหลัก <b>' + totalLines.toLocaleString() + '</b> · แหล่งน้ำ <b>' + totalBodies.toLocaleString() + '</b> · เขื่อน/ฝาย <b>' + totalDams.toLocaleString() + '</b> · ป้าย <b>' + totalLabels + '</b>' +
+                    '<br><button onclick="openWaterwayMapOverlay()" style="margin-top:8px;background:#0288d1;color:#fff;border:none;padding:6px 16px;border-radius:4px;cursor:pointer">🗺️ ดูแผนที่ลำน้ำแบบละเอียด (Vector Tiles)</button>');
             } catch(e) {
-                say('<span style="color:#ffcc80">⚠️ โหลด GeoJSON ไม่สำเร็จ: ' + e.message + '</span><br><button onclick="loadThailandRivers()" style="margin-top:8px;background:#29b6f6;color:#000;border:none;padding:6px 16px;border-radius:4px;cursor:pointer">ลองใหม่</button>');
+                say('<span style="color:#ffcc80">⚠️ โหลดไม่สำเร็จ: ' + e.message + '</span><br><button onclick="loadThailandRivers()" style="margin-top:8px;background:#29b6f6;color:#000;border:none;padding:6px 16px;border-radius:4px;cursor:pointer">ลองใหม่</button>');
             }
 
             osmLoading = false;
         }
         window.loadThailandRivers = loadThailandRivers;
+
+        function openWaterwayMapOverlay() {
+            var existing = document.getElementById('waterwayMapOverlay');
+            if (existing) { existing.style.display = existing.style.display === 'none' ? 'flex' : 'none'; return; }
+
+            var overlay = document.createElement('div');
+            overlay.id = 'waterwayMapOverlay';
+            overlay.style.cssText = 'position:fixed;top:60px;right:20px;width:500px;height:450px;z-index:9999;background:#1a1a2e;border:2px solid #0288d1;border-radius:12px;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.6);';
+            overlay.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 14px;background:#0d47a1;border-radius:10px 10px 0 0;"><span style="color:#fff;font-weight:bold;">🗺️ แผนที่ลำน้ำ — OpenFreeMap Vector Tiles</span><button onclick="document.getElementById(\'waterwayMapOverlay\').style.display=\'none\'" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;">✕</button></div><div id="waterwayMapContainer" style="flex:1;border-radius:0 0 10px 10px;overflow:hidden;"></div>';
+            document.body.appendChild(overlay);
+
+            if (!document.getElementById('maplibreCSS')) {
+                var cssLink = document.createElement('link');
+                cssLink.id = 'maplibreCSS';
+                cssLink.rel = 'stylesheet';
+                cssLink.href = 'https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.css';
+                document.head.appendChild(cssLink);
+            }
+
+            function initWaterwayMap() {
+                var cam = viewer.camera.positionCartographic;
+                var cLng = Cesium.Math.toDegrees(cam.longitude);
+                var cLat = Cesium.Math.toDegrees(cam.latitude);
+
+                var map = new maplibregl.Map({
+                    container: 'waterwayMapContainer',
+                    style: { version: 8, sources: {}, layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#0a1628' } }] },
+                    center: [cLng, cLat],
+                    zoom: 8
+                });
+
+                map.on('load', function() {
+                    fetch('https://tiles.openfreemap.org/planet').then(function(r) { return r.json(); }).then(function(tj) {
+                        var tileUrl = tj.tiles ? tj.tiles[0] : 'https://tiles.openfreemap.org/planet/{z}/{x}/{y}.pbf';
+                        map.addSource('ofm', { type: 'vector', tiles: [tileUrl], minzoom: 0, maxzoom: 14 });
+                        map.addLayer({ id: 'water-area', type: 'fill', source: 'ofm', 'source-layer': 'water', paint: { 'fill-color': '#1565c0', 'fill-opacity': 0.5 } });
+                        map.addLayer({ id: 'ww-all', type: 'line', source: 'ofm', 'source-layer': 'waterway', paint: { 'line-color': '#29b6f6', 'line-width': ['interpolate', ['linear'], ['zoom'], 5, 0.5, 10, 2, 14, 4], 'line-opacity': 0.8 } });
+                        map.addLayer({ id: 'ww-main', type: 'line', source: 'ofm', 'source-layer': 'waterway', filter: ['in', 'class', 'river'], paint: { 'line-color': '#00b0ff', 'line-width': ['interpolate', ['linear'], ['zoom'], 5, 1, 10, 3, 14, 6], 'line-opacity': 0.9 } });
+                        map.addLayer({ id: 'ww-label', type: 'symbol', source: 'ofm', 'source-layer': 'waterway', filter: ['has', 'name'], layout: { 'symbol-placement': 'line', 'text-field': ['get', 'name'], 'text-size': 11, 'text-font': ['Noto Sans Regular'] }, paint: { 'text-color': '#81d4fa', 'text-halo-color': '#0a1628', 'text-halo-width': 1.5 } });
+                    });
+                });
+            }
+
+            if (typeof maplibregl !== 'undefined') {
+                initWaterwayMap();
+            } else {
+                var script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js';
+                script.onload = initWaterwayMap;
+                document.head.appendChild(script);
+            }
+        }
+        window.openWaterwayMapOverlay = openWaterwayMapOverlay;
 
         async function loadWaterNetwork() {
             openPanel('🌊 สถานีตรวจวัดน้ำท่า และแบบจำลองการไหลของลุ่มน้ำ');

@@ -1,4 +1,4 @@
-"""ลดขนาด GeoJSON — เก็บเฉพาะลำน้ำที่มีชื่อ + เขื่อน/ฝาย + อ่างเก็บน้ำที่มีชื่อ"""
+"""ลดขนาด GeoJSON — เก็บเฉพาะแม่น้ำที่มีชื่อ + เขื่อน/ฝาย + อ่างเก็บน้ำที่มีชื่อ (ตัดคลองออก)"""
 import json, os, sys
 sys.stdout.reconfigure(encoding='utf-8')
 
@@ -17,18 +17,15 @@ for feat in gj['features']:
     # เก็บเขื่อน/ฝาย ที่มีชื่อ
     if tp in ('dam', 'weir') and nm:
         kept.append(feat)
-    # เก็บ river ที่มีชื่อ
+    # เก็บ river ที่มีชื่อ (ตัด canal ออกเพื่อลดจำนวน)
     elif tp == 'river' and nm:
         kept.append(feat)
-    # เก็บ canal ที่มีชื่อ
-    elif tp == 'canal' and nm:
-        kept.append(feat)
     # เก็บ reservoir ที่มีชื่อ
-    elif tp in ('water', 'reservoir') and nm:
+    elif tp == 'reservoir' and nm:
         kept.append(feat)
 
-# ลด precision + simplify
-def simplify_line(coords, tol=0.003):
+# ลด precision + simplify มากขึ้น
+def simplify_line(coords, tol=0.004):
     if len(coords) <= 3:
         return coords
     result = [coords[0]]
@@ -44,15 +41,18 @@ def reduce_coords(coords, geom_type):
     if geom_type == 'Point':
         return [round(coords[0], 4), round(coords[1], 4)]
     elif geom_type == 'LineString':
-        simplified = simplify_line(coords, 0.002)
+        simplified = simplify_line(coords, 0.003)
         return [[round(c[0], 4), round(c[1], 4)] for c in simplified]
     elif geom_type == 'Polygon':
-        return [[[round(c[0], 4), round(c[1], 4)] for c in simplify_line(ring, 0.003)] for ring in coords]
+        return [[[round(c[0], 4), round(c[1], 4)] for c in simplify_line(ring, 0.004)] for ring in coords]
     return coords
 
 for feat in kept:
     g = feat['geometry']
     g['coordinates'] = reduce_coords(g['coordinates'], g['type'])
+    # ตัด features ที่ coordinate เหลือน้อยเกินไปหลัง simplify
+    if g['type'] == 'LineString' and len(g['coordinates']) < 2:
+        kept.remove(feat)
 
 out = {"type": "FeatureCollection", "features": kept}
 with open(dst, 'w', encoding='utf-8') as f:
