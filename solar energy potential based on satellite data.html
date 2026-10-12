@@ -5423,6 +5423,24 @@
             }
             html += '</div>';
 
+            // PVOutput API Settings
+            var savedKey = '';
+            var savedSid = '';
+            try { savedKey = localStorage.getItem('pvo_api_key') || ''; savedSid = localStorage.getItem('pvo_api_sid') || ''; } catch(e) {}
+            var hasApi = savedKey && savedSid;
+            html += '<div style="margin-bottom:10px">';
+            html += '<div onclick="document.getElementById(\'pvoApiSettings\').style.display=document.getElementById(\'pvoApiSettings\').style.display===\'none\'?\'block\':\'none\'" style="cursor:pointer;padding:6px 10px;background:rgba(100,181,246,.08);border:1px solid rgba(100,181,246,.25);border-radius:6px;font-size:11px;color:#64b5f6;display:flex;align-items:center;justify-content:space-between">';
+            html += '<span>🔑 PVOutput API ' + (hasApi ? '✅ เชื่อมต่อแล้ว' : '— กรอก API Key เพื่อดูพิกัดจริง') + '</span>';
+            html += '<span style="font-size:9px">▼</span></div>';
+            html += '<div id="pvoApiSettings" style="display:none;margin-top:6px;padding:10px;background:rgba(255,255,255,.04);border-radius:6px;border:1px solid #333">';
+            html += '<div style="font-size:10px;color:#888;margin-bottom:8px">ใส่ API Key และ System ID จาก pvoutput.org/account.jsp<br>ข้อมูลจะเก็บใน browser ของคุณเท่านั้น (localStorage)</div>';
+            html += '<input type="text" id="pvoApiKeyInput" value="' + savedKey + '" placeholder="API Key" style="width:100%;box-sizing:border-box;padding:6px 10px;background:rgba(255,255,255,.06);border:1px solid #444;border-radius:4px;color:#eee;font-size:11px;margin-bottom:6px;font-family:monospace">';
+            html += '<input type="text" id="pvoApiSidInput" value="' + savedSid + '" placeholder="System ID (เลข SID ของคุณ)" style="width:100%;box-sizing:border-box;padding:6px 10px;background:rgba(255,255,255,.06);border:1px solid #444;border-radius:4px;color:#eee;font-size:11px;margin-bottom:8px">';
+            html += '<div style="display:flex;gap:6px">';
+            html += '<button onclick="savePVOApiKey()" style="flex:1;padding:6px;background:#64b5f6;border:none;border-radius:4px;color:#000;font-size:11px;font-weight:700;cursor:pointer">💾 บันทึก & รีโหลดพิกัด</button>';
+            html += '<button onclick="clearPVOApiKey()" style="padding:6px 10px;background:rgba(244,67,54,.15);border:1px solid #f44336;border-radius:4px;color:#f44336;font-size:11px;cursor:pointer">🗑️ ล้าง</button>';
+            html += '</div></div></div>';
+
             // ช่องค้นหา
             html += '<div style="margin-bottom:8px">';
             html += '<input type="text" id="pvoSearch" placeholder="🔍 ค้นหาชื่อระบบ / ประเทศ..." oninput="searchPVOSystems(this.value)" style="width:100%;box-sizing:border-box;padding:8px 12px;background:rgba(255,255,255,.06);border:1px solid #444;border-radius:6px;color:#eee;font-size:12px;outline:none">';
@@ -5536,7 +5554,7 @@
             var details = [
                 ['🏭 ชื่อระบบ', s.name],
                 ['⚡ ขนาดระบบ', s.size],
-                ['📍 ที่ตั้ง', (s.country || s.loc) + (s.postcode ? ' (' + s.postcode + ')' : '') + (s.geocodedLat ? ' [' + s.geocodedLat.toFixed(4) + ', ' + s.geocodedLng.toFixed(4) + ']' : '')]
+                ['📍 ที่ตั้ง', (s.country || s.loc) + (s.postcode ? ' (' + s.postcode + ')' : '') + (s.geocodedLat ? ' [' + s.geocodedLat.toFixed(4) + ', ' + s.geocodedLng.toFixed(4) + ']' + (s.geocodeSource === 'pvoutput' ? ' 📡' : ' 📮') : '')]
             ];
             if (s.installDate) details.push(['📅 ปีที่ติดตั้ง', s.installDate]);
             if (s.panels) details.push(['🔳 แผงโซลาร์', s.panels]);
@@ -5661,8 +5679,12 @@
         };
 
         async function geocodePVOSystems(systems) {
+            var apiMatched = await geocodePVOViaSearchAPI(systems);
+            if (apiMatched > 0) console.log('PVOutput Search API: matched ' + apiMatched + ' systems with exact coordinates');
+
             var toGeocode = {};
             systems.forEach(function(s) {
+                if (s.geocodeSource === 'pvoutput') return;
                 if (!s.postcode) return;
                 var c = s.country || s.loc || '';
                 var cc = '';
@@ -5782,8 +5804,9 @@
             if (!s) return;
             var coords = getPVOSystemCoords(s);
             if (!coords) { alert('ไม่พบพิกัดของระบบนี้'); return; }
-            var hasPostcode = (s.geocodedLat && s.geocodedLng) || (s.postcode && pvoGeocodeCache[(s.postcode + '_').toLowerCase()]);
-            var altitude = hasPostcode ? 50000 : 500000;
+            var hasExact = s.geocodeSource === 'pvoutput';
+            var hasPostcode = hasExact || (s.geocodedLat && s.geocodedLng) || (s.postcode && pvoGeocodeCache[(s.postcode + '_').toLowerCase()]);
+            var altitude = hasExact ? 5000 : (hasPostcode ? 50000 : 500000);
             viewer.camera.flyTo({
                 destination: Cesium.Cartesian3.fromDegrees(coords[1], coords[0], altitude),
                 orientation: { heading: 0, pitch: Cesium.Math.toRadians(-60), roll: 0 },
@@ -5798,6 +5821,83 @@
             if (s) showPVODetail(encodeURIComponent(JSON.stringify(s)));
         }
         window.flyToPVOSystemAndDetail = flyToPVOSystemAndDetail;
+
+        function savePVOApiKey() {
+            var k = document.getElementById('pvoApiKeyInput').value.trim();
+            var s = document.getElementById('pvoApiSidInput').value.trim();
+            if (!k || !s) { alert('กรุณากรอกทั้ง API Key และ System ID'); return; }
+            try { localStorage.setItem('pvo_api_key', k); localStorage.setItem('pvo_api_sid', s); } catch(e) {}
+            if (pvoSystemsCache.length) {
+                addPVOEntitiesToMap(pvoSystemsCache).then(function() {
+                    renderPVOutputPanel(pvoSystemsCache);
+                });
+            }
+            alert('บันทึกแล้ว! กำลังรีโหลดพิกัดจาก PVOutput API...');
+        }
+        window.savePVOApiKey = savePVOApiKey;
+
+        function clearPVOApiKey() {
+            try { localStorage.removeItem('pvo_api_key'); localStorage.removeItem('pvo_api_sid'); } catch(e) {}
+            document.getElementById('pvoApiKeyInput').value = '';
+            document.getElementById('pvoApiSidInput').value = '';
+            alert('ล้าง API Key แล้ว');
+        }
+        window.clearPVOApiKey = clearPVOApiKey;
+
+        var pvoSearchApiCache = {};
+        async function geocodePVOViaSearchAPI(systems) {
+            var apiKey = '', apiSid = '';
+            try { apiKey = localStorage.getItem('pvo_api_key') || ''; apiSid = localStorage.getItem('pvo_api_sid') || ''; } catch(e) {}
+            if (!apiKey || !apiSid) return 0;
+
+            var postcodes = {};
+            systems.forEach(function(s) {
+                if (s.postcode && !pvoSearchApiCache[s.postcode]) postcodes[s.postcode] = true;
+            });
+            var pcList = Object.keys(postcodes);
+            if (!pcList.length) return 0;
+
+            var matched = 0;
+            var corsProxy = 'https://cors-get-proxy.sirjosh.workers.dev/get?url=';
+            for (var i = 0; i < pcList.length; i++) {
+                var pc = pcList[i];
+                try {
+                    var searchUrl = 'https://pvoutput.org/service/r2/search.jsp?q=' + encodeURIComponent(pc) +
+                        '&key=' + encodeURIComponent(apiKey) + '&sid=' + encodeURIComponent(apiSid);
+                    var resp = await fetch(corsProxy + encodeURIComponent(searchUrl), {
+                        signal: AbortSignal.timeout(8000)
+                    });
+                    if (resp.ok) {
+                        var csv = await resp.text();
+                        var rows = csv.trim().split('\n');
+                        if (!pvoSearchApiCache[pc]) pvoSearchApiCache[pc] = {};
+                        rows.forEach(function(row) {
+                            var cols = row.split(',');
+                            if (cols.length >= 12) {
+                                var rowSid = cols[6];
+                                var lat = parseFloat(cols[10]);
+                                var lng = parseFloat(cols[11]);
+                                if (rowSid && !isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
+                                    pvoSearchApiCache[pc][rowSid] = [lat, lng];
+                                }
+                            }
+                        });
+                    }
+                } catch(e) { console.warn('PVOutput Search API failed for postcode ' + pc + ':', e.message); }
+                if (i < pcList.length - 1) await new Promise(function(r){ setTimeout(r, 1100); });
+            }
+
+            systems.forEach(function(s) {
+                if (s.sid && s.postcode && pvoSearchApiCache[s.postcode] && pvoSearchApiCache[s.postcode][s.sid]) {
+                    var c = pvoSearchApiCache[s.postcode][s.sid];
+                    s.geocodedLat = c[0];
+                    s.geocodedLng = c[1];
+                    s.geocodeSource = 'pvoutput';
+                    matched++;
+                }
+            });
+            return matched;
+        }
 
         function filterPVOByRegion(region) {
             if (!pvoSystemsCache.length) return;
