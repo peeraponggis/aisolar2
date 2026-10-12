@@ -2652,6 +2652,7 @@
         var waterEntities = [];
         var riverEntities = [];
         var riverDischarge = {};
+        var camsEntity = null;
 
         // โครงข่ายแม่น้ำสายหลักและสาขาของไทย (เส้นแนวประมาณการ ลำดับพิกัดเรียงตามทิศทางการไหล)
         const THAI_RIVERS = [
@@ -3422,29 +3423,76 @@
                         overflowList.push({ name: (st.tele_station_name && st.tele_station_name.th) || '-', basin: bname, pct: pct, lat: la, lng: lo });
                     }
 
+                    // สร้าง description พร้อมสีและคำเตือนตามระดับวิกฤต
+                    var pctColor = '#78909c', pctBg = 'transparent';
+                    if (!isNaN(pct)) {
+                        if (pct >= 100) { pctColor = '#ff1744'; pctBg = 'rgba(255,23,68,.15)'; }
+                        else if (pct >= 70) { pctColor = '#ff6d00'; pctBg = 'rgba(255,109,0,.1)'; }
+                        else if (pct >= 30) { pctColor = '#00c853'; pctBg = 'transparent'; }
+                        else if (pct >= 10) { pctColor = '#ffd600'; pctBg = 'rgba(255,214,0,.08)'; }
+                        else { pctColor = '#d500f9'; pctBg = 'rgba(213,0,249,.1)'; }
+                    }
+                    var warnHtml = '';
+                    if (!isNaN(pct) && pct >= 100) {
+                        warnHtml = '<div style="background:#b71c1c;color:#fff;padding:8px 10px;border-radius:4px;margin:8px 0;font-size:12px">' +
+                            '<b>⚠️ น้ำล้นตลิ่ง — เฝ้าระวังอุทกภัย</b><br>' +
+                            '• ติดตามระดับน้ำอย่างใกล้ชิด<br>' +
+                            '• เตรียมอพยพหากน้ำยังเพิ่มขึ้นต่อเนื่อง<br>' +
+                            '• ย้ายสิ่งของมีค่าขึ้นที่สูง<br>' +
+                            '• ตรวจสอบเส้นทางอพยพ</div>';
+                    } else if (!isNaN(pct) && pct >= 80) {
+                        warnHtml = '<div style="background:rgba(255,109,0,.2);color:#ffab40;padding:8px 10px;border-radius:4px;margin:8px 0;font-size:12px">' +
+                            '<b>⚡ น้ำเกือบเต็มตลิ่ง — เฝ้าระวัง</b><br>' +
+                            '• เตรียมแผนรับมือหากฝนตกหนักเพิ่มเติม<br>' +
+                            '• ตรวจสอบกระสอบทรายและแนวป้องกัน</div>';
+                    } else if (!isNaN(pct) && pct < 10) {
+                        warnHtml = '<div style="background:rgba(213,0,249,.15);color:#ea80fc;padding:8px 10px;border-radius:4px;margin:8px 0;font-size:12px">' +
+                            '<b>🏜️ น้ำน้อยวิกฤต — อาจขาดแคลนน้ำ</b><br>' +
+                            '• ประหยัดน้ำและเฝ้าระวังคุณภาพน้ำ</div>';
+                    }
+                    // ลิงก์ CCTV จาก ThaiWater
+                    var cctvHtml = '<p style="margin-top:8px"><a href="https://www.thaiwater.net/water/cctv" target="_blank" style="color:#4fc3f7;text-decoration:none">📹 ดู CCTV สถานีวัดน้ำ (ThaiWater)</a>';
+                    cctvHtml += ' · <a href="https://www.thaiwater.net/water/wl" target="_blank" style="color:#4fc3f7;text-decoration:none">📊 กราฟระดับน้ำ</a></p>';
+                    // แถบแสดง % ความจุ
+                    var barHtml = '';
+                    if (!isNaN(pct)) {
+                        var barW = Math.min(pct, 120);
+                        var barCol = pctColor;
+                        barHtml = '<div style="background:#222;border-radius:3px;height:14px;margin:6px 0;position:relative;overflow:hidden">' +
+                            '<div style="width:' + barW + '%;height:100%;background:' + barCol + ';border-radius:3px;transition:width 0.3s"></div>' +
+                            '<div style="position:absolute;top:0;left:50%;transform:translateX(-50%);font-size:10px;color:#fff;line-height:14px;font-weight:bold">' + pct.toFixed(1) + '%</div>' +
+                            '</div>';
+                    }
+
                     var ent = viewer.entities.add({
                         position: Cesium.Cartesian3.fromDegrees(lo, la),
                         point: {
-                            pixelSize: 9,
+                            pixelSize: pct >= 100 ? 13 : 9,
                             color: Cesium.Color.fromCssColorString(col).withAlpha(0.95),
-                            outlineColor: Cesium.Color.fromCssColorString('#01579b'),
-                            outlineWidth: 1.5,
+                            outlineColor: pct >= 100 ? Cesium.Color.WHITE : Cesium.Color.fromCssColorString('#01579b'),
+                            outlineWidth: pct >= 100 ? 2.5 : 1.5,
                             disableDepthTestDistance: Number.POSITIVE_INFINITY
                         },
-                        name: 'สถานีวัดน้ำ ' + ((st.tele_station_name && st.tele_station_name.th) || '-'),
-                        description: `
-                            <p><b>${(st.tele_station_name && st.tele_station_name.th) || '-'}</b><br>
-                            ${(st.tele_station_name && st.tele_station_name.en) || ''}</p>
-                            <p><b>ลุ่มน้ำ:</b> ${bname}<br>
-                            <b>หน่วยงาน:</b> ${(w.agency && w.agency.agency_name) ? w.agency.agency_name.th : '-'}</p>
-                            <p><b>ระดับน้ำ (ม.รทก.):</b> ${w.waterlevel_msl !== null ? w.waterlevel_msl : '-'}<br>
-                            <b>ระดับน้ำครั้งก่อน:</b> ${w.waterlevel_msl_previous !== null ? w.waterlevel_msl_previous : '-'}<br>
-                            <b>ความจุลำน้ำที่ใช้ไป:</b> ${isNaN(pct) ? '-' : pct.toFixed(1) + ' %'}<br>
-                            <b>สถานการณ์:</b> ${txt} (ระดับ ${lvl !== undefined ? lvl : '-'})</p>
-                            <p><b>ตลิ่งซ้าย / ขวา:</b> ${st.left_bank !== null ? st.left_bank : '-'} / ${st.right_bank !== null ? st.right_bank : '-'} ม.<br>
-                            <b>อัตราการไหล:</b> ${w.flow_rate !== null ? w.flow_rate + ' ลบ.ม./วินาที' : 'ไม่รายงาน'}</p>
-                            <p><b>เวลาข้อมูล:</b> ${w.waterlevel_datetime || '-'} น.</p>
-                            <p><i>แหล่งข้อมูล: ThaiWater / สถาบันสารสนเทศทรัพยากรน้ำ (สสน.)</i></p>`,
+                        name: (pct >= 100 ? '🚨 ' : '') + 'สถานีวัดน้ำ ' + ((st.tele_station_name && st.tele_station_name.th) || '-'),
+                        description:
+                            '<div style="font-family:sans-serif;padding:4px">' +
+                            (pct >= 100 ? '<div style="background:#b71c1c;color:#fff;padding:6px 10px;border-radius:4px;font-weight:bold;margin-bottom:8px;text-align:center;font-size:14px">🚨 น้ำล้นตลิ่ง — ระดับวิกฤต</div>' : '') +
+                            '<p><b>' + ((st.tele_station_name && st.tele_station_name.th) || '-') + '</b><br>' +
+                            ((st.tele_station_name && st.tele_station_name.en) || '') + '</p>' +
+                            '<p><b>ลุ่มน้ำ:</b> ' + bname + '<br>' +
+                            '<b>หน่วยงาน:</b> ' + ((w.agency && w.agency.agency_name) ? w.agency.agency_name.th : '-') + '</p>' +
+                            '<p><b>ระดับน้ำ (ม.รทก.):</b> ' + (w.waterlevel_msl !== null ? w.waterlevel_msl : '-') + '<br>' +
+                            '<b>ระดับน้ำครั้งก่อน:</b> ' + (w.waterlevel_msl_previous !== null ? w.waterlevel_msl_previous : '-') + '<br>' +
+                            '<b>ความจุลำน้ำที่ใช้ไป:</b> <span style="color:' + pctColor + ';font-weight:bold;font-size:14px;background:' + pctBg + ';padding:1px 6px;border-radius:3px">' + (isNaN(pct) ? '-' : pct.toFixed(1) + ' %') + '</span>' +
+                            barHtml +
+                            '<b>สถานการณ์:</b> <span style="color:' + pctColor + ';font-weight:bold">' + txt + '</span> (ระดับ ' + (lvl !== undefined ? lvl : '-') + ')</p>' +
+                            warnHtml +
+                            '<p><b>ตลิ่งซ้าย / ขวา:</b> ' + (st.left_bank !== null ? st.left_bank : '-') + ' / ' + (st.right_bank !== null ? st.right_bank : '-') + ' ม.<br>' +
+                            '<b>อัตราการไหล:</b> ' + (w.flow_rate !== null ? w.flow_rate + ' ลบ.ม./วินาที' : 'ไม่รายงาน') + '</p>' +
+                            '<p><b>เวลาข้อมูล:</b> ' + (w.waterlevel_datetime || '-') + ' น.</p>' +
+                            cctvHtml +
+                            '<p><i>แหล่งข้อมูล: ThaiWater / สถาบันสารสนเทศทรัพยากรน้ำ (สสน.)</i></p>' +
+                            '</div>',
                         show: true
                     });
                     waterEntities.push(ent);
@@ -3603,28 +3651,54 @@
             html2 += '<div style="font-size:11px;color:#aaa">ThaiWater API · สสน. · GloFAS</div></div></div>';
             html2 += '<a href="https://www.thaiwater.net/water/wl" target="_blank" rel="noopener" style="display:block;text-align:center;background:rgba(79,195,247,.15);border:1px solid #4fc3f7;color:#4fc3f7;padding:8px;border-radius:6px;text-decoration:none;font-size:12px;font-weight:600;margin-bottom:8px">🔗 เปิด ThaiWater.net</a></div>';
 
-            // Summary cards
-            html2 += '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-bottom:12px">';
-            html2 += '<div class="dt-card"><div class="dt-val" style="color:#64b5f6;font-size:16px">' + stationCount + '</div><div class="dt-label">📡 สถานี</div></div>';
-            html2 += '<div class="dt-card"><div class="dt-val" style="color:#4caf50;font-size:16px">' + stNormal + '</div><div class="dt-label">🟢 ปกติ</div></div>';
-            html2 += '<div class="dt-card"><div class="dt-val" style="color:#ff6d00;font-size:16px">' + stHigh + '</div><div class="dt-label">🟠 น้ำมาก</div></div>';
-            html2 += '<div class="dt-card"><div class="dt-val" style="color:#ffd600;font-size:16px">' + stLow + '</div><div class="dt-label">🟡 น้ำน้อย</div></div>';
-            html2 += '<div class="dt-card"><div class="dt-val" style="color:#d50000;font-size:16px">' + stFlood + '</div><div class="dt-label">🔴 ล้นตลิ่ง</div></div>';
-            html2 += '</div>';
-
-            // Overflow alert
+            // Overflow CRISIS alert — แสดงก่อนสุดเมื่อมีวิกฤต
             if (overflowList.length) {
-                html2 += '<div style="background:#2a0000;border:1px solid #b71c1c;padding:10px;border-radius:6px;margin-bottom:12px">';
-                html2 += '<div style="font-size:12px;font-weight:700;color:#ff8a80;margin-bottom:6px">🚨 สถานีน้ำล้นตลิ่ง ' + overflowList.length + ' แห่ง</div>';
-                overflowList.slice(0, 5).forEach(function(o) {
-                    html2 += '<div style="font-size:11px;color:#ffcdd2;margin-bottom:3px">• ' + o.name + ' (' + o.basin + ') — ' + o.pct.toFixed(0) + '%</div>';
+                overflowList.sort(function(a, b) { return b.pct - a.pct; });
+                html2 += '<div style="background:linear-gradient(135deg,#2a0000,#1a0000);border:2px solid #d50000;padding:12px;border-radius:8px;margin-bottom:12px;animation:pulseGlow 2s ease-in-out infinite">';
+                html2 += '<style>@keyframes pulseGlow{0%,100%{box-shadow:0 0 8px rgba(213,0,0,.3)}50%{box-shadow:0 0 20px rgba(213,0,0,.6)}}</style>';
+                html2 += '<div style="font-size:14px;font-weight:700;color:#ff1744;margin-bottom:8px;display:flex;align-items:center;gap:6px">🚨 วิกฤต — น้ำล้นตลิ่ง ' + overflowList.length + ' สถานี</div>';
+                overflowList.forEach(function(o) {
+                    var bgIntensity = Math.min((o.pct - 100) * 2, 60);
+                    html2 += '<div style="background:rgba(255,23,68,' + (bgIntensity / 100 * 0.3 + 0.05) + ');border-left:3px solid #ff1744;padding:6px 8px;border-radius:4px;margin-bottom:4px;cursor:pointer" onclick="flyToFeature(' + o.lng + ',' + o.lat + ')">';
+                    html2 += '<div style="display:flex;justify-content:space-between;align-items:center">';
+                    html2 += '<span style="font-size:12px;color:#ffcdd2;font-weight:600">• ' + o.name + '</span>';
+                    html2 += '<span style="font-size:14px;color:#ff1744;font-weight:800">' + o.pct.toFixed(0) + '%</span>';
+                    html2 += '</div>';
+                    html2 += '<span style="font-size:10px;color:#ef9a9a">' + o.basin + '</span>';
+                    html2 += '</div>';
                 });
-                html2 += '</div>';
+                html2 += '<div style="background:rgba(255,255,255,.06);border-radius:4px;padding:8px;margin-top:8px;font-size:11px;color:#ffab91">';
+                html2 += '<b style="color:#ff8a80">⚠️ คำแนะนำเฝ้าระวัง:</b><br>';
+                html2 += '• ติดตามระดับน้ำจากสถานีข้างต้นอย่างใกล้ชิด<br>';
+                html2 += '• เตรียมแผนอพยพสำหรับพื้นที่ท้ายน้ำ<br>';
+                html2 += '• ย้ายทรัพย์สินขึ้นที่สูงหากอยู่ในพื้นที่เสี่ยง<br>';
+                html2 += '• ตรวจสอบ <a href="https://www.thaiwater.net/water/cctv" target="_blank" style="color:#4fc3f7">📹 CCTV สถานีวัดน้ำ</a> · <a href="https://www.thaiwater.net/water/wl" target="_blank" style="color:#4fc3f7">📊 กราฟระดับน้ำ</a>';
+                html2 += '</div></div>';
             }
 
-            // River discharge cards
+            // Summary cards — เรียงจากวิกฤตก่อน
+            html2 += '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-bottom:12px">';
+            html2 += '<div class="dt-card" style="' + (stFlood > 0 ? 'border:1px solid #d50000;background:rgba(213,0,0,.12)' : '') + '"><div class="dt-val" style="color:#d50000;font-size:18px;font-weight:800">' + stFlood + '</div><div class="dt-label">🔴 ล้นตลิ่ง</div></div>';
+            html2 += '<div class="dt-card" style="' + (stHigh > 0 ? 'border:1px solid #ff6d00;background:rgba(255,109,0,.08)' : '') + '"><div class="dt-val" style="color:#ff6d00;font-size:16px">' + stHigh + '</div><div class="dt-label">🟠 น้ำมาก</div></div>';
+            html2 += '<div class="dt-card"><div class="dt-val" style="color:#ffd600;font-size:16px">' + stLow + '</div><div class="dt-label">🟡 น้ำน้อย</div></div>';
+            html2 += '<div class="dt-card"><div class="dt-val" style="color:#4caf50;font-size:16px">' + stNormal + '</div><div class="dt-label">🟢 ปกติ</div></div>';
+            html2 += '<div class="dt-card"><div class="dt-val" style="color:#64b5f6;font-size:14px">' + stationCount + '</div><div class="dt-label">📡 รวม</div></div>';
+            html2 += '</div>';
+
+            // CCTV & monitoring links
+            html2 += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px">';
+            html2 += '<a href="https://www.thaiwater.net/water/cctv" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:6px;background:rgba(79,195,247,.08);border:1px solid rgba(79,195,247,.3);color:#4fc3f7;padding:10px;border-radius:6px;text-decoration:none;font-size:12px;font-weight:600">📹 CCTV สถานีวัดน้ำ</a>';
+            html2 += '<a href="https://www.thaiwater.net/water/wl" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:6px;background:rgba(79,195,247,.08);border:1px solid rgba(79,195,247,.3);color:#4fc3f7;padding:10px;border-radius:6px;text-decoration:none;font-size:12px;font-weight:600">📊 กราฟระดับน้ำ</a>';
+            html2 += '</div>';
+
+            // River discharge cards — เรียงจากอัตราการไหลสูงสุดก่อน
             html2 += '<div style="font-size:13px;font-weight:700;color:#4fc3f7;margin-bottom:8px;border-bottom:1px solid #333;padding-bottom:6px">🌊 อัตราการไหลรายลำน้ำ (ลบ.ม./วินาที)</div>';
-            THAI_RIVERS.forEach(function (rv) {
+            var sortedRivers = THAI_RIVERS.slice().sort(function(a, b) {
+                var qa = riverDischarge[a.name] ? riverDischarge[a.name].today : -1;
+                var qb = riverDischarge[b.name] ? riverDischarge[b.name].today : -1;
+                return qb - qa;
+            });
+            sortedRivers.forEach(function (rv) {
                 var d = riverDischarge[rv.name];
                 var q = d ? d.today : null;
                 var st = dischargeStyle(q);
@@ -6493,14 +6567,28 @@
                 firmsEntities.forEach(function(e) { viewer.entities.remove(e); });
                 firmsEntities = [];
                 var corsProxy = 'https://cors-get-proxy.sirjosh.workers.dev/get?url=';
-                var firmsUrl = 'https://firms.modaps.eosdis.nasa.gov/api/country/csv/d8de925fa4e70786d1a2b97698cf186f/VIIRS_SNPP_NRT/THA/1';
-                var resp = await fetch(corsProxy + encodeURIComponent(firmsUrl), { signal: AbortSignal.timeout(15000) });
-                var csv = await resp.text();
+
+                // ลอง FIRMS open archive CSV (ไม่ต้อง API key) — VIIRS_SNPP 24h for Southeast Asia
+                var firmsUrls = [
+                    'https://firms.modaps.eosdis.nasa.gov/data/active_fire/suomi-npp-viirs-c2/csv/SUOMI_VIIRS_C2_Southeast_Asia_24h.csv',
+                    'https://firms.modaps.eosdis.nasa.gov/data/active_fire/noaa-20-viirs-c2/csv/J1_VIIRS_C2_Southeast_Asia_24h.csv'
+                ];
+                var csv = '';
+                for (var fi = 0; fi < firmsUrls.length; fi++) {
+                    try {
+                        var resp = await fetch(corsProxy + encodeURIComponent(firmsUrls[fi]), { signal: AbortSignal.timeout(20000) });
+                        csv = await resp.text();
+                        if (csv && csv.indexOf('latitude') >= 0) break;
+                    } catch(fe) { csv = ''; }
+                }
+                if (!csv || csv.indexOf('latitude') < 0) throw new Error('ไม่สามารถดึงข้อมูลจาก FIRMS ได้ — อาจเป็นปัญหาเครือข่าย');
+
                 var lines = csv.trim().split('\n');
                 var header = lines[0].split(',');
                 var latIdx = header.indexOf('latitude');
                 var lngIdx = header.indexOf('longitude');
                 var brIdx = header.indexOf('bright_ti4');
+                if (brIdx < 0) brIdx = header.indexOf('bright_ti5');
                 var confIdx = header.indexOf('confidence');
                 var dateIdx = header.indexOf('acq_date');
                 var timeIdx = header.indexOf('acq_time');
@@ -6510,9 +6598,13 @@
                 for (var i = 1; i < lines.length; i++) {
                     var cols = lines[i].split(',');
                     if (cols.length < 5) continue;
+                    var hlat = parseFloat(cols[latIdx]);
+                    var hlng = parseFloat(cols[lngIdx]);
+                    // กรองเฉพาะประเทศไทย (bbox)
+                    if (hlat < 5.5 || hlat > 20.5 || hlng < 97 || hlng > 106) continue;
                     hotspots.push({
-                        lat: parseFloat(cols[latIdx]),
-                        lng: parseFloat(cols[lngIdx]),
+                        lat: hlat,
+                        lng: hlng,
                         bright: parseFloat(cols[brIdx]) || 0,
                         conf: cols[confIdx] || '',
                         date: cols[dateIdx] || '',
@@ -6522,18 +6614,30 @@
                 }
 
                 hotspots.forEach(function(h, idx) {
-                    var intensity = h.bright > 350 ? 1 : h.bright > 320 ? 0.7 : 0.4;
                     var color = h.conf === 'high' ? '#ff1744' : h.conf === 'nominal' ? '#ff9100' : '#ffd740';
+                    var sz = Math.max(10, Math.min(30, 10 + h.frp * 0.5));
                     var ent = viewer.entities.add({
+                        id: 'firms_' + idx,
                         position: Cesium.Cartesian3.fromDegrees(h.lng, h.lat, 0),
-                        point: {
-                            pixelSize: 6 + h.frp * 0.3,
-                            color: Cesium.Color.fromCssColorString(color).withAlpha(intensity),
-                            outlineColor: Cesium.Color.fromCssColorString(color),
-                            outlineWidth: 1,
+                        billboard: {
+                            image: createTextPin('🔥', color),
+                            width: 36, height: 45,
+                            verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
                             heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-                            disableDepthTestDistance: Number.POSITIVE_INFINITY
-                        }
+                            disableDepthTestDistance: Number.POSITIVE_INFINITY,
+                            scaleByDistance: new Cesium.NearFarScalar(1000, 1.0, 500000, 0.3)
+                        },
+                        name: '🔥 จุดความร้อน ' + h.date + ' ' + h.time,
+                        description: '<div style="font-family:sans-serif;padding:8px">' +
+                            '<h3 style="color:#ff1744;margin:0 0 8px">🔥 จุดความร้อน (Hotspot)</h3>' +
+                            '<table style="width:100%;font-size:12px;border-collapse:collapse">' +
+                            '<tr><td style="padding:4px;color:#888">พิกัด:</td><td style="padding:4px"><b>' + h.lat.toFixed(4) + ', ' + h.lng.toFixed(4) + '</b></td></tr>' +
+                            '<tr><td style="padding:4px;color:#888">ความสว่าง:</td><td style="padding:4px"><b>' + h.bright.toFixed(1) + ' K</b></td></tr>' +
+                            '<tr><td style="padding:4px;color:#888">FRP:</td><td style="padding:4px"><b>' + h.frp.toFixed(1) + ' MW</b></td></tr>' +
+                            '<tr><td style="padding:4px;color:#888">ระดับความเชื่อมั่น:</td><td style="padding:4px"><b style="color:' + color + '">' + h.conf + '</b></td></tr>' +
+                            '<tr><td style="padding:4px;color:#888">วันที่:</td><td style="padding:4px">' + h.date + ' ' + h.time + '</td></tr>' +
+                            '<tr><td style="padding:4px;color:#888">ดาวเทียม:</td><td style="padding:4px">VIIRS (Suomi NPP/NOAA-20)</td></tr>' +
+                            '</table></div>'
                     });
                     firmsEntities.push(ent);
                 });
@@ -6606,14 +6710,16 @@
                 var gsaUrl = 'https://api.globalsolaratlas.info/data/lta?loc=' + lat + ',' + lng;
                 var resp = await fetch(corsProxy + encodeURIComponent(gsaUrl), { signal: AbortSignal.timeout(10000) });
                 var data = await resp.json();
-                var ann = data.annual || data;
+                var ann = (data.annual && data.annual.data) ? data.annual.data : (data.annual || data);
 
-                var ghi = (ann.GHI_annual || ann.GHI || 0).toFixed(0);
-                var dni = (ann.DNI_annual || ann.DNI || 0).toFixed(0);
-                var dif = (ann.DIF_annual || ann.DIF || 0).toFixed(0);
+                var ghi = (ann.GHI || ann.GHI_annual || 0).toFixed(0);
+                var dni = (ann.DNI || ann.DNI_annual || 0).toFixed(0);
+                var dif = (ann.DIF || ann.DIF_annual || 0).toFixed(0);
                 var gti = (ann.GTI_opta || ann.OPTA || 0).toFixed(0);
                 var pvout = (ann.PVOUT_csi || ann.PVOUT || 0).toFixed(0);
                 var temp = (ann.TEMP || 0).toFixed(1);
+                var opta = (ann.OPTA || 0);
+                var ele = (ann.ELE || 0);
 
                 var html = '';
                 html += '<div style="background:rgba(255,183,77,.08);border:1px solid rgba(255,183,77,.25);border-radius:6px;padding:12px;margin-bottom:12px">';
@@ -6635,18 +6741,19 @@
                 html += '<div class="dt-card"><div class="dt-val" style="color:#ef5350;font-size:16px">' + temp + '°C</div><div class="dt-label">อุณหภูมิเฉลี่ย</div></div>';
                 html += '</div>';
 
-                if (data.monthly && Array.isArray(data.monthly)) {
+                // Monthly GHI chart — API returns monthly.data.GHI as array of 12
+                var mData = data.monthly && data.monthly.data ? data.monthly.data : (data.monthly || null);
+                var ghiArr = mData && mData.GHI ? mData.GHI : (Array.isArray(mData) ? mData : null);
+                if (ghiArr && Array.isArray(ghiArr) && ghiArr.length >= 12) {
                     html += '<div style="background:rgba(255,255,255,.04);border-radius:6px;padding:12px;margin-bottom:12px">';
                     html += '<div style="font-size:12px;font-weight:700;color:#ffd740;margin-bottom:6px">📊 GHI รายเดือน (kWh/m²)</div>';
-                    var months = data.monthly;
-                    var maxM = 0;
+                    var maxM = Math.max.apply(null, ghiArr) || 1;
                     var mNames = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
-                    months.forEach(function(m) { if ((m.GHI || 0) > maxM) maxM = m.GHI; });
                     html += '<div style="display:flex;align-items:flex-end;gap:3px;height:80px">';
-                    months.forEach(function(m, mi) {
-                        var pct = maxM > 0 ? (m.GHI / maxM * 100) : 0;
+                    ghiArr.slice(0, 12).forEach(function(v) {
+                        var pct = maxM > 0 ? (v / maxM * 100) : 0;
                         html += '<div style="flex:1;display:flex;flex-direction:column;align-items:center">';
-                        html += '<div style="font-size:8px;color:#aaa;margin-bottom:2px">' + (m.GHI || 0).toFixed(0) + '</div>';
+                        html += '<div style="font-size:8px;color:#aaa;margin-bottom:2px">' + (v || 0).toFixed(0) + '</div>';
                         html += '<div style="width:100%;height:' + pct + '%;background:#ffd740;border-radius:2px;min-height:2px"></div>';
                         html += '</div>';
                     });
@@ -6655,6 +6762,20 @@
                     mNames.forEach(function(n) { html += '<div style="flex:1;text-align:center;font-size:8px;color:#666">' + n + '</div>'; });
                     html += '</div></div>';
                 }
+
+                // Solar assessment card
+                html += '<div style="background:rgba(255,215,64,.08);border:1px solid rgba(255,215,64,.25);border-radius:6px;padding:12px;margin-bottom:12px">';
+                html += '<div style="font-size:12px;font-weight:700;color:#ffd740;margin-bottom:6px">📐 การประเมินสำหรับโซลาร์</div>';
+                var ghiN = parseFloat(ghi);
+                var rating = ghiN > 1800 ? {t:'ดีเยี่ยม',c:'#4caf50'} : ghiN > 1500 ? {t:'ดี',c:'#8bc34a'} : ghiN > 1200 ? {t:'ปานกลาง',c:'#ffd740'} : {t:'ต่ำ',c:'#f44336'};
+                html += '<div style="font-size:11px;color:#ccc">';
+                html += '☀️ ศักยภาพพื้นที่: <b style="color:' + rating.c + '">' + rating.t + '</b><br>';
+                html += '📐 มุมเอียงแผงที่ดีที่สุด: <b style="color:#64b5f6">' + opta + '°</b><br>';
+                html += '🏔️ ระดับความสูง: <b style="color:#bcaaa4">' + ele + ' ม.</b><br>';
+                if (parseFloat(pvout) > 0) {
+                    html += '⚡ ระบบ 10 kWp ผลิตได้ ~<b style="color:#69f0ae">' + (parseFloat(pvout) * 10 / 1000).toFixed(1) + ' MWh/ปี</b>';
+                }
+                html += '</div></div>';
 
                 html += '<div class="dt-learn" style="font-size:11px">';
                 html += '<b style="color:#ffb74d">📖 เกี่ยวกับ Global Solar Atlas:</b><br><br>';
@@ -6755,6 +6876,48 @@
                 var dust = (h.dust || [])[nowIdx] || 0;
 
                 var solarLoss = (aod * 25).toFixed(1);
+
+                // สร้าง pin แสดงจุดที่วัดคุณภาพอากาศ
+                var aqColor = pm25 > 50 ? '#f44336' : pm25 > 25 ? '#ff9800' : '#4caf50';
+                var aqLabel = pm25 > 50 ? 'อากาศแย่' : pm25 > 25 ? 'คุณภาพปานกลาง' : 'อากาศดี';
+                if (typeof camsEntity !== 'undefined' && camsEntity) viewer.entities.remove(camsEntity);
+                camsEntity = viewer.entities.add({
+                    position: Cesium.Cartesian3.fromDegrees(parseFloat(lng), parseFloat(lat), 0),
+                    billboard: {
+                        image: createTextPin('🌐', aqColor),
+                        width: 48, height: 60,
+                        verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+                        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+                        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+                        scaleByDistance: new Cesium.NearFarScalar(500, 1.2, 500000, 0.4)
+                    },
+                    label: {
+                        text: 'PM2.5: ' + pm25.toFixed(0) + ' µg/m³',
+                        font: 'bold 12px sans-serif',
+                        fillColor: Cesium.Color.WHITE,
+                        backgroundColor: Cesium.Color.fromCssColorString(aqColor).withAlpha(0.85),
+                        showBackground: true,
+                        backgroundPadding: new Cesium.Cartesian2(8, 4),
+                        outlineWidth: 2, outlineColor: Cesium.Color.BLACK,
+                        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+                        pixelOffset: new Cesium.Cartesian2(0, -65),
+                        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+                        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+                        scaleByDistance: new Cesium.NearFarScalar(500, 1.0, 500000, 0.3)
+                    },
+                    name: '🌐 CAMS — คุณภาพอากาศ',
+                    description: '<div style="font-family:sans-serif;padding:8px">' +
+                        '<h3 style="color:#2196f3;margin:0 0 8px">🌐 คุณภาพอากาศ — CAMS</h3>' +
+                        '<table style="width:100%;font-size:12px;border-collapse:collapse">' +
+                        '<tr><td style="padding:4px;color:#888">สถานะ:</td><td style="padding:4px"><b style="color:' + aqColor + '">' + aqLabel + '</b></td></tr>' +
+                        '<tr><td style="padding:4px;color:#888">PM2.5:</td><td style="padding:4px"><b>' + pm25.toFixed(1) + ' µg/m³</b></td></tr>' +
+                        '<tr><td style="padding:4px;color:#888">PM10:</td><td style="padding:4px"><b>' + pm10.toFixed(1) + ' µg/m³</b></td></tr>' +
+                        '<tr><td style="padding:4px;color:#888">UV Index:</td><td style="padding:4px"><b>' + uv.toFixed(1) + '</b></td></tr>' +
+                        '<tr><td style="padding:4px;color:#888">AOD:</td><td style="padding:4px"><b>' + aod.toFixed(3) + '</b></td></tr>' +
+                        '<tr><td style="padding:4px;color:#888">ฝุ่น:</td><td style="padding:4px"><b>' + dust.toFixed(1) + ' µg/m³</b></td></tr>' +
+                        '<tr><td style="padding:4px;color:#888">Solar Loss:</td><td style="padding:4px"><b style="color:#f44336">-' + solarLoss + '%</b></td></tr>' +
+                        '</table></div>'
+                });
 
                 var html = '';
                 html += '<div style="background:rgba(33,150,243,.08);border:1px solid rgba(33,150,243,.25);border-radius:6px;padding:12px;margin-bottom:12px">';
@@ -6897,55 +7060,103 @@
                 var r = 0.15;
                 var bbox = (lat - r) + ',' + (lng - r) + ',' + (lat + r) + ',' + (lng + r);
 
-                var corsProxy = 'https://cors-get-proxy.sirjosh.workers.dev/get?url=';
-                var query = '[out:json][timeout:15];(way["power"="line"](' + bbox + ');node["power"="substation"](' + bbox + ');node["power"="plant"](' + bbox + '););out geom;';
-                var url = 'https://overpass-api.de/api/interpreter?data=' + encodeURIComponent(query);
-                var resp = await fetch(corsProxy + encodeURIComponent(url), { signal: AbortSignal.timeout(20000) });
-                var data = await resp.json();
+                var query = '[out:json][timeout:25];(way["power"="line"](' + bbox + ');node["power"="substation"](' + bbox + ');node["power"="plant"](' + bbox + ');way["power"="substation"](' + bbox + ');way["power"="plant"](' + bbox + '););out center geom;';
+                // ลอง Overpass API โดยตรง (ไม่ต้อง CORS proxy — Overpass อนุญาต CORS)
+                var overpassUrls = [
+                    'https://overpass-api.de/api/interpreter',
+                    'https://overpass.kumi.systems/api/interpreter'
+                ];
+                var data = null;
+                for (var oi = 0; oi < overpassUrls.length; oi++) {
+                    try {
+                        var resp = await fetch(overpassUrls[oi], {
+                            method: 'POST',
+                            body: 'data=' + encodeURIComponent(query),
+                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                            signal: AbortSignal.timeout(30000)
+                        });
+                        data = await resp.json();
+                        if (data && data.elements) break;
+                    } catch(oe) { data = null; }
+                }
+                if (!data || !data.elements) throw new Error('Overpass API ไม่ตอบกลับ — ลองซูมเข้าใกล้แล้วกดใหม่');
 
                 var lineCount = 0, substationCount = 0, plantCount = 0;
 
                 data.elements.forEach(function(el) {
-                    if (el.type === 'way' && el.geometry) {
+                    var isPower = el.tags && el.tags.power;
+                    if (!isPower) return;
+                    var nm = el.tags.name || el.tags['name:th'] || '';
+                    var voltage = parseInt(el.tags.voltage || '0');
+                    var vStr = voltage >= 1000 ? (voltage / 1000) + ' kV' : (voltage ? voltage + ' V' : 'ไม่ระบุ');
+
+                    if (el.type === 'way' && el.tags.power === 'line' && el.geometry) {
                         var coords = [];
                         el.geometry.forEach(function(pt) { coords.push(pt.lon, pt.lat); });
-                        var voltage = parseInt(el.tags.voltage || '0');
+                        if (coords.length < 4) return;
                         var color = voltage >= 230000 ? '#f44336' : voltage >= 115000 ? '#ff9800' : voltage >= 22000 ? '#ffd740' : '#69f0ae';
-                        var width = voltage >= 230000 ? 4 : voltage >= 115000 ? 3 : 2;
+                        var width = voltage >= 230000 ? 5 : voltage >= 115000 ? 4 : 3;
                         var ent = viewer.entities.add({
+                            name: '🔌 สายส่ง' + (nm ? ' ' + nm : '') + ' (' + vStr + ')',
+                            description: '<div style="font-family:sans-serif;padding:8px">' +
+                                '<h3 style="color:#ff9800;margin:0 0 8px">🔌 สายส่งไฟฟ้า</h3>' +
+                                '<table style="width:100%;font-size:12px;border-collapse:collapse">' +
+                                (nm ? '<tr><td style="padding:4px;color:#888">ชื่อ:</td><td style="padding:4px"><b>' + nm + '</b></td></tr>' : '') +
+                                '<tr><td style="padding:4px;color:#888">แรงดัน:</td><td style="padding:4px"><b style="color:' + color + '">' + vStr + '</b></td></tr>' +
+                                '<tr><td style="padding:4px;color:#888">สาย:</td><td style="padding:4px">' + (el.tags.cables || '-') + ' สาย</td></tr>' +
+                                '<tr><td style="padding:4px;color:#888">ผู้ดำเนินการ:</td><td style="padding:4px">' + (el.tags.operator || 'EGAT/PEA') + '</td></tr>' +
+                                '</table></div>',
                             polyline: {
                                 positions: Cesium.Cartesian3.fromDegreesArray(coords),
                                 width: width,
-                                material: Cesium.Color.fromCssColorString(color).withAlpha(0.8),
+                                material: Cesium.Color.fromCssColorString(color).withAlpha(0.85),
                                 clampToGround: true
                             }
                         });
                         osmGridEntities.push(ent);
                         lineCount++;
-                    } else if (el.type === 'node') {
+                    } else if (el.tags.power === 'substation' || el.tags.power === 'plant') {
                         var isPlant = el.tags.power === 'plant';
+                        var elLat = el.lat || (el.center ? el.center.lat : null);
+                        var elLon = el.lon || (el.center ? el.center.lon : null);
+                        if (!elLat || !elLon) return;
+                        var output = el.tags['plant:output:electricity'] || el.tags.output || '';
+                        var source = el.tags['plant:source'] || el.tags.source || '';
                         var ent = viewer.entities.add({
-                            position: Cesium.Cartesian3.fromDegrees(el.lon, el.lat, 0),
+                            position: Cesium.Cartesian3.fromDegrees(elLon, elLat, 0),
                             billboard: {
                                 image: createTextPin(isPlant ? '⚡' : '🏭', isPlant ? '#f44336' : '#ff9800'),
-                                width: 40, height: 50,
+                                width: 44, height: 55,
                                 verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
                                 heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-                                disableDepthTestDistance: Number.POSITIVE_INFINITY
+                                disableDepthTestDistance: Number.POSITIVE_INFINITY,
+                                scaleByDistance: new Cesium.NearFarScalar(500, 1.2, 200000, 0.5)
                             },
                             label: {
-                                text: el.tags.name || (isPlant ? 'โรงไฟฟ้า' : 'สถานีไฟฟ้า'),
-                                font: 'bold 11px sans-serif',
+                                text: nm || (isPlant ? 'โรงไฟฟ้า' : 'สถานีไฟฟ้า'),
+                                font: 'bold 12px sans-serif',
                                 fillColor: Cesium.Color.WHITE,
                                 backgroundColor: Cesium.Color.fromCssColorString(isPlant ? '#f44336' : '#ff9800').withAlpha(0.85),
                                 showBackground: true,
                                 backgroundPadding: new Cesium.Cartesian2(6, 3),
                                 outlineWidth: 2, outlineColor: Cesium.Color.BLACK,
                                 style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-                                pixelOffset: new Cesium.Cartesian2(0, -55),
+                                pixelOffset: new Cesium.Cartesian2(0, -60),
                                 heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-                                disableDepthTestDistance: Number.POSITIVE_INFINITY
-                            }
+                                disableDepthTestDistance: Number.POSITIVE_INFINITY,
+                                scaleByDistance: new Cesium.NearFarScalar(500, 1.0, 200000, 0.4)
+                            },
+                            name: (isPlant ? '⚡ โรงไฟฟ้า' : '🏭 สถานีไฟฟ้า') + (nm ? ' ' + nm : ''),
+                            description: '<div style="font-family:sans-serif;padding:8px">' +
+                                '<h3 style="color:' + (isPlant ? '#f44336' : '#ff9800') + ';margin:0 0 8px">' + (isPlant ? '⚡ โรงไฟฟ้า' : '🏭 สถานีไฟฟ้า') + '</h3>' +
+                                '<table style="width:100%;font-size:12px;border-collapse:collapse">' +
+                                (nm ? '<tr><td style="padding:4px;color:#888">ชื่อ:</td><td style="padding:4px"><b>' + nm + '</b></td></tr>' : '') +
+                                '<tr><td style="padding:4px;color:#888">พิกัด:</td><td style="padding:4px">' + elLat.toFixed(4) + ', ' + elLon.toFixed(4) + '</td></tr>' +
+                                '<tr><td style="padding:4px;color:#888">แรงดัน:</td><td style="padding:4px"><b>' + vStr + '</b></td></tr>' +
+                                (output ? '<tr><td style="padding:4px;color:#888">กำลังผลิต:</td><td style="padding:4px"><b style="color:#69f0ae">' + output + '</b></td></tr>' : '') +
+                                (source ? '<tr><td style="padding:4px;color:#888">เชื้อเพลิง:</td><td style="padding:4px">' + source + '</td></tr>' : '') +
+                                '<tr><td style="padding:4px;color:#888">ผู้ดำเนินการ:</td><td style="padding:4px">' + (el.tags.operator || '-') + '</td></tr>' +
+                                '</table></div>'
                         });
                         osmGridEntities.push(ent);
                         if (isPlant) plantCount++; else substationCount++;
@@ -6988,7 +7199,12 @@
                 html += '</div>';
                 body.innerHTML = html;
             } catch(e) {
-                body.innerHTML = '<div style="color:#f44336;padding:20px">❌ ' + e.message + '</div>';
+                body.innerHTML = '<div style="padding:20px">' +
+                    '<div style="color:#f44336;font-size:14px;margin-bottom:12px">❌ ' + e.message + '</div>' +
+                    '<div style="color:#aaa;font-size:11px;margin-bottom:12px">เซิร์ฟเวอร์ Overpass API อาจไม่ว่าง (504 timeout) ลองใหม่อีกครั้ง หรือซูมเข้าให้ใกล้ขึ้น เพื่อลดพื้นที่ที่ต้องค้นหา</div>' +
+                    '<button onclick="loadOSMGrid()" style="background:#ff9800;color:#000;border:none;padding:10px 20px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700;width:100%">🔄 ลองใหม่</button><br><br>' +
+                    '<a href="https://openinframap.org/#14/' + lat.toFixed(4) + '/' + lng.toFixed(4) + '" target="_blank" style="display:block;text-align:center;color:#64b5f6;font-size:11px">🔗 ดูข้อมูลสายส่งใน Open Infrastructure Map</a>' +
+                    '</div>';
             }
         }
         window.loadOSMGrid = loadOSMGrid;
