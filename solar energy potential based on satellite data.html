@@ -3388,79 +3388,14 @@
 
             osmLoading = true;
             removeVectorWaterEntities();
-            say('🔄 กำลังโหลดแม่น้ำหลัก เขื่อน ฝาย อ่างเก็บน้ำ...');
+            say('🔄 กำลังเปิดแผนที่ลำน้ำ...');
 
             await ensureRiverDischarge();
 
-            try {
-                say('🔄 กำลังโหลดข้อมูลลำน้ำถาวร...');
-                var resp = await fetch('data/thailand_rivers_major.geojson');
-                if (!resp.ok) throw new Error('HTTP ' + resp.status);
-                var gj = await resp.json();
-                var feats = gj.features || [];
-                var totalLines = 0, totalBodies = 0, totalDams = 0;
-                var BATCH = 40;
-
-                function addBatch(start) {
-                    var end = Math.min(start + BATCH, feats.length);
-                    for (var i = start; i < end; i++) {
-                        var feat = feats[i];
-                        var p = feat.properties || {};
-                        var tp = p.type || '';
-                        var nm = p.name || '';
-                        var g = feat.geometry;
-                        if (!g) continue;
-
-                        if (g.type === 'LineString' && g.coordinates.length >= 2) {
-                            var isMain = nm && MAIN_RIVER_NAMES.indexOf(nm) > -1;
-                            if (tp !== 'dam' && tp !== 'weir' && !isMain) continue;
-                            var col, wdt;
-                            if (tp === 'dam') { col = '#ff6f00'; wdt = 4; totalDams++; }
-                            else if (tp === 'weir') { col = '#8d6e63'; wdt = 3; totalDams++; }
-                            else { col = '#00b0ff'; wdt = 3; totalLines++; }
-
-                            if (nm && tp !== 'dam' && tp !== 'weir') {
-                                var dm = riverDischarge[nm] || (NAME_ALIAS_RIVER[nm] ? riverDischarge[NAME_ALIAS_RIVER[nm]] : null);
-                                if (dm) { var dSt = dischargeStyle(dm.today); col = dSt.col; wdt = Math.max(wdt, dSt.w); }
-                            }
-
-                            var positions = [];
-                            for (var j = 0; j < g.coordinates.length; j++) {
-                                positions.push(g.coordinates[j][0], g.coordinates[j][1]);
-                            }
-
-                            vectorWaterEntities.push(viewer.entities.add({
-                                polyline: {
-                                    positions: Cesium.Cartesian3.fromDegreesArray(positions),
-                                    width: wdt,
-                                    material: Cesium.Color.fromCssColorString(col).withAlpha(0.85)
-                                }, show: true
-                            }));
-                        } else if (g.type === 'Point') {
-                            if (tp === 'dam' || tp === 'weir') {
-                                var isDam = tp === 'dam';
-                                vectorWaterEntities.push(viewer.entities.add({
-                                    position: Cesium.Cartesian3.fromDegrees(g.coordinates[0], g.coordinates[1]),
-                                    billboard: { image: createTextPin(isDam ? '🏗️' : '🌊', isDam ? '#ff6f00' : '#8d6e63'), width: 36, height: 45, verticalOrigin: Cesium.VerticalOrigin.BOTTOM, heightReference: Cesium.HeightReference.CLAMP_TO_GROUND, disableDepthTestDistance: Number.POSITIVE_INFINITY, scaleByDistance: new Cesium.NearFarScalar(1e4, 1.0, 5e5, 0.3) },
-                                    name: (isDam ? 'เขื่อน ' : 'ฝาย ') + nm, show: true
-                                }));
-                                totalDams++;
-                            }
-                        }
-                    }
-                    if (end < feats.length) {
-                        return new Promise(function(resolve) { requestAnimationFrame(function() { resolve(addBatch(end)); }); });
-                    }
-                }
-
-                await addBatch(0);
-                say('✅ โหลดเสร็จ — ลำน้ำหลัก <b>' + totalLines + '</b> เส้น · เขื่อน/ฝาย <b>' + totalDams + '</b>' +
-                    '<br><small style="color:#81d4fa">🗺️ แผนที่ลำน้ำละเอียด (MapLibre) แสดงลำน้ำทุกสาย + ชื่อ</small>' +
-                    '<br><button onclick="openWaterwayMapOverlay()" style="margin-top:6px;background:#0288d1;color:#fff;border:none;padding:5px 14px;border-radius:4px;cursor:pointer;font-size:11px">🗺️ เปิด/ปิดแผนที่ลำน้ำ</button>');
-                openWaterwayMapOverlay();
-            } catch(e) {
-                say('<span style="color:#ffcc80">⚠️ โหลดไม่สำเร็จ: ' + e.message + '</span><br><button onclick="loadThailandRivers()" style="margin-top:8px;background:#29b6f6;color:#000;border:none;padding:6px 16px;border-radius:4px;cursor:pointer">ลองใหม่</button>');
-            }
+            say('✅ เปิดแผนที่ลำน้ำละเอียด (MapLibre + OpenFreeMap Vector Tiles)' +
+                '<br><small style="color:#81d4fa">แสดงแม่น้ำทุกสาย คลอง แหล่งน้ำ พร้อมชื่อ — เลื่อนซูมดูรายละเอียดได้เลย</small>' +
+                '<br><button onclick="openWaterwayMapOverlay()" style="margin-top:6px;background:#0288d1;color:#fff;border:none;padding:5px 14px;border-radius:4px;cursor:pointer;font-size:11px">🗺️ เปิด/ปิดแผนที่ลำน้ำ</button>');
+            openWaterwayMapOverlay();
 
             osmLoading = false;
         }
@@ -3472,7 +3407,7 @@
 
             var overlay = document.createElement('div');
             overlay.id = 'waterwayMapOverlay';
-            overlay.style.cssText = 'position:fixed;top:60px;right:20px;width:560px;height:520px;z-index:9999;background:#1a1a2e;border:2px solid #0288d1;border-radius:12px;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.6);resize:both;overflow:hidden;min-width:350px;min-height:300px;';
+            overlay.style.cssText = 'position:fixed;top:10px;right:10px;width:70vw;height:85vh;max-width:1200px;z-index:9999;background:#1a1a2e;border:2px solid #0288d1;border-radius:12px;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.6);resize:both;overflow:hidden;min-width:350px;min-height:300px;';
 
             var header = document.createElement('div');
             header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:8px 14px;background:#0d47a1;border-radius:10px 10px 0 0;cursor:grab;user-select:none;';
@@ -3534,6 +3469,7 @@
                     container: 'waterwayMapContainer',
                     style: {
                         version: 8,
+                        glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
                         sources: {
                             basemap: { type: 'raster', tiles: [BASEMAPS_ML[selStyle]], tileSize: 256, attribution: '© OpenStreetMap' }
                         },
