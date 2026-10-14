@@ -266,6 +266,7 @@ button{cursor:pointer}
           <button class="btn btn-secondary" onclick="document.getElementById('import-user-json').click()">📂 นำเข้า</button>
           <input type="file" id="import-user-json" accept=".json" onchange="importUserJSON(this)" style="display:none"/>
           <button class="btn btn-success" onclick="saveUser()">💾 บันทึก</button>
+          <button class="btn btn-outline" onclick="exportUserJSON()">📤 ส่งออก</button>
         </div>
       </div>
       <div class="card">
@@ -1035,22 +1036,31 @@ function clearLogo(){
   document.getElementById('logo-preview').innerHTML='<span class="logo-placeholder">🏢</span>';
   document.getElementById('logo-file').value='';
 }
-function saveUser(){
+function collectUserForm(){
   const pass=document.getElementById('u-pass').value;
   const pass2=document.getElementById('u-pass2').value;
-  if(pass&&pass!==pass2){ toast('❌ รหัสผ่านไม่ตรงกัน'); return; }
+  if(pass&&pass!==pass2){ toast('❌ รหัสผ่านไม่ตรงกัน'); return false; }
   appData.user.fullName=document.getElementById('u-name').value.trim();
   appData.user.username=document.getElementById('u-username').value.trim()||'admin';
   if(pass) appData.user.password=pass;
   appData.user.company=document.getElementById('u-company').value.trim();
   appData.user.address=document.getElementById('u-addr').value.trim();
   appData.user.phone=document.getElementById('u-phone').value.trim();
+  return true;
+}
+function saveUser(){
+  if(!collectUserForm()) return;
   saveStore();
   toast('✅ บันทึกข้อมูลผู้ใช้งานแล้ว');
   document.getElementById('sb-username').textContent='👤 '+appData.user.username;
+}
+async function exportUserJSON(){
+  if(!collectUserForm()) return;
+  saveStore();
+  document.getElementById('sb-username').textContent='👤 '+appData.user.username;
   const now=new Date();
   const fn='1.'+appData.user.username+'_'+now.toLocaleDateString('th-TH',{day:'numeric',month:'long',year:'numeric'})+'_'+String(now.getHours()).padStart(2,'0')+String(now.getMinutes()).padStart(2,'0')+'.json';
-  saveLocalFile(new Blob([JSON.stringify(appData.user,null,2)],{type:'application/json'}),fn);
+  await saveLocalFile(new Blob([JSON.stringify(appData.user,null,2)],{type:'application/json'}),fn);
 }
 function importUserJSON(inp){
   const f=inp.files[0]; if(!f) return;
