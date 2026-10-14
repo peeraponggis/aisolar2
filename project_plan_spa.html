@@ -262,7 +262,11 @@ button{cursor:pointer}
     <div id="m1" class="menu-content">
       <div class="section-header">
         <span class="section-title">⚙️ ตั้งค่าผู้ใช้งาน</span>
-        <button class="btn btn-success" onclick="saveUser()">💾 บันทึก</button>
+        <div class="btn-group">
+          <button class="btn btn-secondary" onclick="document.getElementById('import-user-json').click()">📂 นำเข้า</button>
+          <input type="file" id="import-user-json" accept=".json" onchange="importUserJSON(this)" style="display:none"/>
+          <button class="btn btn-success" onclick="saveUser()">💾 บันทึก</button>
+        </div>
       </div>
       <div class="card">
         <div class="card-title">ข้อมูลผู้ใช้งาน</div>
@@ -1047,6 +1051,27 @@ function saveUser(){
   const now=new Date();
   const fn='1.'+appData.user.username+'_'+now.toLocaleDateString('th-TH',{day:'numeric',month:'long',year:'numeric'})+'_'+String(now.getHours()).padStart(2,'0')+String(now.getMinutes()).padStart(2,'0')+'.json';
   saveLocalFile(new Blob([JSON.stringify(appData.user,null,2)],{type:'application/json'}),fn);
+}
+function importUserJSON(inp){
+  const f=inp.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=e=>{
+    try{
+      const data=JSON.parse(e.target.result);
+      if(data.fullName!==undefined) appData.user.fullName=data.fullName;
+      if(data.username) appData.user.username=data.username;
+      if(data.company!==undefined) appData.user.company=data.company;
+      if(data.address!==undefined) appData.user.address=data.address;
+      if(data.phone!==undefined) appData.user.phone=data.phone;
+      if(data.logo) appData.user.logo=data.logo;
+      renderMenu1Fields();
+      saveStore();
+      document.getElementById('sb-username').textContent='👤 '+appData.user.username;
+      toast('✅ นำเข้าข้อมูลผู้ใช้งานแล้ว');
+    } catch(err){ toast('❌ ไม่สามารถอ่านไฟล์ JSON ได้'); }
+  };
+  r.readAsText(f,'UTF-8');
+  inp.value='';
 }
 
 /* ═══════════════════════════════════════════
