@@ -1288,7 +1288,7 @@ function removeLead(i){
 function normalizeLeadArray(lead){
   if(!lead) return [];
   if(Array.isArray(lead)) return lead;
-  return lead.split(',').map(s=>s.trim()).filter(Boolean);
+  return [];
 }
 function leadStr(lead){
   if(!lead) return '';
