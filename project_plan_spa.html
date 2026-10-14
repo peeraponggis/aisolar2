@@ -2350,8 +2350,7 @@ async function exportGanttPDF(){
     const ft=`${u.fullName||''}${u.company?' | '+u.company:''}${u.address?' | '+u.address:''}${u.phone?' | '+u.phone:''}`;
     doc.text(ft,margin,fy+5,{maxWidth:usableW-35});
     doc.text(`หน้า ${pn}/${tot}`,pageW-margin,fy+5,{align:'right'});
-    if(u.logo){try{doc.addImage(u.logo,'PNG',pageW-margin-28,fy-1,22,10);}catch(e){}}
-  }
+    }
   function drawRow(doc,r,y){
     const o=r.obj, isMain=r.type==='main';
     if(isMain){doc.setFillColor(232,245,233);doc.rect(margin,y,usableW,rowH,'F');}
@@ -2473,7 +2472,6 @@ async function exportSCurvePDF(){
   doc.setTextColor(100,100,100); doc.setFont('Sarabun','normal'); doc.setFontSize(8);
   doc.text(`${u.fullName||''}${u.company?' | '+u.company:''}${u.phone?' | '+u.phone:''}`,margin,fy+2,{maxWidth:pageW-2*margin-35});
   doc.text('หน้า 1/1',pageW-margin,fy+2,{align:'right'});
-  if(u.logo){try{doc.addImage(u.logo,'PNG',pageW-margin-28,fy-4,22,9);}catch(e){}}
   const fn=makeExportName('3.S_Curve','pdf');
   await previewAndSavePDF(doc, fn);
 }
@@ -2719,7 +2717,6 @@ async function exportWeeklyPDF(){
   doc.setFontSize(8); doc.setTextColor(120,120,120);
   doc.text(`${u.fullName||''}${u.company?' | '+u.company:''}`,margin,pageH-margin);
   doc.text('หน้า 1/1',pageW-margin,pageH-margin,{align:'right'});
-  if(u.logo){try{doc.addImage(u.logo,'PNG',pageW-margin-24,pageH-margin-8,20,8);}catch(e){}}
   const fn=makeExportName('4.Week('+week.weekNo+')','pdf');
   await previewAndSavePDF(doc, fn);
 }
@@ -2886,7 +2883,6 @@ async function exportDailyPDF(wid,dateISO){
   doc.setFontSize(8); doc.setTextColor(120,120,120);
   doc.text(`${u.fullName||''}${u.company?' | '+u.company:''}`,margin,pageH-margin);
   doc.text('หน้า 1/1',pageW-margin,pageH-margin,{align:'right'});
-  if(u.logo){try{doc.addImage(u.logo,'PNG',pageW-margin-24,pageH-margin-8,20,8);}catch(e){}}
   const fn=makeDailyName('pdf',dateISO,week.weekNo);
   await previewAndSavePDF(doc, fn);
 }
@@ -3041,8 +3037,7 @@ async function exportKickOffPDF(){
     doc.setTextColor(100,100,100); doc.setFont('Sarabun','normal'); doc.setFontSize(8);
     doc.text(`${u.fullName||''}${u.company?' | '+u.company:''}`,margin,fy+5,{maxWidth:usableW-35});
     doc.text(`หน้า ${pg}/${tot}`,pageW-margin,fy+5,{align:'right'});
-    if(u.logo){try{doc.addImage(u.logo,'PNG',pageW-margin-28,fy-1,22,10);}catch(e){}}
-  }
+    }
   function drawKORow(r,y){
     const o=r.obj, isMain=r.type==='main';
     if(isMain){doc.setFillColor(232,245,233);doc.rect(margin,y,usableW,rowH,'F');}
