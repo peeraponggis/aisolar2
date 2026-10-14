@@ -104,6 +104,18 @@ button{cursor:pointer}
 .lead-add-row input{flex:1;padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);outline:none}
 .lead-add-row input:focus{border-color:var(--primary)}
 
+/* MULTI-SELECT LEAD */
+.lead-multi{position:relative;min-width:110px}
+.lead-multi-display{display:flex;flex-wrap:wrap;gap:3px;min-height:28px;padding:3px 6px;border:1.5px solid var(--border);border-radius:6px;background:var(--surface);cursor:pointer;align-items:center;font-size:11px}
+.lead-multi-display:hover{border-color:var(--primary)}
+.lead-multi-display .lm-tag{background:var(--accent2);color:var(--primary);border-radius:10px;padding:1px 7px;font-size:11px;font-weight:600;white-space:nowrap}
+.lead-multi-display .lm-placeholder{color:var(--text-m);font-size:11px}
+.lead-multi-popup{display:none;position:absolute;top:100%;left:0;z-index:50;background:var(--surface);border:1.5px solid var(--primary);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.15);padding:6px;min-width:160px;max-height:200px;overflow-y:auto}
+.lead-multi-popup.open{display:block}
+.lead-multi-popup label{display:flex;align-items:center;gap:6px;padding:4px 6px;border-radius:4px;cursor:pointer;font-size:12px;white-space:nowrap}
+.lead-multi-popup label:hover{background:var(--accent2)}
+.lead-multi-popup input[type=checkbox]{accent-color:var(--primary);width:15px;height:15px}
+
 /* TABS */
 .tabs{display:flex;gap:2px;margin-bottom:20px;border-bottom:2px solid var(--border)}
 .tab-btn{padding:8px 20px;border:none;background:transparent;color:var(--text-m);font-weight:600;font-size:13px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s}
@@ -1202,11 +1214,6 @@ function onProjectDateChange(){
   if(currentProject){ currentProject.startDate=s; currentProject.endDate=e; }
   document.getElementById('p-start-th').textContent=thaiDate(s);
   document.getElementById('p-end-th').textContent=thaiDate(e);
-  if(s&&e){
-    const wd=calcWorkDays(s,e);
-    document.getElementById('p-workdays').textContent=wd+' วัน';
-    if(currentProject) currentProject.workDays=wd;
-  }
 }
 function collectProjectForm(){
   if(!currentProject) currentProject=blankProject();
@@ -1216,8 +1223,6 @@ function collectProjectForm(){
   currentProject.projectManager=document.getElementById('p-pm').value.trim();
   currentProject.startDate=getDateISO('p-start');
   currentProject.endDate=getDateISO('p-end');
-  if(currentProject.startDate&&currentProject.endDate)
-    currentProject.workDays=calcWorkDays(currentProject.startDate,currentProject.endDate);
   currentProject.notes=document.getElementById('p-notes').value;
 }
 function saveProject(){
@@ -1279,6 +1284,44 @@ function removeLead(i){
   if(!currentProject||!currentProject.leads) return;
   currentProject.leads.splice(i,1);
   renderLeadsTags();
+}
+function normalizeLeadArray(lead){
+  if(!lead) return [];
+  if(Array.isArray(lead)) return lead;
+  return lead.split(',').map(s=>s.trim()).filter(Boolean);
+}
+function leadStr(lead){
+  if(!lead) return '';
+  if(Array.isArray(lead)) return lead.join(', ');
+  return lead;
+}
+function buildLeadMulti(mainId,lead,leads){
+  const sel=normalizeLeadArray(lead);
+  const tags=sel.length?sel.map(l=>`<span class="lm-tag">${esc(l)}</span>`).join(''):'<span class="lm-placeholder">— เลือก —</span>';
+  const checks=leads.map(l=>{
+    const ck=sel.includes(l)?'checked':'';
+    return `<label><input type="checkbox" value="${esc(l)}" ${ck} onchange="toggleLeadMulti('${mainId}',this)"/>${esc(l)}</label>`;
+  }).join('');
+  return `<div class="lead-multi"><div class="lead-multi-display" onclick="openLeadPopup(this)">${tags}</div><div class="lead-multi-popup">${checks}</div></div>`;
+}
+function openLeadPopup(displayEl){
+  const popup=displayEl.nextElementSibling;
+  const isOpen=popup.classList.contains('open');
+  document.querySelectorAll('.lead-multi-popup.open').forEach(p=>p.classList.remove('open'));
+  if(!isOpen) popup.classList.add('open');
+}
+function toggleLeadMulti(mainId,checkbox){
+  const m=currentProject.items.find(i=>i.id===mainId);
+  if(!m) return;
+  let sel=normalizeLeadArray(m.lead);
+  if(checkbox.checked){ if(!sel.includes(checkbox.value)) sel.push(checkbox.value); }
+  else { sel=sel.filter(v=>v!==checkbox.value); }
+  m.lead=sel;
+  saveStore();
+  const wrap=checkbox.closest('.lead-multi');
+  const disp=wrap.querySelector('.lead-multi-display');
+  disp.innerHTML=sel.length?sel.map(l=>`<span class="lm-tag">${esc(l)}</span>`).join(''):'<span class="lm-placeholder">— เลือก —</span>';
+  disp.onclick=function(){ openLeadPopup(this); };
 }
 
 /* ═══════════════════════════════════════════
@@ -1866,11 +1909,7 @@ function renderTaskTable(){
       <td class="item-no">${m.itemNo}</td>
       <td><textarea class="task-input task-desc" rows="1" placeholder="คำอธิบายหัวข้อ"
           onblur="updateField('main','${m.id}',null,'description',this.value)">${esc(m.description)}</textarea></td>
-      <td><select class="task-input" onchange="updateField('main','${m.id}',null,'lead',this.value)">
-            <option value="">— เลือก —</option>
-            ${m.lead&&!leads.includes(m.lead)?`<option value="${esc(m.lead)}" selected>${esc(m.lead)}</option>`:''}
-            ${leads.map(l=>`<option value="${esc(l)}" ${m.lead===l?'selected':''}>${esc(l)}</option>`).join('')}
-          </select></td>
+      <td>${buildLeadMulti(m.id,m.lead,leads)}</td>
       <td class="date-cell" data-type="main" data-main-id="${m.id}" data-field="startDate" data-val="${m.startDate||''}">
         <span class="date-disp" data-field="startDate">${thaiDate(m.startDate)}</span>
         <input type="text" class="date-edit" value="${m.startDate||''}"/>
@@ -1919,10 +1958,7 @@ function renderTaskTable(){
         <td class="item-no" style="padding-left:12px">${s.itemNo}</td>
         <td><textarea class="task-input task-desc" rows="1" placeholder="คำอธิบาย"
             onblur="updateField('sub','${m.id}','${s.id}','description',this.value)">${esc(s.description)}</textarea></td>
-        <td><select class="task-input" onchange="updateField('sub','${m.id}','${s.id}','lead',this.value)">
-              <option value="">— เลือก —</option>
-              ${leads.map(l=>`<option value="${esc(l)}" ${s.lead===l?'selected':''}>${esc(l)}</option>`).join('')}
-            </select></td>
+        <td style="color:var(--text-m);font-size:11px;text-align:center">—</td>
         <td class="date-cell" data-type="sub" data-main-id="${m.id}" data-sub-id="${s.id}" data-field="startDate" data-val="${s.startDate||''}">
           <span class="date-disp" data-field="startDate">${thaiDate(s.startDate)}</span>
           <input type="text" class="date-edit" value="${s.startDate||''}"/>
@@ -2054,7 +2090,7 @@ async function exportCSV(){
   const h=['ItemNo','Type','Description','Lead','StartDate','EndDate','WorkDays','Days','PercentDone'];
   const rows=['﻿'+h.join(',')];
   (currentProject.items||[]).forEach(m=>{
-    rows.push([m.itemNo,'main',m.description,m.lead,m.startDate,m.endDate,m.workDays,m.days,m.percentDone].map(csvEscape).join(','));
+    rows.push([m.itemNo,'main',m.description,leadStr(m.lead),m.startDate,m.endDate,m.workDays,m.days,m.percentDone].map(csvEscape).join(','));
     (m.subItems||[]).forEach(s=>{
       rows.push([s.itemNo,'sub',s.description,s.lead,s.startDate,s.endDate,s.workDays,s.days,s.percentDone].map(csvEscape).join(','));
     });
@@ -2184,7 +2220,7 @@ function renderGantt(){
     html+=`<tr class="gantt-left-row" data-ri="${ri}" style="${bg}">
       <td style="padding:5px 6px;border:1px solid var(--border);color:var(--primary);font-weight:700">${o.itemNo||''}</td>
       <td style="padding:5px 6px;border:1px solid var(--border);${pl};max-width:220px">${esc(o.description)}</td>
-      <td style="padding:5px 6px;border:1px solid var(--border)">${esc(o.lead)||''}</td>
+      <td style="padding:5px 6px;border:1px solid var(--border)">${esc(leadStr(o.lead))}</td>
       <td style="padding:5px 6px;border:1px solid var(--border);font-size:11px">${thaiDate(o.startDate)}</td>
       <td style="padding:5px 6px;border:1px solid var(--border);font-size:11px">${thaiDate(o.endDate)}</td>
       <td style="padding:5px 6px;border:1px solid var(--border);text-align:right">${o.workDays||0}</td>
@@ -2325,7 +2361,7 @@ async function exportGanttPDF(){
     let x=margin; const pl=isMain?0:3;
     doc.text(o.itemNo||'',x+1,y+6.5,{maxWidth:cols.item-1}); x+=cols.item;
     doc.text((o.description||'').slice(0,38),x+1+pl,y+6.5,{maxWidth:cols.desc-2}); x+=cols.desc;
-    doc.text(o.lead||'',x+1,y+6.5,{maxWidth:cols.lead-1}); x+=cols.lead;
+    doc.text(leadStr(o.lead),x+1,y+6.5,{maxWidth:cols.lead-1}); x+=cols.lead;
     doc.text(thaiDate(o.startDate),x+1,y+6.5,{maxWidth:cols.start-1}); x+=cols.start;
     doc.text(thaiDate(o.endDate),x+1,y+6.5,{maxWidth:cols.end-1}); x+=cols.end;
     doc.text(String(o.workDays||0),x+1,y+6.5,{maxWidth:cols.wd-1}); x+=cols.wd;
@@ -3017,7 +3053,7 @@ async function exportKickOffPDF(){
     let x=margin; const pl=isMain?0:3;
     doc.text(o.itemNo||'',x+1,y+6.5,{maxWidth:cols.item-1}); x+=cols.item;
     doc.text((o.description||'').slice(0,38),x+1+pl,y+6.5,{maxWidth:cols.desc-2}); x+=cols.desc;
-    doc.text(o.lead||'',x+1,y+6.5,{maxWidth:cols.lead-1}); x+=cols.lead;
+    doc.text(leadStr(o.lead),x+1,y+6.5,{maxWidth:cols.lead-1}); x+=cols.lead;
     doc.text(pPct+'%',x+1,y+6.5,{maxWidth:cols.planPct-1}); x+=cols.planPct;
     doc.text(String(o.percentDone||0)+'%',x+1,y+6.5,{maxWidth:cols.actPct-1}); x+=cols.actPct;
     if(ganttW>0&&pStart&&pEnd&&totalMs>0&&o.startDate&&o.endDate){
@@ -3206,6 +3242,12 @@ function toggleAccordion(i){
   body.classList.toggle('open',!isOpen);
   if(arrow) arrow.textContent=isOpen?'▶':'▼';
 }
+
+document.addEventListener('click',function(e){
+  if(!e.target.closest('.lead-multi')){
+    document.querySelectorAll('.lead-multi-popup.open').forEach(p=>p.classList.remove('open'));
+  }
+});
 
 /* ═══════════════════════════════════════════
    BOOT
