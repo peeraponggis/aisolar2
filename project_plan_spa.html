@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Project Plan Manager — โปรแกรมบริหารโครงการ</title>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.4/Sortable.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css"/>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
@@ -164,6 +166,18 @@ button{cursor:pointer}
 .date-disp{display:block;cursor:pointer;padding:3px 5px;border-radius:4px;font-size:11px;white-space:nowrap;border:1px solid transparent;color:var(--text)}
 .date-disp:hover{border-color:var(--border);background:var(--surface)}
 .date-edit{display:none;position:absolute;left:0;top:0;z-index:10;border:1.5px solid var(--primary);border-radius:6px;padding:3px 6px;background:var(--surface);color:var(--text);width:140px;font-size:12px}
+.flatpickr-calendar{font-family:inherit;border-color:var(--primary)!important;box-shadow:0 4px 16px rgba(0,0,0,.15)!important}
+.flatpickr-months .flatpickr-month{background:var(--primary)!important;color:#fff!important;height:40px}
+.flatpickr-current-month{font-size:14px!important;color:#fff!important}
+.flatpickr-current-month .flatpickr-monthDropdown-months{background:var(--primary)!important;color:#fff!important}
+.flatpickr-current-month input.cur-year{color:#fff!important}
+.flatpickr-months .flatpickr-prev-month,.flatpickr-months .flatpickr-next-month{fill:#fff!important;color:#fff!important}
+span.flatpickr-weekday{color:var(--primary)!important;font-weight:600}
+.flatpickr-day.selected,.flatpickr-day.selected:hover{background:var(--primary)!important;border-color:var(--primary)!important}
+.flatpickr-day.today{border-color:var(--accent)!important}
+.flatpickr-day:hover{background:var(--accent2)!important}
+.thai-date-input{border:1.5px solid var(--border);border-radius:6px;padding:8px 10px;font-size:14px;background:var(--surface);color:var(--text);width:100%;cursor:pointer}
+.thai-date-input:focus{border-color:var(--primary);outline:none;box-shadow:0 0 0 2px rgba(46,125,50,.2)}
 .days-readonly{padding:3px 5px;font-size:11px;color:var(--text-m);text-align:right}
 .percent-bar{height:12px;border-radius:3px;background:var(--accent2);overflow:hidden;min-width:40px;margin-bottom:2px}
 .percent-fill{height:100%;background:var(--primary-l);border-radius:3px;transition:width .3s}
@@ -357,13 +371,13 @@ button{cursor:pointer}
             </div>
             <div class="form-group">
               <label>วันเริ่มต้นโครงการ</label>
-              <input id="p-start" type="date" onchange="onProjectDateChange()"/>
-              <span id="p-start-th" class="text-muted"></span>
+              <input id="p-start" type="text" class="thai-date-input" readonly placeholder="เลือกวันที่"/>
+              <span id="p-start-th" class="text-muted" style="display:none"></span>
             </div>
             <div class="form-group">
               <label>วันสิ้นสุดโครงการ</label>
-              <input id="p-end" type="date" onchange="onProjectDateChange()"/>
-              <span id="p-end-th" class="text-muted"></span>
+              <input id="p-end" type="text" class="thai-date-input" readonly placeholder="เลือกวันที่"/>
+              <span id="p-end-th" class="text-muted" style="display:none"></span>
             </div>
             <div class="form-group">
               <label>จำนวนวันทำงาน (WorkDays)</label>
@@ -693,6 +707,47 @@ function setupThaiFont(doc){
 /* ═══════════════════════════════════════════
    UTILS
 ═══════════════════════════════════════════ */
+/* Thai Buddhist Era flatpickr config */
+const THAI_MONTHS=['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+const THAI_MONTHS_SHORT=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+const THAI_DAYS=['อา','จ','อ','พ','พฤ','ศ','ส'];
+const THAI_FP_LOCALE={firstDayOfWeek:1,weekdays:{shorthand:THAI_DAYS,longhand:['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์']},months:{shorthand:THAI_MONTHS_SHORT,longhand:THAI_MONTHS},rangeSeparator:' ถึง '};
+function toThaiDateStr(dateObj){
+  if(!dateObj) return '';
+  const d=dateObj instanceof Date?dateObj:new Date(dateObj+'T00:00:00');
+  if(isNaN(d)) return '';
+  return d.getDate()+' '+THAI_MONTHS_SHORT[d.getMonth()]+' '+(d.getFullYear()+543);
+}
+function initThaiDatePicker(el,opts){
+  const cfg=Object.assign({
+    locale:THAI_FP_LOCALE,dateFormat:'Y-m-d',altInput:true,altFormat:'thBE',
+    allowInput:false,disableMobile:true,
+    formatDate:function(d,f){
+      if(f==='Y-m-d') return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+      return toThaiDateStr(d);
+    },
+    onReady:function(sel,str,inst){
+      if(inst.altInput) inst.altInput.className=el.className;
+      patchFpYearBE(inst);
+    },
+    onYearChange:function(sel,str,inst){ patchFpYearBE(inst); },
+    onMonthChange:function(sel,str,inst){ patchFpYearBE(inst); },
+    onOpen:function(sel,str,inst){ patchFpYearBE(inst); }
+  },opts||{});
+  const fp=flatpickr(el,cfg);
+  return fp;
+}
+function patchFpYearBE(inst){
+  setTimeout(()=>{
+    const yearInput=inst.calendarContainer.querySelector('.cur-year');
+    if(yearInput){
+      const gYear=inst.currentYear;
+      yearInput.value=gYear+543;
+      yearInput.setAttribute('min',2500);yearInput.setAttribute('max',2700);
+    }
+  },0);
+}
+
 function uuid(){ return 'id'+Math.random().toString(36).slice(2)+Date.now().toString(36); }
 
 function toast(msg, dur=2800){
@@ -1107,22 +1162,43 @@ function renderMenu2(){
   renderSampleList();
   renderTaskTable();
 }
+function getDateISO(elId){
+  const el=document.getElementById(elId);
+  if(!el) return '';
+  const fp=el._flatpickr;
+  if(fp&&fp.selectedDates.length) return toISO(fp.selectedDates[0]);
+  return '';
+}
+function setDatePicker(elId,isoVal){
+  const el=document.getElementById(elId);
+  if(!el) return;
+  const fp=el._flatpickr;
+  if(fp){ if(isoVal) fp.setDate(isoVal,false); else fp.clear(); }
+  else { el.value=isoVal?toThaiDateStr(isoVal):''; }
+}
+function initProjectDatePickers(){
+  const startEl=document.getElementById('p-start');
+  const endEl=document.getElementById('p-end');
+  if(startEl&&!startEl._flatpickr) initThaiDatePicker(startEl,{onChange:function(){ onProjectDateChange(); }});
+  if(endEl&&!endEl._flatpickr) initThaiDatePicker(endEl,{onChange:function(){ onProjectDateChange(); }});
+}
 function fillProjectForm(){
   if(!currentProject) return;
   document.getElementById('p-name').value=currentProject.projectName||'';
   document.getElementById('p-addr').value=currentProject.address||'';
   document.getElementById('p-contact').value=currentProject.contact||'';
   document.getElementById('p-pm').value=currentProject.projectManager||'';
-  document.getElementById('p-start').value=currentProject.startDate||'';
-  document.getElementById('p-end').value=currentProject.endDate||'';
+  initProjectDatePickers();
+  setDatePicker('p-start',currentProject.startDate);
+  setDatePicker('p-end',currentProject.endDate);
   document.getElementById('p-start-th').textContent=thaiDate(currentProject.startDate);
   document.getElementById('p-end-th').textContent=thaiDate(currentProject.endDate);
   document.getElementById('p-workdays').textContent=(currentProject.workDays||0)+' วัน';
   document.getElementById('p-notes').value=currentProject.notes||'';
 }
 function onProjectDateChange(){
-  const s=document.getElementById('p-start').value;
-  const e=document.getElementById('p-end').value;
+  const s=getDateISO('p-start');
+  const e=getDateISO('p-end');
   if(currentProject){ currentProject.startDate=s; currentProject.endDate=e; }
   document.getElementById('p-start-th').textContent=thaiDate(s);
   document.getElementById('p-end-th').textContent=thaiDate(e);
@@ -1138,8 +1214,8 @@ function collectProjectForm(){
   currentProject.address=document.getElementById('p-addr').value.trim();
   currentProject.contact=document.getElementById('p-contact').value.trim();
   currentProject.projectManager=document.getElementById('p-pm').value.trim();
-  currentProject.startDate=document.getElementById('p-start').value;
-  currentProject.endDate=document.getElementById('p-end').value;
+  currentProject.startDate=getDateISO('p-start');
+  currentProject.endDate=getDateISO('p-end');
   if(currentProject.startDate&&currentProject.endDate)
     currentProject.workDays=calcWorkDays(currentProject.startDate,currentProject.endDate);
   currentProject.notes=document.getElementById('p-notes').value;
@@ -1797,11 +1873,11 @@ function renderTaskTable(){
           </select></td>
       <td class="date-cell" data-type="main" data-main-id="${m.id}" data-field="startDate" data-val="${m.startDate||''}">
         <span class="date-disp" data-field="startDate">${thaiDate(m.startDate)}</span>
-        <input type="date" class="date-edit" value="${m.startDate||''}"/>
+        <input type="text" class="date-edit" value="${m.startDate||''}"/>
       </td>
       <td class="date-cell" data-type="main" data-main-id="${m.id}" data-field="endDate" data-val="${m.endDate||''}">
         <span class="date-disp" data-field="endDate">${thaiDate(m.endDate)}</span>
-        <input type="date" class="date-edit" value="${m.endDate||''}"/>
+        <input type="text" class="date-edit" value="${m.endDate||''}"/>
       </td>
       <td><input class="task-input num-input" type="number" data-field="workDays" value="${m.workDays||0}" min="0"
           onblur="updateField('main','${m.id}',null,'workDays',this.value)" onchange="updateField('main','${m.id}',null,'workDays',this.value)"/></td>
@@ -1849,11 +1925,11 @@ function renderTaskTable(){
             </select></td>
         <td class="date-cell" data-type="sub" data-main-id="${m.id}" data-sub-id="${s.id}" data-field="startDate" data-val="${s.startDate||''}">
           <span class="date-disp" data-field="startDate">${thaiDate(s.startDate)}</span>
-          <input type="date" class="date-edit" value="${s.startDate||''}"/>
+          <input type="text" class="date-edit" value="${s.startDate||''}"/>
         </td>
         <td class="date-cell" data-type="sub" data-main-id="${m.id}" data-sub-id="${s.id}" data-field="endDate" data-val="${s.endDate||''}">
           <span class="date-disp" data-field="endDate">${thaiDate(s.endDate)}</span>
-          <input type="date" class="date-edit" value="${s.endDate||''}"/>
+          <input type="text" class="date-edit" value="${s.endDate||''}"/>
         </td>
         <td><input class="task-input num-input" type="number" data-field="workDays" value="${s.workDays||0}" min="0"
             onblur="updateField('sub','${m.id}','${s.id}','workDays',this.value)" onchange="updateField('sub','${m.id}','${s.id}','workDays',this.value)"/></td>
@@ -1871,24 +1947,40 @@ function renderTaskTable(){
     tbody.appendChild(subWrap);
   });
 
-  // Date cell click handling (event delegation)
+  // Shared flatpickr for all date cells
+  if(!window._taskDateFp){
+    const dummyEl=document.createElement('input');
+    dummyEl.type='text'; dummyEl.style.cssText='position:absolute;opacity:0;pointer-events:none;width:0;height:0';
+    document.body.appendChild(dummyEl);
+    window._taskDateFp=initThaiDatePicker(dummyEl,{
+      altInput:false,
+      onChange:function(sel){
+        if(!sel.length||!window._taskDateCell) return;
+        const c=window._taskDateCell;
+        const iso=toISO(sel[0]);
+        const type=c.dataset.type, mainId=c.dataset.mainId, subId=c.dataset.subId||null, field=c.dataset.field;
+        c.setAttribute('data-val',iso);
+        window._taskDateFp.close();
+        updateField(type,mainId,subId,field,iso);
+        window._taskDateCell=null;
+      },
+      onClose:function(){
+        window._taskDateCell=null;
+      }
+    });
+  }
   tbody.addEventListener('click',function(e){
     const cell=e.target.closest('.date-cell');
-    if(!cell||e.target.classList.contains('date-edit')) return;
-    const disp=cell.querySelector('.date-disp');
-    const inp=cell.querySelector('.date-edit');
-    if(!inp) return;
-    disp.style.display='none';
-    inp.style.display='block';
-    inp.focus();
-    inp.onchange=function(){
-      const type=cell.dataset.type, mainId=cell.dataset.mainId, subId=cell.dataset.subId||null, field=cell.dataset.field;
-      updateField(type,mainId,subId,field,this.value);
-      cell.setAttribute('data-val',this.value);
-      disp.textContent=thaiDate(this.value);
-      disp.style.display=''; inp.style.display='none';
-    };
-    inp.onblur=function(){ if(!inp.value){ disp.style.display=''; inp.style.display='none'; } };
+    if(!cell) return;
+    const fp=window._taskDateFp;
+    if(!fp) return;
+    window._taskDateCell=cell;
+    const rect=cell.getBoundingClientRect();
+    fp.element.style.left=rect.left+'px';
+    fp.element.style.top=(rect.bottom+window.scrollY)+'px';
+    const curVal=cell.dataset.val;
+    if(curVal) fp.setDate(curVal,false); else fp.clear();
+    fp.open();
   });
 
   initSortables();
