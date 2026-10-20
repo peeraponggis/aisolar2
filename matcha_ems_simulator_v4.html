@@ -1189,11 +1189,15 @@ const scenarioVoiceScript = {
   ],
 };
 
-// ---- Find best Thai male voice ----
+// ---- Find best Thai voice (เปรมวดี / นิวัตน์ first) ----
 function getThaiMaleVoice() {
   const voices = speechSynthesis.getVoices();
-  // Priority: Thai male > Thai any > th-TH > default
+  // Priority: Premwadee > Niwat > Pattara > Thai any > th-TH > default
   const priorities = [
+    v => /premwadee/i.test(v.name),
+    v => /niwat/i.test(v.name),
+    v => /เปรมวดี/.test(v.name),
+    v => /นิวัตน์/.test(v.name),
     v => v.lang === 'th-TH' && v.name.toLowerCase().includes('male'),
     v => v.lang === 'th-TH' && v.name.toLowerCase().includes('นาย'),
     v => v.lang === 'th-TH' && !v.name.toLowerCase().includes('female') && !v.name.toLowerCase().includes('woman'),
