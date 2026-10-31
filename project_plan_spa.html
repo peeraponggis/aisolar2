@@ -996,6 +996,7 @@ function loadStore(){
   try{ sampleItems=JSON.parse(localStorage.getItem(SAMPLE_KEY))||deepCopySample(DEFAULT_SAMPLE); }
   catch(e){ sampleItems=deepCopySample(DEFAULT_SAMPLE); }
   syncCurrentProject();
+  appData.projects.forEach(p=>migrateLeadsToArray(p));
 }
 function saveStore(){
   if(currentProject){
@@ -1249,6 +1250,7 @@ function loadProjectJSON(inp){
       if(!p.weeklyReports) p.weeklyReports=[];
       if(p.reportEnabled===undefined) p.reportEnabled=false;
       currentProject=p;
+      migrateLeadsToArray(p);
       appData.currentProjectId=p.id;
       const idx=appData.projects.findIndex(x=>x.id===p.id);
       if(idx>=0) appData.projects[idx]=p; else appData.projects.push(p);
@@ -1288,7 +1290,14 @@ function removeLead(i){
 function normalizeLeadArray(lead){
   if(!lead) return [];
   if(Array.isArray(lead)) return lead;
-  return [];
+  return lead.split(',').map(s=>s.trim()).filter(Boolean);
+}
+function migrateLeadsToArray(proj){
+  if(!proj||!proj.items) return;
+  proj.items.forEach(m=>{
+    if(m.lead&&!Array.isArray(m.lead)) m.lead=normalizeLeadArray(m.lead);
+    if(m.subItems) m.subItems.forEach(s=>{ if(s.lead&&!Array.isArray(s.lead)) s.lead=normalizeLeadArray(s.lead); });
+  });
 }
 function leadStr(lead){
   if(!lead) return '';
@@ -2092,7 +2101,7 @@ async function exportCSV(){
   (currentProject.items||[]).forEach(m=>{
     rows.push([m.itemNo,'main',m.description,leadStr(m.lead),m.startDate,m.endDate,m.workDays,m.days,m.percentDone].map(csvEscape).join(','));
     (m.subItems||[]).forEach(s=>{
-      rows.push([s.itemNo,'sub',s.description,s.lead,s.startDate,s.endDate,s.workDays,s.days,s.percentDone].map(csvEscape).join(','));
+      rows.push([s.itemNo,'sub',s.description,leadStr(s.lead),s.startDate,s.endDate,s.workDays,s.days,s.percentDone].map(csvEscape).join(','));
     });
   });
   const blob=new Blob([rows.join('\r\n')],{type:'text/csv;charset=utf-8'});
@@ -2155,6 +2164,7 @@ function loadProjectCSV(inp){
         }
       }
       currentProject.items=items;
+      migrateLeadsToArray(currentProject);
       items.forEach(m=>recalcMainFromSubs(m));
       appData.currentProjectId=currentProject.id;
       const idx=appData.projects.findIndex(x=>x.id===currentProject.id);
