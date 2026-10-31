@@ -871,6 +871,44 @@ function cascadeMainItems(fromIdx){
     }
   }
 }
+function shiftAllDatesToProjectStart(){
+  if(!currentProject||!currentProject.items||currentProject.items.length===0) return;
+  if(!currentProject.startDate) return;
+  const items=currentProject.items;
+  const firstMain=items[0];
+  const firstStart=firstMain.startDate||(firstMain.subItems&&firstMain.subItems.length?firstMain.subItems[0].startDate:null);
+  if(!firstStart) return;
+  const projD=new Date(currentProject.startDate+'T00:00:00');
+  const firstD=new Date(firstStart+'T00:00:00');
+  if(isNaN(projD)||isNaN(firstD)) return;
+  const deltaMs=projD-firstD;
+  if(deltaMs===0) return;
+  function shiftDate(iso){
+    if(!iso) return iso;
+    const d=new Date(iso+'T00:00:00');
+    if(isNaN(d)) return iso;
+    d.setTime(d.getTime()+deltaMs);
+    return toISO(d);
+  }
+  items.forEach(m=>{
+    m.startDate=shiftDate(m.startDate);
+    m.endDate=shiftDate(m.endDate);
+    m.days=calDays(m.startDate,m.endDate);
+    m.workDays=calcWorkDays(m.startDate,m.endDate);
+    if(m.subItems) m.subItems.forEach(s=>{
+      s.startDate=shiftDate(s.startDate);
+      s.endDate=shiftDate(s.endDate);
+      s.days=calDays(s.startDate,s.endDate);
+      s.workDays=calcWorkDays(s.startDate,s.endDate);
+    });
+  });
+  const lastItem=items[items.length-1];
+  if(lastItem&&lastItem.endDate) currentProject.endDate=lastItem.endDate;
+  let totalWD=0;
+  items.forEach(m=>{ totalWD+=(m.workDays||0); });
+  currentProject.workDays=totalWD;
+  saveStore();
+}
 function recalcProjectDatesFromItems(){
   if(!currentProject||!currentProject.items||currentProject.items.length===0) return;
   const items=currentProject.items;
@@ -1072,7 +1110,7 @@ function showTab(id,btn){
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   btn.classList.add('active');
-  if(id==='tab-tasks') renderTaskTable();
+  if(id==='tab-tasks'){ collectProjectForm(); shiftAllDatesToProjectStart(); renderTaskTable(); }
 }
 function toggleDark(on){
   document.documentElement.setAttribute('data-theme',on?'dark':'light');
