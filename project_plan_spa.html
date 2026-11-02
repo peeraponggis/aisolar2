@@ -608,7 +608,7 @@ span.flatpickr-weekday{color:var(--primary)!important;font-weight:600}
   <!-- Sidebar -->
   <nav id="sidebar">
     <div class="sb-header">
-      <div class="sb-logo">📋 Project Plan<span>โปรแกรมบริหารโครงการ</span><span class="sb-ver">v1.4.1 · ปรับปรุง 2 พ.ย. 2569</span></div>
+      <div class="sb-logo">📋 Project Plan<span>โปรแกรมบริหารโครงการ</span><span class="sb-ver">v1.4.2 · ปรับปรุง 2 พ.ย. 2569</span></div>
     </div>
     <div class="sb-nav">
       <button class="sb-btn active" data-menu="1" onclick="showMenu(1)"><span class="icon">⚙️</span>ตั้งค่าผู้ใช้งาน</button>
@@ -1088,12 +1088,14 @@ function showMenu(n){
   if(n===5) renderReportMenu();
   if(n===6) renderManual();
 }
+// ไฟล์ที่ส่งต่อทีม/ลูกค้า ไม่ใส่รหัสผ่าน
+function userForExport(){ const {password,...u}=appData.user; return u; }
 async function exportAllData(){
   if(!currentProject){ toast('❌ ยังไม่มีโครงการ'); return; }
   if(!collectUserForm()) return;
   collectProjectForm();
   saveStore();
-  const allData={user:appData.user, project:currentProject, sampleItems, exportedAt:new Date().toISOString()};
+  const allData={user:userForExport(), project:currentProject, sampleItems, exportedAt:new Date().toISOString()};
   const blob=new Blob([JSON.stringify(allData,null,2)],{type:'application/json'});
   const fn=makeExportName('9.Conclusions','json');
   await saveLocalFile(blob,fn);
@@ -1161,7 +1163,7 @@ async function exportUserJSON(){
   document.getElementById('sb-username').textContent='👤 '+appData.user.username;
   const now=new Date();
   const fn='1.'+appData.user.username+'_'+now.toLocaleDateString('th-TH',{day:'numeric',month:'long',year:'numeric'})+'_'+String(now.getHours()).padStart(2,'0')+String(now.getMinutes()).padStart(2,'0')+'.json';
-  await saveLocalFile(new Blob([JSON.stringify(appData.user,null,2)],{type:'application/json'}),fn);
+  await saveLocalFile(new Blob([JSON.stringify(userForExport(),null,2)],{type:'application/json'}),fn);
 }
 function importUserJSON(inp){
   const f=inp.files[0]; if(!f) return;
@@ -1277,7 +1279,8 @@ function loadProjectJSON(inp){
     try{
       let raw=JSON.parse(e.target.result);
       if(raw.project && raw.user){
-        Object.assign(appData.user, raw.user);
+        const {password,...u}=raw.user;
+        Object.assign(appData.user, u);
         renderMenu1Fields();
         document.getElementById('sb-username').textContent='👤 '+(appData.user.username||'admin');
         if(Array.isArray(raw.sampleItems)){ sampleItems=raw.sampleItems; saveSampleStore(); renderSampleList(); }
@@ -3456,8 +3459,8 @@ const HELP=[
     note:['ทุกหน้ามีปุ่ม ? ข้างหัวข้อ คลิกดูคำอธิบายเฉพาะส่วนนั้นได้']},
   {sel:'.section-title',match:'บันทึกโครงการทั้งหมด',title:'บันทึกโครงการทั้งหมด',
     todo:['กด 💾 บันทึก JSON ทั้งหมด'],
-    result:['ได้ไฟล์เดียวที่มี: ผู้ใช้ + โลโก้ + ข้อมูลบริษัท, โครงการ + รายการงาน + รายงาน, รายการตัวอย่าง'],
-    note:['เปิดกลับ: ตั้งค่าโครงการ › 📂 นำเข้า JSON (ทุกอย่างกลับมาครบ)','ใช้สำรองข้อมูล หรือย้ายไปเครื่องอื่น']}
+    result:['ได้ไฟล์เดียวที่มีครบ: ตั้งค่าผู้ใช้งาน (ชื่อ, บริษัท, ที่อยู่, เบอร์โทร, โลโก้) + ตั้งค่าโครงการ (ข้อมูลโครงการ, ทีมงาน, รายการงาน, บันทึกเพิ่มเติม) + รายงาน Weekly/Daily + รายการตัวอย่าง','ไม่มีรหัสผ่านในไฟล์ ส่งต่อทีมได้ปลอดภัย'],
+    note:['นำเข้าครั้งเดียวได้ครบ: ตั้งค่าโครงการ › 📂 นำเข้า JSON','นำเข้าไฟล์ของทีม = แทนที่ข้อมูลผู้ใช้/บริษัท/โลโก้ และรายการตัวอย่างในเครื่องนี้ด้วย','เก็บเฉพาะโครงการที่เปิดอยู่ (1 ไฟล์ = 1 โครงการ)']}
 ];
 function helpEntry(key){ return HELP.find(h=>h.key===key&&h.title)||HELP.find(h=>h.title===key); }
 function showHelp(entry,anchor){
