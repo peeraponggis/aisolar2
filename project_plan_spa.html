@@ -586,7 +586,7 @@ span.flatpickr-weekday{color:var(--primary)!important;font-weight:600}
   <!-- Sidebar -->
   <nav id="sidebar">
     <div class="sb-header">
-      <div class="sb-logo">📋 Project Plan<span>โปรแกรมบริหารโครงการ</span><span class="sb-ver">v1.1.2 · ปรับปรุง 2 พ.ย. 2569</span></div>
+      <div class="sb-logo">📋 Project Plan<span>โปรแกรมบริหารโครงการ</span><span class="sb-ver">v1.1.3 · ปรับปรุง 2 พ.ย. 2569</span></div>
     </div>
     <div class="sb-nav">
       <button class="sb-btn active" data-menu="1" onclick="showMenu(1)"><span class="icon">⚙️</span>ตั้งค่าผู้ใช้งาน</button>
@@ -803,7 +803,7 @@ function cascadeSubDates(mainItem){
   const pStart=mainItem.startDate||(currentProject&&currentProject.startDate)||todayISO();
   let nextStart=pStart;
   mainItem.subItems.forEach((s,i)=>{
-    if(i>0&&s.manualStart&&s.startDate>nextStart) nextStart=s.startDate;
+    if(i>0&&s.manualStart&&s.startDate) nextStart=s.startDate;
     s.startDate=nextStart;
     if(s.workDays>0) s.endDate=addWorkDays(nextStart,s.workDays);
     s.days=calDays(s.startDate,s.endDate);
@@ -817,7 +817,7 @@ function cascadeSubDatesFrom(mainItem, fromIdx){
     const s=mainItem.subItems[i];
     const prev=mainItem.subItems[i-1];
     const chained=prev&&prev.endDate?nextWorkDay(prev.endDate):(mainItem.startDate||todayISO());
-    const nextStart=(i>0&&s.manualStart&&s.startDate>chained)?s.startDate:chained;
+    const nextStart=(i>0&&s.manualStart&&s.startDate)?s.startDate:chained;
     s.startDate=nextStart;
     if(s.workDays>0) s.endDate=addWorkDays(nextStart,s.workDays);
     s.days=calDays(s.startDate,s.endDate);
@@ -838,9 +838,8 @@ function cascadeMainItems(fromIdx){
   const start=Math.max(fromIdx||1,1);
   for(let i=start;i<items.length;i++){
     const prev=items[i-1], cur=items[i];
-    if(!prev.endDate) continue;
+    if(!prev.endDate||(cur.manualStart&&cur.startDate)) continue;
     const newStart=nextWorkDay(prev.endDate);
-    if(cur.manualStart&&cur.startDate>newStart) continue;
     if(cur.startDate===newStart) continue;
     cur.startDate=newStart;
     if(cur.subItems&&cur.subItems.length>0){
@@ -855,8 +854,7 @@ function shiftAllDatesToProjectStart(){
   if(!currentProject||!currentProject.items||currentProject.items.length===0) return;
   if(!currentProject.startDate) return;
   const items=currentProject.items;
-  const firstMain=items[0];
-  const firstStart=firstMain.startDate||(firstMain.subItems&&firstMain.subItems.length?firstMain.subItems[0].startDate:null);
+  const firstStart=items.map(m=>m.startDate).filter(Boolean).sort()[0];
   if(!firstStart) return;
   const projD=new Date(currentProject.startDate+'T00:00:00');
   const firstD=new Date(firstStart+'T00:00:00');
@@ -882,11 +880,7 @@ function shiftAllDatesToProjectStart(){
       s.workDays=calcWorkDays(s.startDate,s.endDate);
     });
   });
-  const lastItem=items[items.length-1];
-  if(lastItem&&lastItem.endDate) currentProject.endDate=lastItem.endDate;
-  let totalWD=0;
-  items.forEach(m=>{ totalWD+=(m.workDays||0); });
-  currentProject.workDays=totalWD;
+  recalcProjectDatesFromItems();
   saveStore();
 }
 function recalcProjectDatesFromItems(){
@@ -896,13 +890,10 @@ function recalcProjectDatesFromItems(){
   if(allStarts.length){
     currentProject.startDate=allStarts[0];
   }
-  const lastItem=items[items.length-1];
-  if(lastItem&&lastItem.endDate){
-    currentProject.endDate=lastItem.endDate;
-  }
-  let totalWD=0;
-  items.forEach(m=>{ totalWD+=(m.workDays||0); });
-  currentProject.workDays=totalWD;
+  // งานขนานกันได้: วันสิ้นสุด = งานที่จบช้าสุด, วันทำงาน = ช่วงจริงของโครงการ (ไม่บวกซ้อน)
+  const allEnds=items.map(m=>m.endDate).filter(Boolean).sort();
+  if(allEnds.length) currentProject.endDate=allEnds[allEnds.length-1];
+  if(currentProject.startDate&&currentProject.endDate) currentProject.workDays=calcWorkDays(currentProject.startDate,currentProject.endDate);
   fillProjectForm();
 }
 function validateDateContinuity(){
@@ -1831,8 +1822,7 @@ function renumberItems(){
 /* Update task field */
 function markManualStart(obj,prev){
   const chained=prev&&prev.endDate?nextWorkDay(prev.endDate):null;
-  if(chained&&obj.startDate>chained) obj.manualStart=true; else delete obj.manualStart;
-  if(chained&&obj.startDate<chained) toast('⚠ วันเริ่มต้องไม่ก่อนงานก่อนหน้าจบ — ปรับเป็น '+thaiDate(chained));
+  if(chained&&obj.startDate!==chained) obj.manualStart=true; else delete obj.manualStart;
 }
 function updateField(type,mainId,subId,field,val){
   const items=currentProject&&currentProject.items;
