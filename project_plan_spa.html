@@ -586,7 +586,7 @@ span.flatpickr-weekday{color:var(--primary)!important;font-weight:600}
   <!-- Sidebar -->
   <nav id="sidebar">
     <div class="sb-header">
-      <div class="sb-logo">📋 Project Plan<span>โปรแกรมบริหารโครงการ</span><span class="sb-ver">v1.1.3 · ปรับปรุง 2 พ.ย. 2569</span></div>
+      <div class="sb-logo">📋 Project Plan<span>โปรแกรมบริหารโครงการ</span><span class="sb-ver">v1.1.4 · ปรับปรุง 2 พ.ย. 2569</span></div>
     </div>
     <div class="sb-nav">
       <button class="sb-btn active" data-menu="1" onclick="showMenu(1)"><span class="icon">⚙️</span>ตั้งค่าผู้ใช้งาน</button>
@@ -2019,6 +2019,12 @@ function renderTaskTable(){
     const curVal=cell.dataset.val;
     if(curVal) fp.setDate(curVal,false); else fp.clear();
     fp.open();
+    const cal=fp.calendarContainer, ch=cal.offsetHeight;
+    if(rect.bottom+ch>window.innerHeight && rect.top>ch){
+      cal.style.top=(rect.top+window.scrollY-ch-4)+'px';
+    } else if(rect.bottom+ch>window.innerHeight){
+      cal.scrollIntoView({block:'nearest'});
+    }
   });
 
   initSortables();
