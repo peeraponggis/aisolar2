@@ -586,7 +586,7 @@ span.flatpickr-weekday{color:var(--primary)!important;font-weight:600}
   <!-- Sidebar -->
   <nav id="sidebar">
     <div class="sb-header">
-      <div class="sb-logo">📋 Project Plan<span>โปรแกรมบริหารโครงการ</span><span class="sb-ver">v1.1.4 · ปรับปรุง 2 พ.ย. 2569</span></div>
+      <div class="sb-logo">📋 Project Plan<span>โปรแกรมบริหารโครงการ</span><span class="sb-ver">v1.2.0 · ปรับปรุง 2 พ.ย. 2569</span></div>
     </div>
     <div class="sb-nav">
       <button class="sb-btn active" data-menu="1" onclick="showMenu(1)"><span class="icon">⚙️</span>ตั้งค่าผู้ใช้งาน</button>
@@ -1014,7 +1014,8 @@ function saveStore(){
     else appData.projects.push(currentProject);
     appData.currentProjectId=currentProject.id;
   }
-  localStorage.setItem(STORE_KEY,JSON.stringify(appData));
+  try{ localStorage.setItem(STORE_KEY,JSON.stringify(appData)); }
+  catch(e){ toast('⚠ บันทึกในเบราว์เซอร์ไม่ได้ (พื้นที่เต็ม — โลโก้อาจใหญ่เกิน) กรุณาบันทึกเป็นไฟล์'); }
 }
 function saveSampleStore(){ localStorage.setItem(SAMPLE_KEY,JSON.stringify(sampleItems)); }
 function syncCurrentProject(){
@@ -1048,8 +1049,10 @@ function showMenu(n){
 }
 async function exportAllData(){
   if(!currentProject){ toast('❌ ยังไม่มีโครงการ'); return; }
+  if(!collectUserForm()) return;
   collectProjectForm();
-  const allData={user:appData.user, project:currentProject, exportedAt:new Date().toISOString()};
+  saveStore();
+  const allData={user:appData.user, project:currentProject, sampleItems, exportedAt:new Date().toISOString()};
   const blob=new Blob([JSON.stringify(allData,null,2)],{type:'application/json'});
   const fn=makeExportName('9.Conclusions','json');
   await saveLocalFile(blob,fn);
@@ -1084,13 +1087,14 @@ function renderMenu1Fields(){
 function handleLogo(inp){
   const f=inp.files[0]; if(!f) return;
   const r=new FileReader();
-  r.onload=e=>{ appData.user.logo=e.target.result; document.getElementById('logo-preview').innerHTML=`<img src="${e.target.result}" alt="logo"/>`; };
+  r.onload=e=>{ appData.user.logo=e.target.result; document.getElementById('logo-preview').innerHTML=`<img src="${e.target.result}" alt="logo"/>`; saveStore(); };
   r.readAsDataURL(f);
 }
 function clearLogo(){
   appData.user.logo='';
   document.getElementById('logo-preview').innerHTML='<span class="logo-placeholder">🏢</span>';
   document.getElementById('logo-file').value='';
+  saveStore();
 }
 function collectUserForm(){
   const pass=document.getElementById('u-pass').value;
@@ -1123,7 +1127,8 @@ function importUserJSON(inp){
   const r=new FileReader();
   r.onload=e=>{
     try{
-      const data=JSON.parse(e.target.result);
+      const raw=JSON.parse(e.target.result);
+      const data=raw.user&&raw.project?raw.user:raw;
       if(data.fullName!==undefined) appData.user.fullName=data.fullName;
       if(data.username) appData.user.username=data.username;
       if(data.company!==undefined) appData.user.company=data.company;
@@ -1229,7 +1234,10 @@ function loadProjectJSON(inp){
     try{
       let raw=JSON.parse(e.target.result);
       if(raw.project && raw.user){
-        if(raw.user) Object.assign(appData.user, raw.user);
+        Object.assign(appData.user, raw.user);
+        renderMenu1Fields();
+        document.getElementById('sb-username').textContent='👤 '+(appData.user.username||'admin');
+        if(Array.isArray(raw.sampleItems)){ sampleItems=raw.sampleItems; saveSampleStore(); renderSampleList(); }
         raw=raw.project;
       }
       const p=raw;
@@ -3259,6 +3267,9 @@ document.addEventListener('click',function(e){
 loadStore();
 document.getElementById('sb-username').textContent='👤 '+(appData.user.username||'admin');
 renderMenu1Fields();
+['u-name','u-username','u-company','u-addr','u-phone'].forEach(id=>{
+  document.getElementById(id).addEventListener('change',()=>{ if(collectUserForm()) saveStore(); });
+});
 showMenu(1);
 if(window.matchMedia('(prefers-color-scheme: dark)').matches){
   document.documentElement.setAttribute('data-theme','dark');
