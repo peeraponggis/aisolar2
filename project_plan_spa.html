@@ -328,8 +328,8 @@ span.flatpickr-weekday{color:var(--primary)!important;font-weight:600}
           <button class="btn btn-outline" onclick="newProject()">➕ โครงการใหม่</button>
           <button class="btn btn-secondary" onclick="document.getElementById('load-json-inp').click()">📂 นำเข้า JSON</button>
           <input type="file" id="load-json-inp" accept=".json" onchange="loadProjectJSON(this)" style="display:none"/>
-          <button class="btn btn-secondary" onclick="document.getElementById('load-csv-inp').click()">📂 นำเข้า CSV</button>
-          <input type="file" id="load-csv-inp" accept=".csv" onchange="loadProjectCSV(this)" style="display:none"/>
+          <button class="btn btn-secondary" onclick="document.getElementById('load-csv-inp').click()" title="แทนที่รายการงานทั้งหมดด้วยไฟล์ (เช่น ไฟล์ที่ลูกค้าแก้กลับมา)">📂 นำเข้า XLSX/CSV</button>
+          <input type="file" id="load-csv-inp" accept=".csv,.xlsx,.xls" onchange="loadProjectCSV(this)" style="display:none"/>
         </div>
       </div>
       <div class="tabs">
@@ -417,7 +417,7 @@ span.flatpickr-weekday{color:var(--primary)!important;font-weight:600}
             <div class="card" style="padding:12px">
               <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center">
                 <button class="btn btn-success btn-sm" onclick="addMainItem()">➕ เพิ่มหัวข้อหลัก</button>
-                <span class="text-muted" style="font-size:11px">ลาก ⠿ เพื่อจัดเรียง (ภายในกลุ่มเดียวกัน) | ลากงานจากซ้ายมาวางที่นี่</span>
+                <span class="text-muted" style="font-size:11px">ลากแถวเพื่อย้าย (บน/ล่าง/ข้ามหัวข้อได้ · วันที่คงเดิม แก้วันเริ่มเอง) | ลากงานจากซ้ายมาวางที่นี่</span>
               </div>
               <div id="date-warnings" style="display:none;background:#fff3cd;border:1px solid #ffc107;border-radius:6px;padding:8px 12px;margin-bottom:8px;font-size:12px;color:#856404"></div>
               <div class="task-table-wrap"
@@ -459,11 +459,12 @@ span.flatpickr-weekday{color:var(--primary)!important;font-weight:600}
     <!-- ── Menu 3: Gantt View ── -->
     <div id="m3" class="menu-content">
       <div class="section-header">
-        <span class="section-title">📊 แผนงานโครงการ (Gantt Chart)</span>
+        <span class="section-title">📊 แผนงานโครงการ</span>
         <div class="btn-group">
           <button class="btn btn-success" onclick="exportGanttPDF()">📄 บันทึก PDF</button>
           <button class="btn btn-outline" onclick="exportJSON('3.ProjPlan')">💾 บันทึก JSON</button>
           <button class="btn btn-outline" onclick="exportCSV()">📊 บันทึก CSV</button>
+          <button class="btn btn-outline" onclick="exportXLSX()">📗 บันทึก XLSX</button>
         </div>
       </div>
       <div id="gantt-project-info" class="card" style="padding:12px;margin-bottom:12px"></div>
@@ -586,7 +587,7 @@ span.flatpickr-weekday{color:var(--primary)!important;font-weight:600}
   <!-- Sidebar -->
   <nav id="sidebar">
     <div class="sb-header">
-      <div class="sb-logo">📋 Project Plan<span>โปรแกรมบริหารโครงการ</span><span class="sb-ver">v1.2.0 · ปรับปรุง 2 พ.ย. 2569</span></div>
+      <div class="sb-logo">📋 Project Plan<span>โปรแกรมบริหารโครงการ</span><span class="sb-ver">v1.3.0 · ปรับปรุง 2 พ.ย. 2569</span></div>
     </div>
     <div class="sb-nav">
       <button class="sb-btn active" data-menu="1" onclick="showMenu(1)"><span class="icon">⚙️</span>ตั้งค่าผู้ใช้งาน</button>
@@ -678,7 +679,6 @@ let appData = null;
 let currentProject = null;
 let sampleItems = [];
 let scChart = null;
-let sortInsts = [];
 let draggedItem = null; // {type:'main'|'sub', data, mainId?}
 
 
@@ -1587,7 +1587,7 @@ function findDropPosition(e){
   return null;
 }
 function onTaskDropOver(e){
-  e.preventDefault(); e.dataTransfer.dropEffect='copy';
+  e.preventDefault(); e.dataTransfer.dropEffect=(draggedItem&&draggedItem.fromTask)?'move':'copy';
   const area=document.getElementById('task-drop-area');
   if(e.dataTransfer.types.includes('Files')){
     area.classList.add('file-drop-active');
@@ -1627,6 +1627,7 @@ function onDropToTask(e){
     try{ item=JSON.parse(e.dataTransfer.getData('text/plain')); }
     catch(ex){ return; }
   }
+  if(item.fromTask){ draggedItem=null; moveTaskItem(item,savedTarget); return; }
   if(!currentProject) currentProject=blankProject();
   const pStart=currentProject.startDate||todayISO();
   if(item.type==='main'){
@@ -1670,6 +1671,47 @@ function onDropToTask(e){
   renumberItems();
   renderTaskTable();
   toast('✅ เพิ่มรายการแล้ว');
+}
+
+// ปักวันที่ปัจจุบันทุกแถว: แถวที่ไม่ต่อจากแถวก่อนหน้าถูกปักไว้ ไม่ให้ cascade คำนวณทับ
+function pinCurrentDates(){
+  const items=currentProject.items;
+  items.forEach(m=>{ (m.subItems||[]).forEach((s,si)=>{ if(si>0) markManualStart(s,m.subItems[si-1]); else delete s.manualStart; }); });
+  items.forEach((m,mi)=>{ if(mi>0) markManualStart(m,items[mi-1]); else delete m.manualStart; });
+}
+// ย้ายแถวเดิม (ไม่ copy) โดยไม่เปลี่ยนวันที่ ผู้ใช้แก้ "วันเริ่ม" เอง แล้วแถวถัดไปคำนวณต่อ
+function moveTaskItem(item,t){
+  if(!currentProject||!t||t.mainIdx<0) return;
+  const items=currentProject.items;
+  if(item.type==='main'){
+    const from=items.findIndex(m=>m.id===item.data.id);
+    if(from<0) return;
+    let to=t.subIdx>=0?t.mainIdx+1:(t.pos==='above'?t.mainIdx:t.mainIdx+1);
+    if(from<to) to--;
+    if(from===to) return;
+    const [obj]=items.splice(from,1);
+    items.splice(to,0,obj);
+  } else {
+    const src=items.find(m=>m.id===item.parentId);
+    if(!src) return;
+    const si=src.subItems.findIndex(s=>s.id===item.data.id);
+    if(si<0) return;
+    let tm, ti;
+    if(t.subIdx>=0){ tm=items[t.mainIdx]; ti=t.pos==='above'?t.subIdx:t.subIdx+1; }
+    else if(t.pos==='below'||t.mainIdx===0){ tm=items[t.mainIdx]; ti=0; }
+    else { tm=items[t.mainIdx-1]; ti=tm.subItems.length; }
+    if(tm===src&&si<ti) ti--;
+    if(tm===src&&si===ti) return;
+    const [obj]=src.subItems.splice(si,1);
+    tm.subItems.splice(ti,0,obj);
+    recalcMainFromSubs(src); recalcMainFromSubs(tm);
+  }
+  pinCurrentDates();
+  renumberItems();
+  recalcProjectDatesFromItems();
+  saveStore();
+  renderTaskTable();
+  toast('✅ ย้ายแถวแล้ว — วันที่คงเดิม แก้ "วันเริ่ม" ได้ที่ช่องวันเริ่ม');
 }
 
 /* ═══════════════════════════════════════════
@@ -1892,7 +1934,6 @@ function updateRowDisplay(type,mainId,subId,obj){
 }
 
 function renderTaskTable(){
-  destroySortables();
   const tbody=document.getElementById('task-tbody');
   if(!tbody) return;
   tbody.innerHTML='';
@@ -1913,8 +1954,8 @@ function renderTaskTable(){
     mtr.setAttribute('data-main-id',m.id);
     mtr.setAttribute('draggable','true');
     mtr.addEventListener('dragstart',e=>{
-      draggedItem={type:'main',data:m};
-      e.dataTransfer.effectAllowed='copy';
+      draggedItem={type:'main',data:m,fromTask:true};
+      e.dataTransfer.effectAllowed='copyMove';
       e.dataTransfer.setData('text/plain',JSON.stringify({type:'main',data:m}));
     });
     mtr.innerHTML=`
@@ -1962,8 +2003,8 @@ function renderTaskTable(){
       str.setAttribute('draggable','true');
       str.addEventListener('dragstart',e=>{
         e.stopPropagation();
-        draggedItem={type:'sub',data:s,parentId:m.id};
-        e.dataTransfer.effectAllowed='copy';
+        draggedItem={type:'sub',data:s,parentId:m.id,fromTask:true};
+        e.dataTransfer.effectAllowed='copyMove';
         e.dataTransfer.setData('text/plain',JSON.stringify({type:'sub',data:s,parentId:m.id}));
       });
       str.innerHTML=`
@@ -2035,51 +2076,9 @@ function renderTaskTable(){
     }
   });
 
-  initSortables();
   cascadeMainItems();
   recalcProjectDatesFromItems();
   validateDateContinuity();
-}
-
-function destroySortables(){
-  sortInsts.forEach(s=>{ try{s.destroy()}catch(e){} });
-  sortInsts=[];
-}
-function initSortables(){
-  if(!currentProject) return;
-  const tbody=document.getElementById('task-tbody');
-  if(!tbody) return;
-  // Sort main items (only .main-row elements, interleaved with .sub-wrap)
-  const mainSrt=Sortable.create(tbody,{
-    animation:150, handle:'.main-row .drag-handle', draggable:'.main-row',
-    onEnd:()=>{
-      const ids=[...tbody.querySelectorAll('.main-row')].map(r=>r.getAttribute('data-main-id'));
-      const old=[...currentProject.items];
-      // Rebuild preserving sub-wraps
-      currentProject.items=ids.map(id=>old.find(m=>m.id===id)).filter(Boolean);
-      renumberItems();
-      renderTaskTable();
-    }
-  });
-  sortInsts.push(mainSrt);
-  // Sort sub-items within each main
-  currentProject.items.forEach(m=>{
-    const st=document.getElementById('sort-sub-'+m.id);
-    if(!st) return;
-    const srt=Sortable.create(st,{
-      animation:150, handle:'.drag-handle', draggable:'.sub-row',
-      group:'sub-'+m.id,
-      onEnd:()=>{
-        const ids=[...st.querySelectorAll('.sub-row')].map(r=>r.getAttribute('data-sub-id'));
-        const old=[...m.subItems];
-        m.subItems=ids.map(id=>old.find(s=>s.id===id)).filter(Boolean);
-        renumberItems();
-        // Update item numbers in DOM
-        m.subItems.forEach(s=>{ const r=document.getElementById('row-s-'+s.id); if(r){const no=r.querySelector('.item-no');if(no)no.textContent=s.itemNo;} });
-      }
-    });
-    sortInsts.push(srt);
-  });
 }
 
 /* ═══════════════════════════════════════════
@@ -2132,58 +2131,107 @@ function parseCSVLine(line){
   result.push(cur);
   return result;
 }
+const PLAN_HEADERS=['Item','ประเภท (main/sub)','คำอธิบาย','ผู้รับผิดชอบ','วันเริ่ม','วันสิ้นสุด','วันทำงาน','วัน','% งาน'];
+function isoToSerial(iso){
+  if(!iso) return '';
+  const [y,m,d]=iso.split('-').map(Number);
+  return (Date.UTC(y,m-1,d)-Date.UTC(1899,11,30))/86400000;
+}
+// รับได้ทั้งเลขวันที่ Excel, 2026-11-09, 9/11/2026, 9/11/2569 (พ.ศ.)
+function anyDateToISO(v){
+  if(v===''||v==null) return '';
+  if(typeof v==='number') return new Date(Date.UTC(1899,11,30)+Math.round(v)*86400000).toISOString().slice(0,10);
+  const s=String(v).trim();
+  let m=/^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(s);
+  if(m) return m[1]+'-'+m[2].padStart(2,'0')+'-'+m[3].padStart(2,'0');
+  m=/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/.exec(s);
+  if(m){ let y=+m[3]; if(y>2400) y-=543; return y+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0'); }
+  return excelDateToISO(s);
+}
+async function exportXLSX(){
+  if(!currentProject){ toast('❌ ยังไม่มีโครงการ'); return; }
+  collectProjectForm();
+  const aoa=[PLAN_HEADERS];
+  (currentProject.items||[]).forEach(m=>{
+    aoa.push([m.itemNo,'main',m.description,leadStr(m.lead),isoToSerial(m.startDate),isoToSerial(m.endDate),m.workDays,m.days,m.percentDone||0]);
+    (m.subItems||[]).forEach(s=>aoa.push([s.itemNo,'sub',s.description,leadStr(s.lead),isoToSerial(s.startDate),isoToSerial(s.endDate),s.workDays,s.days,s.percentDone||0]));
+  });
+  const ws=XLSX.utils.aoa_to_sheet(aoa);
+  for(let r=1;r<aoa.length;r++) for(const c of [4,5]){
+    const cell=ws[XLSX.utils.encode_cell({r,c})];
+    if(cell&&cell.t==='n') cell.z='dd/mm/yyyy';
+  }
+  ws['!cols']=[{wch:6},{wch:8},{wch:50},{wch:22},{wch:12},{wch:12},{wch:9},{wch:6},{wch:7}];
+  const p=currentProject;
+  const info=XLSX.utils.aoa_to_sheet([['โครงการ',p.projectName||''],['ที่อยู่',p.address||''],['PM',p.projectManager||''],
+    ['เริ่ม',thaiDate(p.startDate)],['สิ้นสุด',thaiDate(p.endDate)],['วันทำงาน',p.workDays||0],
+    [],['หมายเหตุ','แก้ไขได้ในแผ่นงาน "แผนงาน" — ห้ามเปลี่ยนชื่อหัวคอลัมน์ · ประเภท main = หัวข้อหลัก, sub = รายการย่อย']]);
+  info['!cols']=[{wch:12},{wch:70}];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'แผนงาน');
+  XLSX.utils.book_append_sheet(wb,info,'ข้อมูลโครงการ');
+  const out=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+  await saveLocalFile(new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),makeExportName('3.ProjPlan','xlsx'));
+}
+function importPlanTable(aoa){
+  const rows=aoa.filter(r=>r&&r.some(c=>String(c).trim()!==''));
+  if(rows.length<2) throw new Error('ไฟล์ว่างเปล่า');
+  const hdr=rows[0].map(h=>String(h).trim().toLowerCase());
+  const col=re=>hdr.findIndex(h=>re.test(h));
+  const iNo=col(/^(itemno|item|ลำดับ)/), iType=col(/^(type|ประเภท)/), iDesc=col(/description|คำอธิบาย|รายการ/);
+  const iLead=col(/lead|ผู้รับผิดชอบ/), iStart=col(/startdate|วันเริ่ม/), iEnd=col(/enddate|วันสิ้นสุด/);
+  const iWD=col(/workdays|วันทำงาน/), iDays=col(/^(days|วัน)$/), iPct=col(/percent|%/);
+  if(iDesc<0) throw new Error('ไม่พบคอลัมน์ คำอธิบาย/Description');
+  const get=(r,i)=>i>=0&&r[i]!=null?r[i]:'';
+  const items=[]; let curMain=null;
+  rows.slice(1).forEach(r=>{
+    const desc=String(get(r,iDesc)).trim(); if(!desc) return;
+    const itemNo=String(get(r,iNo)).trim();
+    const typeRaw=String(get(r,iType)).trim().toLowerCase();
+    const isSub=typeRaw?typeRaw==='sub':itemNo.includes('.');
+    const startDate=anyDateToISO(get(r,iStart)), endDate=anyDateToISO(get(r,iEnd));
+    const wd=parseInt(get(r,iWD))||calcWorkDays(startDate,endDate);
+    const row={id:uuid(),itemNo,description:desc,lead:normalizeLeadArray(String(get(r,iLead))),
+      startDate,endDate,workDays:wd,days:calDays(startDate,endDate),percentDone:Math.min(100,Math.max(0,parseFloat(get(r,iPct))||0))};
+    if(isSub&&curMain){ row.type='sub'; curMain.subItems.push(row); }
+    else { row.type='main'; row.subItems=[]; items.push(row); curMain=row; }
+  });
+  if(!items.length) throw new Error('ไม่พบรายการงาน');
+  if(!currentProject) currentProject=blankProject();
+  currentProject.items=items;
+  items.forEach(m=>recalcMainFromSubs(m));
+  pinCurrentDates();
+  const leads=new Set(currentProject.leads||[]);
+  items.forEach(m=>{ m.lead.forEach(l=>leads.add(l)); m.subItems.forEach(s=>s.lead.forEach(l=>leads.add(l))); });
+  currentProject.leads=[...leads];
+  renumberItems();
+  recalcProjectDatesFromItems();
+  appData.currentProjectId=currentProject.id;
+  saveStore();
+  fillProjectForm();
+  renderLeadsTags();
+  renderTaskTable();
+  return items.length;
+}
 function loadProjectCSV(inp){
   const f=inp.files[0]; if(!f) return;
+  const isCSV=/\.csv$/i.test(f.name);
   const r=new FileReader();
   r.onload=e=>{
     try{
-      let text=e.target.result.replace(/^﻿/,'');
-      const lines=text.split(/\r?\n/).filter(l=>l.trim());
-      if(lines.length<2){ toast('❌ ไฟล์ CSV ว่างเปล่า'); return; }
-      const header=parseCSVLine(lines[0]).map(h=>h.trim().toLowerCase());
-      const iNo=header.indexOf('itemno'),iType=header.indexOf('type'),iDesc=header.indexOf('description');
-      const iLead=header.indexOf('lead'),iStart=header.indexOf('startdate'),iEnd=header.indexOf('enddate');
-      const iWD=header.indexOf('workdays'),iDays=header.indexOf('days'),iPct=header.indexOf('percentdone');
-      if(iNo<0||iDesc<0){ toast('❌ CSV ต้องมีคอลัมน์ ItemNo, Description'); return; }
-      if(!currentProject){ currentProject={id:uuid(),projectName:'โครงการใหม่',items:[],leads:[],weeklyReports:[],reportEnabled:false}; }
-      const items=[];
-      let curMain=null;
-      for(let i=1;i<lines.length;i++){
-        const cols=parseCSVLine(lines[i]);
-        const itemNo=cols[iNo]?.trim()||'';
-        const type=(cols[iType]?.trim()||'').toLowerCase();
-        const desc=cols[iDesc]?.trim()||'';
-        const lead=iLead>=0?cols[iLead]?.trim():'';
-        const start=iStart>=0?cols[iStart]?.trim():'';
-        const end=iEnd>=0?cols[iEnd]?.trim():'';
-        const wd=iWD>=0?parseInt(cols[iWD])||0:0;
-        const days=iDays>=0?parseInt(cols[iDays])||0:0;
-        const pct=iPct>=0?parseFloat(cols[iPct])||0:0;
-        const row={id:uuid(),type:type||'main',itemNo,description:desc,lead,startDate:start,endDate:end,workDays:wd,days:days,percentDone:pct};
-        if(type==='sub'&&curMain){
-          row.type='sub';
-          curMain.subItems.push(row);
-        } else {
-          row.type='main';
-          row.subItems=[];
-          items.push(row);
-          curMain=row;
-        }
+      let aoa;
+      if(isCSV){
+        aoa=e.target.result.replace(/^﻿/,'').split(/\r?\n/).map(parseCSVLine);
+      } else {
+        const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+        const name=wb.SheetNames.includes('แผนงาน')?'แผนงาน':wb.SheetNames[0];
+        aoa=XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,defval:'',raw:true});
       }
-      currentProject.items=items;
-      migrateLeadsToArray(currentProject);
-      items.forEach(m=>recalcMainFromSubs(m));
-      appData.currentProjectId=currentProject.id;
-      const idx=appData.projects.findIndex(x=>x.id===currentProject.id);
-      if(idx>=0) appData.projects[idx]=currentProject; else appData.projects.push(currentProject);
-      fillProjectForm();
-      renderLeadsTags();
-      renderTaskTable();
-      saveStore();
-      toast('✅ นำเข้า CSV สำเร็จ: '+items.length+' รายการหลัก');
-    } catch(err){ toast('❌ ไม่สามารถอ่านไฟล์ CSV ได้: '+err.message); }
+      const n=importPlanTable(aoa);
+      toast('✅ นำเข้า '+f.name+' สำเร็จ: '+n+' หัวข้อหลัก');
+    } catch(err){ toast('❌ อ่านไฟล์ไม่สำเร็จ: '+err.message); }
   };
-  r.readAsText(f,'UTF-8');
+  if(isCSV) r.readAsText(f,'UTF-8'); else r.readAsArrayBuffer(f);
   inp.value='';
 }
 
@@ -3124,7 +3172,7 @@ function renderManual(){
         <tbody>
           <tr><td>⚙️ ตั้งค่าผู้ใช้งาน</td><td>ชื่อ, บริษัท, โลโก้, รหัสผ่าน</td></tr>
           <tr><td>📁 ตั้งค่าโครงการ</td><td>สร้าง/แก้ไขโครงการ, รายการงาน, ทีมงาน</td></tr>
-          <tr><td>📊 แสดงโครงการ</td><td>Gantt Chart + ส่งออก PDF/JSON</td></tr>
+          <tr><td>📊 แสดงโครงการ</td><td>แผนงานโครงการ + ส่งออก PDF/JSON/CSV/XLSX</td></tr>
           <tr><td>📈 S-Curve</td><td>กราฟความก้าวหน้า แผน vs ผล</td></tr>
           <tr><td>📋 รายงาน</td><td>Weekly/Daily Report, Kick Off Plan</td></tr>
           <tr><td>📖 คู่มือใช้งาน</td><td>คู่มือฉบับนี้</td></tr>
@@ -3173,13 +3221,14 @@ function renderManual(){
         </tbody>
       </table>
       <div class="tip-box">💡 ลากหัวข้อจาก "รายการตัวอย่าง" (กรอบซ้าย) มาวางในตารางงาน เพื่อเพิ่มงานได้รวดเร็ว</div>
+      <div class="tip-box">💡 ลากแถวในตารางงานเพื่อย้าย — วางเหนือ/ใต้แถวใดก็ได้ ย้ายรายการย่อยข้ามหัวข้อได้ วันที่ของแถวที่ย้ายคงเดิม ให้แก้ "วันเริ่ม" เอง แล้วแถวถัดไปคำนวณต่อให้ · งานขนานกันได้ (หลายทีมช่าง)</div>
       <p><b>การคำนวณวันที่:</b><br>
         <span class="step-badge">1</span>กำหนด "วันเริ่ม" ของแต่ละงาน<br>
         <span class="step-badge">2</span>กรอก "วันทำงาน" (จำนวนวัน จ–ศ)<br>
         <span class="step-badge">3</span>ระบบคำนวณ "วันสิ้นสุด" และ "วัน" (รวมปฏิทิน) อัตโนมัติ
       </p>`
     },
-    {icon:'📊',title:'Gantt Chart',body:`
+    {icon:'📊',title:'แผนงานโครงการ',body:`
       <p>แสดงแผนงานโครงการในรูปแบบตาราง Gantt แบ่งเป็นรายเดือน</p>
       <table class="manual-table">
         <thead><tr><th>ส่วนประกอบ</th><th>ความหมาย</th></tr></thead>
@@ -3190,7 +3239,8 @@ function renderManual(){
           <tr><td>ตัวเลขในคอลัมน์ %</td><td>% งานที่เสร็จแล้ว (0–100)</td></tr>
         </tbody>
       </table>
-      <div class="tip-box">💡 คลิก "📄 บันทึก PDF" เพื่อส่งออกเป็น PDF A4 แนวนอน พร้อม Header/Footer อัตโนมัติ</div>`
+      <div class="tip-box">💡 คลิก "📄 บันทึก PDF" เพื่อส่งออกเป็น PDF A4 แนวนอน พร้อม Header/Footer อัตโนมัติ</div>
+      <div class="tip-box">💡 ส่งลูกค้าแก้: "📗 บันทึก XLSX" → ลูกค้าแก้ในแผ่นงาน "แผนงาน" (ห้ามเปลี่ยนหัวคอลัมน์) → นำกลับด้วย ตั้งค่าโครงการ › "📂 นำเข้า XLSX/CSV" (แทนที่รายการงานทั้งหมด วันที่ตามไฟล์)</div>`
     },
     {icon:'📈',title:'S-Curve',body:`
       <p>กราฟเส้นแสดงความสัมพันธ์ระหว่าง <b>แผนงาน (Planned)</b> และ <b>ผลงาน (Actual)</b> ตามเวลา</p>
