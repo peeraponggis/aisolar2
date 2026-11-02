@@ -208,7 +208,24 @@ span.flatpickr-weekday{color:var(--primary)!important;font-weight:600}
 .note-label{font-size:12px;font-weight:700;color:var(--text-m);margin-bottom:6px}
 
 /* TOAST */
-#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(60px);background:#333;color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;opacity:0;transition:all .3s;z-index:9999;white-space:nowrap}
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(60px);background:#333;color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;opacity:0;transition:all .3s;z-index:9999;max-width:90vw;text-align:center}
+.date-pin{font-size:10px;margin-left:3px;cursor:help}
+.dn-warn{background:#fff3cd;border:1px solid #ffc107;border-radius:6px;padding:8px 12px;color:#856404;margin-bottom:6px}
+.dn-info{background:#e3f2fd;border:1px solid #90caf9;border-radius:6px;padding:8px 12px;color:#0d47a1}
+.dn-info summary{cursor:pointer}
+.dn-warn ul,.dn-info ul{margin:4px 0 0 16px;padding:0}
+/* HELP (?) */
+.help-q{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;border:1.5px solid var(--primary);background:var(--surface);color:var(--primary);font-size:11px;font-weight:700;cursor:pointer;margin-left:6px;vertical-align:middle;line-height:1;flex-shrink:0;user-select:none}
+.help-q:hover,.help-q:focus{background:var(--primary);color:#fff;outline:none}
+.help-wrap{display:inline-flex;align-items:center}
+#help-pop{position:absolute;z-index:10000;width:min(400px,92vw);background:var(--surface);border:1.5px solid var(--primary);border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.2);padding:12px 14px 10px;font-size:13px;color:var(--text);display:none;font-weight:400}
+#help-pop h4{margin:0 24px 6px 0;color:var(--primary);font-size:15px}
+#help-pop .hp-sec{margin-top:8px}
+#help-pop .hp-sec>b{color:var(--primary)}
+#help-pop .hp-note{background:var(--surface2);border-radius:6px;padding:6px 8px}
+#help-pop ul{margin:3px 0 0 18px;padding:0}
+#help-pop li{margin:2px 0}
+#help-pop .hp-close{position:absolute;top:6px;right:8px;border:none;background:none;font-size:18px;cursor:pointer;color:var(--text-m);line-height:1}
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
 /* S-CURVE */
@@ -421,9 +438,9 @@ span.flatpickr-weekday{color:var(--primary)!important;font-weight:600}
             <div class="card" style="padding:12px">
               <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center">
                 <button class="btn btn-success btn-sm" onclick="addMainItem()">➕ เพิ่มหัวข้อหลัก</button>
-                <span class="text-muted" style="font-size:11px">ลากแถวเพื่อย้าย (บน/ล่าง/ข้ามหัวข้อได้ · วันที่คงเดิม แก้วันเริ่มเอง) | ลากงานจากซ้ายมาวางที่นี่</span>
+                <span class="text-muted" id="task-toolbar-hint" style="font-size:11px">ลากแถวเพื่อย้าย (บน/ล่าง/ข้ามหัวข้อได้ · วันที่คงเดิม แก้วันเริ่มเอง) | ลากงานจากซ้ายมาวางที่นี่</span>
               </div>
-              <div id="date-warnings" style="display:none;background:#fff3cd;border:1px solid #ffc107;border-radius:6px;padding:8px 12px;margin-bottom:8px;font-size:12px;color:#856404"></div>
+              <div id="date-warnings" style="display:none;margin-bottom:8px;font-size:12px"></div>
               <div class="task-table-wrap"
                 id="task-drop-area"
                 ondragover="onTaskDropOver(event)" ondragleave="onTaskDropLeave(event)" ondrop="onDropToTask(event)">
@@ -591,7 +608,7 @@ span.flatpickr-weekday{color:var(--primary)!important;font-weight:600}
   <!-- Sidebar -->
   <nav id="sidebar">
     <div class="sb-header">
-      <div class="sb-logo">📋 Project Plan<span>โปรแกรมบริหารโครงการ</span><span class="sb-ver">v1.3.1 · ปรับปรุง 2 พ.ย. 2569</span></div>
+      <div class="sb-logo">📋 Project Plan<span>โปรแกรมบริหารโครงการ</span><span class="sb-ver">v1.4.0 · ปรับปรุง 2 พ.ย. 2569</span></div>
     </div>
     <div class="sb-nav">
       <button class="sb-btn active" data-menu="1" onclick="showMenu(1)"><span class="icon">⚙️</span>ตั้งค่าผู้ใช้งาน</button>
@@ -902,33 +919,31 @@ function recalcProjectDatesFromItems(){
 }
 function validateDateContinuity(){
   if(!currentProject||!currentProject.items) return;
-  const warnings=[];
-  // Check between main items
-  for(let i=1;i<currentProject.items.length;i++){
-    const prev=currentProject.items[i-1], cur=currentProject.items[i];
-    if(!prev.endDate||!cur.startDate||cur.manualStart) continue;
-    const expected=nextWorkDay(prev.endDate);
-    if(cur.startDate!==expected){
-      warnings.push(`ข้อ ${cur.itemNo}: วันเริ่ม ${thaiDate(cur.startDate)} ไม่ต่อเนื่องจากข้อ ${prev.itemNo} (ควรเป็น ${thaiDate(expected)})`);
-    }
-  }
-  // Check within sub-items
-  currentProject.items.forEach(m=>{
-    if(!m.subItems||m.subItems.length<2) return;
-    for(let i=1;i<m.subItems.length;i++){
-      const prev=m.subItems[i-1], cur=m.subItems[i];
-      if(!prev.endDate||!cur.startDate||cur.manualStart) continue;
-      const expected=nextWorkDay(prev.endDate);
-      if(cur.startDate!==expected){
-        warnings.push(`${cur.itemNo}: วันเริ่ม ${thaiDate(cur.startDate)} ไม่ต่อเนื่องจาก ${prev.itemNo} (ควรเป็น ${thaiDate(expected)})`);
-      }
-    }
+  // กฎปัจจุบัน: งานขนาน/เว้นช่วงทำได้ (แจ้งเป็นข้อมูล) · เตือนเฉพาะสิ่งที่ผิดจริง
+  const items=currentProject.items, warn=[], info=[];
+  const check=(o,L)=>{
+    if(!o.startDate||!o.endDate){ warn.push(`${L}: ยังไม่มีวันเริ่ม/วันสิ้นสุด`); return; }
+    if(o.endDate<o.startDate) warn.push(`${L}: วันสิ้นสุด ${thaiDate(o.endDate)} อยู่ก่อนวันเริ่ม ${thaiDate(o.startDate)}`);
+    if(isWeekend(o.startDate)) warn.push(`${L}: วันเริ่ม ${thaiDate(o.startDate)} ตรงกับวันเสาร์/อาทิตย์ (วันทำงานนับ จ–ศ)`);
+  };
+  const rel=(o,prev,L,PL)=>{
+    const r=dateRelation(o,prev);
+    if(r.kind==='parallel') info.push(`${L}: 🔀 งานขนาน — เริ่ม ${thaiDate(o.startDate)} ก่อน ${PL} จบ (ซ้อน ${r.n} วันทำงาน)`);
+    else if(r.kind==='gap') info.push(`${L}: ⏸ เว้นช่วง ${r.n} วันทำงาน หลัง ${PL} จบ`);
+  };
+  items.forEach((m,mi)=>{
+    const L='ข้อ '+m.itemNo;
+    if(!(m.subItems||[]).length) check(m,L);
+    if(mi>0) rel(m,items[mi-1],L,'ข้อ '+items[mi-1].itemNo);
+    (m.subItems||[]).forEach((s,si)=>{ check(s,s.itemNo); if(si>0) rel(s,m.subItems[si-1],s.itemNo,m.subItems[si-1].itemNo); });
   });
   const el=document.getElementById('date-warnings');
   if(!el) return;
-  if(warnings.length===0){ el.style.display='none'; el.innerHTML=''; return; }
+  if(!warn.length&&!info.length){ el.style.display='none'; el.innerHTML=''; return; }
+  const ul=a=>'<ul>'+a.map(w=>'<li>'+esc(w)+'</li>').join('')+'</ul>';
   el.style.display='block';
-  el.innerHTML='<b>⚠️ วันที่ไม่ต่อเนื่อง:</b><ul style="margin:4px 0 0 16px;padding:0">'+warnings.map(w=>'<li>'+w+'</li>').join('')+'</ul>';
+  el.innerHTML=(warn.length?`<div class="dn-warn"><b>⚠️ ต้องตรวจสอบวันที่ (${warn.length})</b>${ul(warn)}</div>`:'')
+    +(info.length?`<details class="dn-info"><summary>ℹ️ งานขนาน/เว้นช่วง ${info.length} รายการ — ทำได้ตามปกติ วันเริ่มของแถวเหล่านี้ปักไว้ 📌 ไม่เลื่อนตามแถวก่อนหน้า (คลิกดู)</summary>${ul(info)}</details>`:'');
 }
 
 /* File name: projectName_ThaiDate_HHmm.ext */
@@ -1876,6 +1891,24 @@ function renumberItems(){
 }
 
 /* Update task field */
+function dateRelation(obj,prev){
+  if(!prev||!prev.endDate||!obj.startDate) return {kind:'first'};
+  const chained=nextWorkDay(prev.endDate);
+  if(obj.startDate===chained) return {kind:'chain'};
+  if(obj.startDate<=prev.endDate) return {kind:'parallel',n:calcWorkDays(obj.startDate,prev.endDate)};
+  if(obj.startDate<chained) return {kind:'none'};
+  return {kind:'gap',n:Math.max(0,calcWorkDays(chained,obj.startDate)-1)};
+}
+function isWeekend(iso){ const w=iso?new Date(iso+'T00:00:00').getDay():1; return w===0||w===6; }
+function notifyStartRelation(obj,prev,wasManual){
+  const r=dateRelation(obj,prev);
+  let msg='';
+  if(r.kind==='parallel') msg='🔀 งานขนาน: เริ่มก่อนงานก่อนหน้าจบ (ซ้อน '+r.n+' วันทำงาน) — ปักวันเริ่มไว้ 📌';
+  else if(r.kind==='gap') msg='⏸ เว้นช่วง '+r.n+' วันทำงานจากงานก่อนหน้า — ปักวันเริ่มไว้ 📌';
+  else if(r.kind==='chain'&&wasManual) msg='🔗 ต่อจากงานก่อนหน้าแล้ว — แถวนี้จะเลื่อนตามอัตโนมัติ';
+  if(isWeekend(obj.startDate)) msg=(msg?msg+' · ':'')+'⚠ วันเริ่มตรงกับวันเสาร์/อาทิตย์';
+  if(msg) toast(msg,4500);
+}
 function markManualStart(obj,prev){
   const chained=prev&&prev.endDate?nextWorkDay(prev.endDate):null;
   if(chained&&obj.startDate!==chained) obj.manualStart=true; else delete obj.manualStart;
@@ -1895,12 +1928,13 @@ function updateField(type,mainId,subId,field,val){
     obj.startDate=val;
     if(obj.workDays>0){ obj.endDate=addWorkDays(val,obj.workDays); }
     obj.days=calDays(obj.startDate,obj.endDate);
-    if(type==='main'){ const mi=items.indexOf(obj); markManualStart(obj,items[mi-1]); cascadeSubDates(obj); cascadeMainItems(mi+1); recalcProjectDatesFromItems(); saveStore(); renderTaskTable(); return; }
+    if(type==='main'){ const mi=items.indexOf(obj), was=!!obj.manualStart; markManualStart(obj,items[mi-1]); cascadeSubDates(obj); cascadeMainItems(mi+1); recalcProjectDatesFromItems(); saveStore(); renderTaskTable(); notifyStartRelation(obj,items[mi-1],was); return; }
     if(type==='sub'){ const m=items.find(x=>x.id===mainId); if(m){ const idx=m.subItems.indexOf(obj); const mi=items.indexOf(m);
-      if(idx>0) markManualStart(obj,m.subItems[idx-1]);
+      const target=idx>0?obj:m, prev=idx>0?m.subItems[idx-1]:items[mi-1], was=!!target.manualStart;
+      if(idx>0) markManualStart(obj,prev);
       cascadeSubDatesFrom(m,idx+1); recalcMainFromSubs(m);
-      if(idx===0) markManualStart(m,items[mi-1]);
-      cascadeMainItems(mi+1); recalcProjectDatesFromItems(); saveStore(); renderTaskTable(); return; } }
+      if(idx===0) markManualStart(m,prev);
+      cascadeMainItems(mi+1); recalcProjectDatesFromItems(); saveStore(); renderTaskTable(); notifyStartRelation(target,prev,was); return; } }
   } else if(field==='endDate'){
     obj.endDate=val;
     obj.days=calDays(obj.startDate,obj.endDate);
@@ -1939,6 +1973,7 @@ function updateRowDisplay(type,mainId,subId,obj){
   if(pFill) pFill.style.width=(obj.percentDone||0)+'%';
 }
 
+const PIN_HTML='<span class="date-pin" title="วันเริ่มตั้งเอง — ไม่เลื่อนตามแถวก่อนหน้า (ตั้งเป็นวันทำงานถัดจากแถวก่อนหน้าจบ เพื่อกลับมาเลื่อนตาม)">📌</span>';
 function renderTaskTable(){
   const tbody=document.getElementById('task-tbody');
   if(!tbody) return;
@@ -1971,7 +2006,7 @@ function renderTaskTable(){
           onblur="updateField('main','${m.id}',null,'description',this.value)">${esc(m.description)}</textarea></td>
       <td>${buildLeadMulti(m.id,m.lead,leads)}</td>
       <td class="date-cell" data-type="main" data-main-id="${m.id}" data-field="startDate" data-val="${m.startDate||''}">
-        <span class="date-disp" data-field="startDate">${thaiDate(m.startDate)}</span>
+        <span class="date-disp" data-field="startDate">${thaiDate(m.startDate)}</span>${m.manualStart?PIN_HTML:''}
         <input type="text" class="date-edit" value="${m.startDate||''}"/>
       </td>
       <td class="date-cell" data-type="main" data-main-id="${m.id}" data-field="endDate" data-val="${m.endDate||''}">
@@ -2020,7 +2055,7 @@ function renderTaskTable(){
             onblur="updateField('sub','${m.id}','${s.id}','description',this.value)">${esc(s.description)}</textarea></td>
         <td style="color:var(--text-m);font-size:11px;text-align:center">—</td>
         <td class="date-cell" data-type="sub" data-main-id="${m.id}" data-sub-id="${s.id}" data-field="startDate" data-val="${s.startDate||''}">
-          <span class="date-disp" data-field="startDate">${thaiDate(s.startDate)}</span>
+          <span class="date-disp" data-field="startDate">${thaiDate(s.startDate)}</span>${s.manualStart?PIN_HTML:''}
           <input type="text" class="date-edit" value="${s.startDate||''}"/>
         </td>
         <td class="date-cell" data-type="sub" data-main-id="${m.id}" data-sub-id="${s.id}" data-field="endDate" data-val="${s.endDate||''}">
@@ -3228,6 +3263,8 @@ function renderManual(){
       </table>
       <div class="tip-box">💡 ลากหัวข้อจาก "รายการตัวอย่าง" (กรอบซ้าย) มาวางในตารางงาน เพื่อเพิ่มงานได้รวดเร็ว</div>
       <div class="tip-box">💡 ลากแถวในตารางงานเพื่อย้าย — วางเหนือ/ใต้แถวใดก็ได้ ย้ายรายการย่อยข้ามหัวข้อได้ วันที่ของแถวที่ย้ายคงเดิม ให้แก้ "วันเริ่ม" เอง แล้วแถวถัดไปคำนวณต่อให้ · งานขนานกันได้ (หลายทีมช่าง)</div>
+      <div class="tip-box">📌 = วันเริ่มตั้งเอง ไม่เลื่อนตามแถวก่อนหน้า (ตั้งเป็นวันทำงานถัดจากแถวก่อนหน้าจบ เพื่อกลับมาเลื่อนตาม) · กล่องเหลือง ⚠️ = ต้องตรวจ (ไม่มีวันที่ / วันสิ้นสุดก่อนวันเริ่ม / เริ่มวันเสาร์-อาทิตย์) · กล่องฟ้า ℹ️ = งานขนาน 🔀 / เว้นช่วง ⏸ ทำได้ตามปกติ</div>
+      <div class="tip-box">❓ ทุกหน้ามีปุ่ม ? ข้างหัวข้อ — คลิกดูว่าส่วนนั้นต้องทำอะไร ได้ผลอะไร</div>
       <p><b>การคำนวณวันที่:</b><br>
         <span class="step-badge">1</span>กำหนด "วันเริ่ม" ของแต่ละงาน<br>
         <span class="step-badge">2</span>กรอก "วันทำงาน" (จำนวนวัน จ–ศ)<br>
@@ -3320,7 +3357,122 @@ document.addEventListener('click',function(e){
 /* ═══════════════════════════════════════════
    BOOT
 ═══════════════════════════════════════════ */
+/* ═══════════════════════════════════════════
+   HELP (?) — คำอธิบายแต่ละส่วน: ต้องทำอะไร / ได้ผลอะไร / ข้อควรรู้
+═══════════════════════════════════════════ */
+const DATE_RULES=[
+  'เลือกวันเริ่มเองได้ทุกแถว — ถ้าไม่ต่อจากแถวก่อนหน้า วันเริ่มจะถูกปัก 📌 ไม่เลื่อนตามเมื่อแก้แถวข้างบน',
+  'งานขนานทำได้ (หลายทีมช่าง): เริ่มก่อนแถวก่อนหน้าจบได้ ระบบแจ้ง 🔀 เป็นข้อมูล ไม่ห้าม',
+  'อยากให้แถวที่ปักไว้กลับมาเลื่อนตาม → ตั้งวันเริ่มเป็นวันทำงานถัดจากแถวก่อนหน้าจบ (ขึ้น 🔗)',
+  'ลากย้ายแถวแล้ววันที่ไม่เปลี่ยน — แก้ "วันเริ่ม" เอง แล้วแถวถัดไปคำนวณต่อ',
+  'กล่องเหลือง ⚠️ = ต้องตรวจ (ไม่มีวันที่ / วันสิ้นสุดก่อนวันเริ่ม / เริ่มวันเสาร์-อาทิตย์) · กล่องฟ้า ℹ️ = งานขนาน/เว้นช่วง (ทำได้ตามปกติ)'
+];
+const HELP=[
+  {sel:'.section-title',match:'ตั้งค่าผู้ใช้งาน',title:'ตั้งค่าผู้ใช้งาน',
+    todo:['กรอกข้อมูลผู้ใช้และข้อมูลบริษัท (ชื่อ, โลโก้, ที่อยู่, เบอร์โทร)','📂 นำเข้า = เปิดไฟล์ผู้ใช้ หรือไฟล์ "บันทึกทั้งหมด" · 💾 บันทึก / 📤 ส่งออก = เก็บเป็นไฟล์ JSON'],
+    result:['ชื่อ–บริษัท–ที่อยู่–เบอร์โทร แสดงที่ท้ายกระดาษ PDF ทุกฉบับ','แก้แล้วบันทึกในเบราว์เซอร์อัตโนมัติ'],
+    note:['ย้ายไปเครื่องอื่น: ส่งออกไฟล์ แล้วนำเข้าที่เครื่องใหม่']},
+  {sel:'.card-title',match:'ข้อมูลผู้ใช้งาน',title:'ข้อมูลผู้ใช้งาน',
+    todo:['กรอกชื่อ-นามสกุล และชื่อผู้ใช้'],
+    result:['ชื่อแสดงที่มุมล่างของเมนู และท้ายกระดาษ PDF','ชื่อผู้ใช้ใช้ตั้งชื่อไฟล์ที่ส่งออก'],
+    note:['ไม่มีหน้าเข้าสู่ระบบแล้ว ช่องรหัสผ่านเว้นว่างได้']},
+  {sel:'.card-title',match:'ข้อมูลบริษัท',title:'ข้อมูลบริษัท',
+    todo:['📁 เลือกรูปโลโก้ (PNG/JPG) · ✖ ลบโลโก้','กรอกชื่อบริษัท ที่อยู่ เบอร์โทร'],
+    result:['บันทึกในเบราว์เซอร์ทันที','ชื่อบริษัท/ที่อยู่/เบอร์โทร แสดงท้ายกระดาษ PDF','โลโก้และข้อมูลบริษัทติดไปกับ "บันทึกโครงการทั้งหมด"'],
+    note:['รูปโลโก้ไม่ควรใหญ่เกิน ~1 MB (เบราว์เซอร์มีพื้นที่จำกัด ถ้าเต็มจะมีคำเตือน)']},
+  {sel:'.section-title',match:'ตั้งค่าโครงการ',title:'ตั้งค่าโครงการ',
+    todo:['➕ โครงการใหม่ หรือ 📂 นำเข้า JSON (ไฟล์โครงการ / ไฟล์บันทึกทั้งหมด)','📂 นำเข้า XLSX/CSV = แทนที่รายการงานทั้งหมดด้วยไฟล์ (เช่น ไฟล์ที่ลูกค้าแก้กลับมา)','กรอก 3 แท็บ: ข้อมูลโครงการ › รายการงาน › บันทึกเพิ่มเติม','💾 บันทึกโครงการ = เก็บเป็นไฟล์ JSON ลงเครื่อง'],
+    result:['ทุกการแก้ไขบันทึกในเบราว์เซอร์อัตโนมัติ','แผนงาน / S-Curve / รายงาน ใช้ข้อมูลจากที่นี่'],
+    note:['นำเข้า XLSX/CSV จะแทนที่รายการงานเดิมทั้งหมด (ข้อมูลโครงการไม่ถูกแตะ)','ควรกด 💾 บันทึกโครงการ เก็บไฟล์ไว้เป็นระยะ']},
+  {sel:'.card-title',match:'รายละเอียดโครงการ',title:'ข้อมูลโครงการ',
+    todo:['กรอกชื่อโครงการ ที่อยู่ ผู้ติดต่อ ผู้จัดการโครงการ','เลือกวันเริ่มต้นโครงการ (และวันสิ้นสุดโดยประมาณ)'],
+    result:['วันเริ่มต้นโครงการ = วันเริ่มของงานแรกเสมอ — เปลี่ยนแล้วรายการงานทั้งหมดเลื่อนตามเมื่อเปิดแท็บรายการงาน','จำนวนวันโครงการ (ตามปฏิทิน) และจำนวนวันทำงาน (จ–ศ) คำนวณให้'],
+    note:['วันสิ้นสุดและวันทำงานถูกปรับตามรายการงานอัตโนมัติ (ใช้งานที่จบช้าที่สุด งานขนานไม่นับซ้ำ)']},
+  {sel:'.card-title',match:'ทีมงานโครงการ',title:'ทีมงานโครงการ',
+    todo:['พิมพ์ชื่อ แล้วกด + เพิ่ม · กด × เพื่อลบ'],
+    result:['รายชื่อนี้ให้เลือกในช่อง "ผู้รับผิดชอบ" ของรายการงาน'],
+    note:['นำเข้า XLSX/CSV ที่มีชื่อใหม่ ระบบเพิ่มชื่อให้เอง']},
+  {sel:'.card-title',match:'รายการตัวอย่าง',title:'รายการตัวอย่าง',
+    todo:['ลากหัวข้อ/รายการย่อยไปวางในตารางรายการงาน หรือคลิก ➕','📤 ส่งทั้งหมด = เพิ่มตัวอย่างทั้งหมดเข้าตาราง','ลากแถวจากตารางงานมาวางกรอบล่าง เพื่อเก็บเป็นตัวอย่างใช้ครั้งหน้า','📂 / 💾 นำเข้า–ส่งออกรายการตัวอย่าง (JSON/CSV)'],
+    result:['ได้แถวงานใหม่ในตาราง (สร้างใหม่ ไม่ใช่ย้าย)'],
+    note:['ลากจากตัวอย่าง = เพิ่มแถวใหม่ · ลากแถวในตารางงาน = ย้ายแถว']},
+  {sel:'.tab-btn',match:'รายการงาน',title:'รายการงาน',key:'tasks',
+    todo:['➕ เพิ่มหัวข้อหลัก · +ย่อย เพิ่มรายการย่อย · 🗑 ลบ','พิมพ์คำอธิบาย เลือกผู้รับผิดชอบ','คลิกช่องวันเริ่ม/วันสิ้นสุด แล้วเลือกจากปฏิทิน · แก้จำนวนวันทำงาน · ใส่ % งาน','ลากแถวเพื่อย้าย: วางเหนือ/ใต้แถวใดก็ได้ ย้ายรายการย่อยข้ามหัวข้อได้'],
+    result:['วันสิ้นสุด = วันเริ่ม + วันทำงาน (นับ จ–ศ)','แถวถัดไปที่ต่อเนื่องกันเลื่อนตามอัตโนมัติ · หัวข้อหลักสรุปวันที่จากรายการย่อย','บันทึกอัตโนมัติ และแผนงาน / S-Curve อัปเดตตาม'],
+    note:DATE_RULES},
+  {sel:'#task-toolbar-hint',match:'',key:'tasks'},
+  {sel:'.tab-btn',match:'บันทึกเพิ่มเติม',title:'บันทึกเพิ่มเติม',
+    todo:['พิมพ์หมายเหตุ/ข้อตกลง/สิ่งที่ต้องติดตามของโครงการ'],
+    result:['เก็บไว้กับโครงการ ติดไปกับไฟล์ JSON ที่บันทึก'],
+    note:['กด 💾 บันทึกโครงการ หรือสลับแท็บ เพื่อให้ข้อความถูกเก็บ']},
+  {sel:'.section-title',match:'แผนงานโครงการ',title:'แผนงานโครงการ',
+    todo:['ดูอย่างเดียว — แก้ไขที่ ตั้งค่าโครงการ › รายการงาน','📄 PDF · 💾 JSON · 📊 CSV · 📗 XLSX เพื่อส่งออก'],
+    result:['ตารางงาน + แถบช่วงเวลารายเดือน อัปเดตตามรายการงานทันที','งานขนานแสดงแถบซ้อนช่วงเวลากัน'],
+    note:['ส่งลูกค้าแก้: 📗 บันทึก XLSX → ลูกค้าแก้แผ่นงาน "แผนงาน" (ห้ามเปลี่ยนหัวคอลัมน์) → นำกลับที่ ตั้งค่าโครงการ › 📂 นำเข้า XLSX/CSV','ลูกค้าพิมพ์วันที่แบบ 9/11/2569 (พ.ศ.) หรือ 9/11/2026 ได้']},
+  {sel:'.section-title',match:'S-Curve',title:'S-Curve ความคืบหน้า',
+    todo:['ใส่ % งาน ในรายการงาน (หรือผ่าน Daily Report)','📄 บันทึก PDF'],
+    result:['เส้นเขียว = แผนงาน เพิ่มตามเวลาจากวันเริ่มถึงวันสิ้นสุดโครงการ','เส้นส้ม = ผลงานจริง จาก % งาน ถ่วงน้ำหนักด้วยจำนวนวันทำงานของแต่ละงาน'],
+    note:['เส้นส้มต่ำกว่าเขียว = งานช้ากว่าแผน']},
+  {sel:'.section-title',match:'รายงานโครงการ',title:'รายงานโครงการ',
+    todo:['เลือก "สร้าง Report"','แท็บ ⚙️ ตั้งค่า → 🔄 สร้าง Weekly Reports','กรอก 📆 Daily Report แต่ละวัน → ดู 📅 Weekly และ 📊 Kick Off'],
+    result:['รายงานรายสัปดาห์/รายวัน และ Kick Off Plan ส่งออก PDF ได้','S-Curve ในแท็บ Kick Off อัปเดตตาม Daily Report'],
+    note:['สัปดาห์แบ่งจากวันเริ่ม–วันสิ้นสุดโครงการ ถ้าเปลี่ยนวันโครงการต้องสร้างใหม่','🔄 รีเซ็ตจะสร้างสัปดาห์ใหม่ทั้งหมด (ระบบถามยืนยันก่อน)']},
+  {sel:'.card-title',match:'ตั้งค่าการสร้าง Weekly Reports',title:'ตั้งค่าการสร้าง Weekly Reports',
+    todo:['ตรวจวันเริ่ม–วันสิ้นสุดโครงการให้ถูกก่อน แล้วกด 🔄 สร้าง / รีเซ็ต'],
+    result:['ได้รายงานสัปดาห์ละ 7 วัน และ Daily Report ทุกวันในสัปดาห์'],
+    note:['รีเซ็ตแล้ว Weekly Reports เดิมจะถูกแทนที่']},
+  {sel:'.section-title',match:'คู่มือการใช้งาน',title:'คู่มือการใช้งาน',
+    todo:['คลิกหัวข้อเพื่ออ่านวิธีใช้แต่ละเมนู'],
+    result:['เข้าใจขั้นตอนตั้งแต่ตั้งค่า → วางแผน → รายงาน'],
+    note:['ทุกหน้ามีปุ่ม ? ข้างหัวข้อ คลิกดูคำอธิบายเฉพาะส่วนนั้นได้']},
+  {sel:'.section-title',match:'บันทึกโครงการทั้งหมด',title:'บันทึกโครงการทั้งหมด',
+    todo:['กด 💾 บันทึก JSON ทั้งหมด'],
+    result:['ได้ไฟล์เดียวที่มี: ผู้ใช้ + โลโก้ + ข้อมูลบริษัท, โครงการ + รายการงาน + รายงาน, รายการตัวอย่าง'],
+    note:['เปิดกลับ: ตั้งค่าโครงการ › 📂 นำเข้า JSON (ทุกอย่างกลับมาครบ)','ใช้สำรองข้อมูล หรือย้ายไปเครื่องอื่น']}
+];
+function helpEntry(key){ return HELP.find(h=>h.key===key&&h.title)||HELP.find(h=>h.title===key); }
+function showHelp(entry,anchor){
+  let pop=document.getElementById('help-pop');
+  if(!pop){
+    pop=document.createElement('div'); pop.id='help-pop'; pop.setAttribute('role','dialog');
+    document.body.appendChild(pop);
+    document.addEventListener('mousedown',e=>{ if(pop.style.display==='block'&&!pop.contains(e.target)&&!e.target.classList.contains('help-q')) pop.style.display='none'; });
+    document.addEventListener('keydown',e=>{ if(e.key==='Escape') pop.style.display='none'; });
+  }
+  const list=(label,arr,cls)=>arr&&arr.length?`<div class="hp-sec ${cls||''}"><b>${label}</b><ul>${arr.map(t=>'<li>'+esc(t)+'</li>').join('')}</ul></div>`:'';
+  pop.innerHTML=`<button class="hp-close" aria-label="ปิด">×</button><h4>❓ ${esc(entry.title)}</h4>`
+    +list('📝 ต้องทำอะไร',entry.todo)+list('✅ ได้ผลอะไร',entry.result)+list('💡 ข้อควรรู้',entry.note,'hp-note');
+  pop.querySelector('.hp-close').onclick=()=>{ pop.style.display='none'; };
+  pop.style.display='block';
+  const r=anchor.getBoundingClientRect(), pw=pop.offsetWidth, ph=pop.offsetHeight;
+  let left=Math.min(Math.max(8,r.left),window.innerWidth-pw-8);
+  let top=r.bottom+6; if(top+ph>window.innerHeight&&r.top-ph-6>0) top=r.top-ph-6;
+  pop.style.left=(left+window.scrollX)+'px'; pop.style.top=(top+window.scrollY)+'px';
+}
+function injectHelp(){
+  HELP.forEach(h=>{
+    const entry=h.title?h:helpEntry(h.key);
+    document.querySelectorAll(h.sel).forEach(el=>{
+      if(el.querySelector('.help-q')) return;
+      if(h.match&&!el.textContent.includes(h.match)) return;
+      const q=document.createElement('span');
+      q.className='help-q'; q.textContent='?'; q.tabIndex=0; q.setAttribute('role','button');
+      q.title='คลิกดูคำอธิบาย: '+entry.title;
+      const open=e=>{ e.preventDefault(); e.stopPropagation(); showHelp(entry,q); };
+      q.addEventListener('click',open);
+      q.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' ') open(e); });
+      const txt=[...el.childNodes].find(n=>n.nodeType===3&&n.textContent.trim());
+      if(el.classList.contains('card-title')&&txt){
+        const w=document.createElement('span'); w.className='help-wrap';
+        el.insertBefore(w,txt); w.appendChild(txt); w.appendChild(q);
+      } else if(h.sel==='#task-toolbar-hint'){ el.parentNode.insertBefore(q,el); }
+      else el.appendChild(q);
+    });
+  });
+}
+
 loadStore();
+injectHelp();
 document.getElementById('sb-username').textContent='👤 '+(appData.user.username||'admin');
 renderMenu1Fields();
 ['u-name','u-username','u-company','u-addr','u-phone'].forEach(id=>{
