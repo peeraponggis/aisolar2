@@ -103,6 +103,18 @@ button{cursor:pointer}
 .lead-add-row{display:flex;gap:6px;align-items:center}
 .lead-add-row input{flex:1;padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);outline:none}
 .lead-add-row input:focus{border-color:var(--primary)}
+.team-list{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
+.team-row{display:grid;grid-template-columns:18px 22px 110px minmax(160px,1.4fr) minmax(120px,1.1fr) minmax(110px,.9fr) auto;gap:6px;align-items:center}
+.team-row input{min-width:0;padding:6px 8px;border:1.5px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:13px;outline:none}
+.team-row input:focus{border-color:var(--primary)}
+.tm-item{background:var(--accent2);border-radius:10px;padding:5px 8px}
+.tm-item.tm-over-top{box-shadow:0 -3px 0 var(--primary)}.tm-item.tm-over-bot{box-shadow:0 3px 0 var(--primary)}
+.tm-item.tm-dragging{opacity:.4}
+.tm-h{cursor:grab;color:var(--text-m);font-size:16px;user-select:none}
+.tm-n{background:var(--primary);color:#fff;border-radius:50%;width:20px;height:20px;display:grid;place-items:center;font-size:11px;font-weight:700}
+.tm-x{background:none;border:none;cursor:pointer;color:var(--danger);font-size:18px;line-height:1;padding:0 4px}
+.team-hint{font-size:11px;color:var(--text-m);margin-top:6px}
+@media(max-width:700px){.team-row{grid-template-columns:18px 22px 1fr 1fr}.team-row>*:nth-child(n+5){grid-column:3/-1}}
 
 /* MULTI-SELECT LEAD */
 .lead-multi{position:relative;min-width:110px}
@@ -368,13 +380,17 @@ span.flatpickr-weekday{color:var(--primary)!important;font-weight:600}
               <label>ที่อยู่โครงการ</label>
               <input id="p-addr" type="text" placeholder="ที่อยู่โครงการ"/>
             </div>
-            <div class="form-group">
-              <label>ผู้ติดต่อ (Contact)</label>
-              <input id="p-contact" type="text"/>
+            <div class="form-group" style="grid-column:1/-1">
+              <label>ผู้ประสานงานของโครงการ (ชื่อ สกุล โทร.)</label>
+              <input id="p-contact" type="text" placeholder="เช่น คุณสมชาย ใจดี โทร. 08x-xxx-xxxx"/>
             </div>
             <div class="form-group">
               <label>ผู้จัดการโครงการ (Project Manager)</label>
               <input id="p-pm" type="text"/>
+            </div>
+            <div class="form-group">
+              <label>โทร. ผู้จัดการโครงการ</label>
+              <input id="p-pm-phone" type="text"/>
             </div>
             <div class="form-group">
               <label>วันเริ่มต้นโครงการ</label>
@@ -398,11 +414,17 @@ span.flatpickr-weekday{color:var(--primary)!important;font-weight:600}
         </div>
         <div class="card">
           <div class="card-title">ทีมงานโครงการ (Project Team)</div>
-          <div class="leads-wrap" id="leads-tags"></div>
-          <div class="lead-add-row">
-            <input id="new-lead" placeholder="ชื่อผู้รับผิดชอบ" onkeydown="if(event.key==='Enter')addLead()"/>
+          <div id="leads-tags" class="team-list"></div>
+          <div class="lead-add-row team-row">
+            <span></span><span></span>
+            <input id="tm-prefix" list="prefix-list" placeholder="คำนำหน้า"/>
+            <input id="new-lead" placeholder="ชื่อ-สกุล" onkeydown="if(event.key==='Enter')addLead()"/>
+            <input id="tm-pos" placeholder="ตำแหน่ง" onkeydown="if(event.key==='Enter')addLead()"/>
+            <input id="tm-phone" placeholder="โทร." onkeydown="if(event.key==='Enter')addLead()"/>
             <button class="btn btn-outline btn-sm" onclick="addLead()">+ เพิ่ม</button>
           </div>
+          <datalist id="prefix-list"><option value="นาย"><option value="นาง"><option value="นางสาว"><option value="ดร."><option value="ผศ.ดร."><option value="รศ.ดร."><option value="ว่าที่ร.ต."><option value="คุณ"></datalist>
+          <div class="team-hint">⠿ ลากขึ้น-ลงเพื่อสลับลำดับ (PDF เรียงตามนี้) · แก้ข้อมูลในแถวได้เลย</div>
         </div>
       </div>
 
@@ -608,7 +630,7 @@ span.flatpickr-weekday{color:var(--primary)!important;font-weight:600}
   <!-- Sidebar -->
   <nav id="sidebar">
     <div class="sb-header">
-      <div class="sb-logo">📋 Project Plan<span>โปรแกรมบริหารโครงการ</span><span class="sb-ver">v1.4.3 · ปรับปรุง 2 พ.ย. 2569</span></div>
+      <div class="sb-logo">📋 Project Plan<span>โปรแกรมบริหารโครงการ</span><span class="sb-ver">v1.5.0 · ปรับปรุง 2 พ.ย. 2569</span></div>
     </div>
     <div class="sb-nav">
       <button class="sb-btn active" data-menu="1" onclick="showMenu(1)"><span class="icon">⚙️</span>ตั้งค่าผู้ใช้งาน</button>
@@ -727,6 +749,19 @@ function drawPdfLogo(doc,logo,x,y,h){
   doc.setFillColor(255,255,255); doc.roundedRect(x,y,iw+1.6,h,1,1,'F');
   doc.addImage(logo.data,'PNG',x+0.8,y+(h-ih)/2,iw,ih);
   return iw+1.6+1;
+}
+// ท้ายกระดาษ PDF: โลโก้ + บริษัท | ที่อยู่ | โทร. (y = บรรทัดตัวอักษร · ตั้งสี/ขนาดตัวอักษรก่อนเรียก)
+function drawPdfFootInfo(doc,logo,x,y,maxW){
+  const u=appData.user;
+  const lw=drawPdfLogo(doc,logo,x,y-4.2,6);
+  doc.text([u.company,u.address,u.phone].filter(Boolean).join(' | '),x+lw,y,{maxWidth:maxW-lw});
+}
+// หัวตาราง Gantt: เดือนบรรทัดบน ปีบรรทัดล่าง
+function drawPdfMonthHead(doc,label,cx,y,maxW){
+  const i=label.lastIndexOf(' ');
+  doc.setFontSize(6.5);
+  doc.text(i>0?label.slice(0,i):label,cx,y+4,{align:'center',maxWidth:maxW});
+  if(i>0) doc.text(label.slice(i+1),cx,y+7.5,{align:'center',maxWidth:maxW});
 }
 function pdfDateRange(p){
   const n=calDays(p.startDate,p.endDate);
@@ -1050,7 +1085,7 @@ function loadStore(){
   try{ sampleItems=JSON.parse(localStorage.getItem(SAMPLE_KEY))||deepCopySample(DEFAULT_SAMPLE); }
   catch(e){ sampleItems=deepCopySample(DEFAULT_SAMPLE); }
   syncCurrentProject();
-  appData.projects.forEach(p=>migrateLeadsToArray(p));
+  appData.projects.forEach(p=>{ migrateLeadsToArray(p); ensureTeam(p); });
 }
 function saveStore(){
   if(currentProject){
@@ -1196,8 +1231,8 @@ function importUserJSON(inp){
    MENU 2 — PROJECT INFO
 ═══════════════════════════════════════════ */
 function blankProject(){
-  return {id:uuid(),projectName:'',address:'',contact:'',projectManager:'',
-    leads:[],startDate:'',endDate:'',workDays:0,notes:'',items:[],
+  return {id:uuid(),projectName:'',address:'',contact:'',projectManager:'',projectManagerPhone:'',
+    team:[],leads:[],startDate:'',endDate:'',workDays:0,notes:'',items:[],
     reportEnabled:false,weeklyReports:[]};
 }
 function newProject(){
@@ -1237,10 +1272,12 @@ function initProjectDatePickers(){
 }
 function fillProjectForm(){
   if(!currentProject) return;
+  fillProjectForm.done=true;
   document.getElementById('p-name').value=currentProject.projectName||'';
   document.getElementById('p-addr').value=currentProject.address||'';
   document.getElementById('p-contact').value=currentProject.contact||'';
   document.getElementById('p-pm').value=currentProject.projectManager||'';
+  document.getElementById('p-pm-phone').value=currentProject.projectManagerPhone||'';
   initProjectDatePickers();
   setDatePicker('p-start',currentProject.startDate);
   setDatePicker('p-end',currentProject.endDate);
@@ -1260,10 +1297,12 @@ function onProjectDateChange(){
 }
 function collectProjectForm(){
   if(!currentProject) currentProject=blankProject();
+  if(!fillProjectForm.done) return;
   currentProject.projectName=document.getElementById('p-name').value.trim();
   currentProject.address=document.getElementById('p-addr').value.trim();
   currentProject.contact=document.getElementById('p-contact').value.trim();
   currentProject.projectManager=document.getElementById('p-pm').value.trim();
+  currentProject.projectManagerPhone=document.getElementById('p-pm-phone').value.trim();
   currentProject.startDate=getDateISO('p-start');
   currentProject.endDate=getDateISO('p-end');
   currentProject.notes=document.getElementById('p-notes').value;
@@ -1297,6 +1336,7 @@ function loadProjectJSON(inp){
       if(p.reportEnabled===undefined) p.reportEnabled=false;
       currentProject=p;
       migrateLeadsToArray(p);
+      ensureTeam(p);
       appData.currentProjectId=p.id;
       const idx=appData.projects.findIndex(x=>x.id===p.id);
       if(idx>=0) appData.projects[idx]=p; else appData.projects.push(p);
@@ -1311,27 +1351,113 @@ function loadProjectJSON(inp){
   inp.value='';
 }
 
-/* LEADS MANAGEMENT */
+/* LEADS MANAGEMENT — ทีมงาน {prefix,name,position,phone} · leads = ชื่อ-สกุล ตามลำดับทีม */
+const NAME_PREFIXES=['ผศ.ดร.','รศ.ดร.','ศ.ดร.','ว่าที่ร.ต.','นางสาว','น.ส.','นาง','นาย','ดร.'];
+function splitPrefix(full){
+  const s=(full||'').trim();
+  const pf=NAME_PREFIXES.find(x=>s.startsWith(x)&&s.length>x.length);
+  return pf?{prefix:pf,name:s.slice(pf.length).trim()}:{prefix:'',name:s};
+}
+function teamFullName(t){ return (t.prefix||'')+(t.name||''); }
+// สร้าง/ซ่อมรายชื่อทีม: ข้อมูลเก่ามีแค่ leads (ชื่อรวมคำนำหน้า) → แยกคำนำหน้า และตัดคำนำหน้าในช่องผู้รับผิดชอบของงาน
+function ensureTeam(p){
+  if(!p) return;
+  if(!Array.isArray(p.team)) p.team=[];
+  const names=new Set(p.team.map(t=>t.name));
+  const canon=n=>names.has(n)?n:splitPrefix(n).name;
+  const addName=full=>{ if(names.has(full)) return; const sp=splitPrefix(full); if(sp.name&&!names.has(sp.name)){ p.team.push({prefix:sp.prefix,name:sp.name,position:'',phone:''}); names.add(sp.name); } };
+  (p.leads||[]).forEach(addName);
+  (p.items||[]).forEach(m=>{
+    m.lead=normalizeLeadArray(m.lead).map(canon); m.lead.forEach(addName);
+    (m.subItems||[]).forEach(s=>{ s.lead=normalizeLeadArray(s.lead).map(canon); s.lead.forEach(addName); });
+  });
+  p.leads=p.team.map(t=>t.name);
+}
 function renderLeadsTags(){
-  const leads=(currentProject&&currentProject.leads)||[];
+  const team=(currentProject&&currentProject.team)||[];
   const wrap=document.getElementById('leads-tags');
   if(!wrap) return;
-  wrap.innerHTML=leads.map((l,i)=>
-    `<span class="lead-tag">${esc(l)}<button onclick="removeLead(${i})" title="ลบ">×</button></span>`
+  wrap.innerHTML=team.map((t,i)=>
+    `<div class="team-row tm-item" data-i="${i}"><span class="tm-h" title="ลากเพื่อสลับลำดับ">⠿</span><span class="tm-n">${i+1}</span>`+
+    `<input list="prefix-list" value="${esc(t.prefix||'')}" placeholder="คำนำหน้า" onchange="updateTeam(${i},'prefix',this.value)"/>`+
+    `<input value="${esc(t.name||'')}" placeholder="ชื่อ-สกุล" onchange="updateTeam(${i},'name',this.value)"/>`+
+    `<input value="${esc(t.position||'')}" placeholder="ตำแหน่ง" onchange="updateTeam(${i},'position',this.value)"/>`+
+    `<input value="${esc(t.phone||'')}" placeholder="โทร." onchange="updateTeam(${i},'phone',this.value)"/>`+
+    `<button class="tm-x" onclick="removeLead(${i})" title="ลบ">×</button></div>`
   ).join('');
+  bindTeamDrag(wrap);
+}
+function bindTeamDrag(wrap){
+  if(wrap._dragBound) return; wrap._dragBound=true;
+  let from=-1;
+  const clear=()=>wrap.querySelectorAll('.tm-over-top,.tm-over-bot').forEach(el=>el.classList.remove('tm-over-top','tm-over-bot'));
+  wrap.addEventListener('mousedown',e=>{ const h=e.target.closest('.tm-h'); if(h) h.parentElement.draggable=true; });
+  wrap.addEventListener('dragstart',e=>{
+    const row=e.target.closest('.tm-item'); if(!row||!row.draggable){ e.preventDefault(); return; }
+    from=+row.dataset.i; row.classList.add('tm-dragging');
+    e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain','team');
+    e.stopPropagation();
+  });
+  wrap.addEventListener('dragover',e=>{
+    if(from<0) return; e.preventDefault(); e.stopPropagation();
+    const row=e.target.closest('.tm-item'); clear(); if(!row) return;
+    const r=row.getBoundingClientRect();
+    row.classList.add(e.clientY<r.top+r.height/2?'tm-over-top':'tm-over-bot');
+  });
+  wrap.addEventListener('drop',e=>{
+    if(from<0) return; e.preventDefault(); e.stopPropagation();
+    const row=e.target.closest('.tm-item'); const above=row&&row.classList.contains('tm-over-top');
+    clear();
+    if(row){ let to=+row.dataset.i+(above?0:1); if(to>from) to--; moveTeam(from,to); }
+    from=-1;
+  });
+  wrap.addEventListener('dragend',()=>{ clear(); from=-1; wrap.querySelectorAll('.tm-item').forEach(el=>{ el.draggable=false; el.classList.remove('tm-dragging'); }); });
+}
+function teamChanged(){
+  currentProject.leads=currentProject.team.map(t=>t.name);
+  saveStore(); renderLeadsTags(); renderTaskTable();
+}
+function moveTeam(from,to){
+  const team=currentProject.team;
+  if(from===to||from<0||to<0||to>=team.length) return;
+  team.splice(to,0,team.splice(from,1)[0]);
+  teamChanged();
+}
+function updateTeam(i,field,val){
+  const t=currentProject&&currentProject.team&&currentProject.team[i]; if(!t) return;
+  val=val.trim();
+  if(field==='name'){
+    const old=t.name;
+    if(!val){ toast('⚠️ ต้องมีชื่อ-สกุล'); renderLeadsTags(); return; }
+    if(val!==old&&currentProject.team.some(x=>x.name===val)){ toast('⚠️ มีชื่อนี้ในทีมแล้ว'); renderLeadsTags(); return; }
+    const ren=arr=>(arr||[]).map(n=>n===old?val:n);
+    (currentProject.items||[]).forEach(m=>{ m.lead=ren(m.lead); (m.subItems||[]).forEach(s=>s.lead=ren(s.lead)); });
+  }
+  t[field]=val;
+  teamChanged();
 }
 function addLead(){
-  const inp=document.getElementById('new-lead');
-  const val=inp.value.trim(); if(!val) return;
+  const g=id=>document.getElementById(id);
+  let name=g('new-lead').value.trim(); if(!name) return;
+  let prefix=g('tm-prefix').value.trim();
+  if(!prefix){ const sp=splitPrefix(name); prefix=sp.prefix; name=sp.name; }
   if(!currentProject) currentProject=blankProject();
-  if(!currentProject.leads) currentProject.leads=[];
-  if(!currentProject.leads.includes(val)){ currentProject.leads.push(val); renderLeadsTags(); }
-  inp.value='';
+  if(!currentProject.team) ensureTeam(currentProject);
+  if(currentProject.team.some(t=>t.name===name)){ toast('⚠️ มีชื่อนี้ในทีมแล้ว'); return; }
+  currentProject.team.push({prefix,name,position:g('tm-pos').value.trim(),phone:g('tm-phone').value.trim()});
+  ['tm-prefix','new-lead','tm-pos','tm-phone'].forEach(id=>g(id).value='');
+  teamChanged();
+  g('tm-prefix').focus();
 }
 function removeLead(i){
-  if(!currentProject||!currentProject.leads) return;
-  currentProject.leads.splice(i,1);
-  renderLeadsTags();
+  if(!currentProject||!currentProject.team||!currentProject.team[i]) return;
+  const name=currentProject.team[i].name, items=currentProject.items||[];
+  const used=items.reduce((n,m)=>n+(m.lead||[]).includes(name)+(m.subItems||[]).filter(s=>(s.lead||[]).includes(name)).length,0);
+  if(used&&!confirm(`"${name}" เป็นผู้รับผิดชอบอยู่ ${used} งาน\nลบออกจากทีม และเอาชื่อออกจากงานเหล่านั้นด้วย?`)) return;
+  const drop=arr=>(arr||[]).filter(n=>n!==name);
+  items.forEach(m=>{ m.lead=drop(m.lead); (m.subItems||[]).forEach(s=>s.lead=drop(s.lead)); });
+  currentProject.team.splice(i,1);
+  teamChanged();
 }
 function normalizeLeadArray(lead){
   if(!lead) return [];
@@ -2274,6 +2400,7 @@ function importPlanTable(aoa){
   const leads=new Set(currentProject.leads||[]);
   items.forEach(m=>{ m.lead.forEach(l=>leads.add(l)); m.subItems.forEach(s=>s.lead.forEach(l=>leads.add(l))); });
   currentProject.leads=[...leads];
+  ensureTeam(currentProject);
   renumberItems();
   recalcProjectDatesFromItems();
   appData.currentProjectId=currentProject.id;
@@ -2425,6 +2552,56 @@ function buildMonths(pStart,pEnd){
 /* ═══════════════════════════════════════════
    PDF EXPORT (GANTT)
 ═══════════════════════════════════════════ */
+// หน้าปก PDF แผนงาน: ซ้าย = รายละเอียดโครงการ + ข้อมูลบริษัท · ขวา = ผู้รับผิดชอบโครงการ
+function drawPlanCover(doc,p,u,logo,{margin,pageW,pageH}){
+  const usableW=pageW-2*margin, cx=pageW/2;
+  let y=margin+10;
+  if(logo){
+    let h=22, w=h*logo.ratio; if(w>70){ w=70; h=w/logo.ratio; }
+    doc.addImage(logo.data,'PNG',cx-w/2,margin+4,w,h);
+    y=margin+4+h+8;
+  }
+  doc.setFont('Sarabun','normal'); doc.setFontSize(12); doc.setTextColor(110,110,110);
+  doc.text('แผนงานโครงการ (Project Plan)',cx,y,{align:'center'}); y+=10;
+  doc.setFont('Sarabun','bold'); doc.setFontSize(20); doc.setTextColor(46,125,50);
+  doc.splitTextToSize(p.projectName||'-',usableW-40).forEach(l=>{ doc.text(l,cx,y,{align:'center'}); y+=8.5; });
+  doc.setFont('Sarabun','normal'); doc.setFontSize(12); doc.setTextColor(60,60,60);
+  if(p.startDate&&p.endDate) doc.text(pdfDateRange(p),cx,y,{align:'center'});
+  y+=8;
+  const lh=5.4, gap=8, colW=(usableW-gap)/2;
+  // กล่องหัวข้อ: rows = [[label,value]] หรือ [[c1,c2,c3,c4]] พร้อมความกว้างคอลัมน์
+  function box(x,top,title,rows,widths){
+    doc.setFontSize(10);
+    const cells=rows.map(r=>r.map((t,i)=>doc.splitTextToSize(String(t||'—'),widths[i]-2)));
+    const hts=cells.map(c=>Math.max(...c.map(l=>l.length))*lh);
+    const h=10+hts.reduce((a,b)=>a+b,0)+3;
+    doc.setDrawColor(165,214,167); doc.setLineWidth(0.3); doc.roundedRect(x,top,colW,h,2,2,'S'); doc.setLineWidth(0.2);
+    doc.setFont('Sarabun','bold'); doc.setFontSize(11); doc.setTextColor(46,125,50);
+    doc.text(title,x+4,top+6.5);
+    let ry=top+12.5;
+    doc.setFont('Sarabun','normal'); doc.setFontSize(10);
+    cells.forEach((c,ri)=>{
+      let cx2=x+4;
+      c.forEach((lines,ci)=>{ doc.setTextColor(...(ci===0&&widths.length===2?[110,110,110]:[40,40,40])); doc.text(lines,cx2,ry,{lineHeightFactor:1.5}); cx2+=widths[ci]; });
+      ry+=hts[ri];
+    });
+    return top+h;
+  }
+  const kv=[50,colW-58];
+  const pm=[p.projectManager,p.projectManagerPhone?'โทร. '+p.projectManagerPhone:''].filter(Boolean).join(' ');
+  const cd=calDays(p.startDate,p.endDate);
+  let ly=box(margin,y,'รายละเอียดโครงการ',[
+    ['ที่อยู่โครงการ',p.address],
+    ['ผู้ประสานงานของโครงการ',p.contact],
+    ['ผู้จัดการโครงการ',pm],
+    ['ระยะเวลาโครงการ',cd?`${cd} วัน (วันทำงาน ${p.workDays||0} วัน)`:'']
+  ],kv);
+  box(margin,ly+5,'ข้อมูลบริษัท',[['บริษัท',u.company],['ที่อยู่',u.address],['โทร.',u.phone]],kv);
+  const team=p.team||[];
+  const tw=[8,47,34,colW-97];
+  box(margin+colW+gap,y,'ผู้รับผิดชอบโครงการ',
+    team.length?team.map((t,i)=>[`${i+1}.`,teamFullName(t),t.position||'-',t.phone?'โทร. '+t.phone:'-']):[[' ','ยังไม่ได้กรอกทีมงานโครงการ',' ',' ']],tw);
+}
 async function exportGanttPDF(){
   if(!currentProject){ toast('❌ ยังไม่มีโครงการ'); return; }
   collectProjectForm();
@@ -2457,35 +2634,30 @@ async function exportGanttPDF(){
   allRows.forEach(r=>{ if(r.type==='main'&&curGroup.length>0){groups.push([...curGroup]);curGroup=[];} curGroup.push(r); });
   if(curGroup.length>0) groups.push(curGroup);
 
-  const maxRowsPP=Math.floor(usableH/rowH);
-  let totalPages=1, rowCount=0;
-  groups.forEach(g=>{ if(rowCount>0&&rowCount+g.length>maxRowsPP){totalPages++;rowCount=0;} rowCount+=g.length; });
-
   const logo=await getPdfLogo();
-  function drawHeader(doc,pn){
+  function drawHeader(doc){
     doc.setFillColor(46,125,50); doc.rect(margin,margin,usableW,10,'F');
-    const lw=drawPdfLogo(doc,logo,margin,margin,10);
     doc.setTextColor(255,255,255); doc.setFont('Sarabun','bold'); doc.setFontSize(11);
-    doc.text(p.projectName||'Schedule Project',margin+2+lw,margin+7);
+    doc.text(p.projectName||'Schedule Project',margin+2,margin+7);
     doc.setFont('Sarabun','normal'); doc.setFontSize(8);
     doc.text(`${pdfDateRange(p)}  |  PM: ${p.projectManager||''}`,pageW-margin-2,margin+7,{align:'right'});
     // Column headers
     let x=margin; const y=margin+12;
     doc.setFillColor(200,232,200); doc.rect(x,y,usableW,rowH,'F');
     doc.setTextColor(27,94,32); doc.setFont('Sarabun','bold'); doc.setFontSize(7.5);
-    const hdrs=[['Item',cols.item],['คำอธิบาย',cols.desc],['Lead',cols.lead],['วันเริ่ม',cols.start],['วันสิ้นสุด',cols.end],['วันทำงาน',cols.wd],['%',cols.pct],['Gantt',ganttW]];
+    const hdrs=[['Item',cols.item],['คำอธิบาย',cols.desc],['Lead',cols.lead],['วันเริ่ม',cols.start],['วันสิ้นสุด',cols.end],['วันทำงาน',cols.wd],['%',cols.pct]];
     hdrs.forEach(([lbl,w])=>{ doc.text(lbl,x+1,y+6.5,{maxWidth:w-1}); x+=w; });
     if(ganttW>0&&months.length>0){
       const gx=margin+dataW, mw=ganttW/months.length;
-      months.forEach((m,i)=>{ doc.setFontSize(6.5); doc.text(m.label,gx+i*mw+mw/2,y+6.5,{align:'center',maxWidth:mw-0.5}); });
+      months.forEach((m,i)=>drawPdfMonthHead(doc,m.label,gx+i*mw+mw/2,y,mw-0.5));
     }
   }
   function drawFooter(doc,pn,tot){
     const fy=pageH-margin-footH+3;
     doc.setDrawColor(160,200,160); doc.line(margin,fy,pageW-margin,fy);
     doc.setTextColor(100,100,100); doc.setFont('Sarabun','normal'); doc.setFontSize(8);
-    const ft=`${u.fullName||''}${u.company?' | '+u.company:''}${u.address?' | '+u.address:''}${u.phone?' | '+u.phone:''}`;
-    doc.text(ft,margin,fy+5,{maxWidth:usableW-35});
+    if(pn>1) drawPdfFootInfo(doc,logo,margin,fy+5,usableW-35);
+    else doc.text('วันที่พิมพ์ '+thaiDate(localISO(new Date())),margin,fy+5);
     doc.text(`หน้า ${pn}/${tot}`,pageW-margin,fy+5,{align:'right'});
     }
   function drawRow(doc,r,y){
@@ -2497,7 +2669,7 @@ async function exportGanttPDF(){
     let x=margin; const pl=isMain?0:3;
     doc.text(o.itemNo||'',x+1,y+6.5,{maxWidth:cols.item-1}); x+=cols.item;
     doc.text((o.description||'').slice(0,38),x+1+pl,y+6.5,{maxWidth:cols.desc-2}); x+=cols.desc;
-    doc.text(leadStr(o.lead),x+1,y+6.5,{maxWidth:cols.lead-1}); x+=cols.lead;
+    doc.text(isMain?leadStr(o.lead):'',x+1,y+6.5,{maxWidth:cols.lead-1}); x+=cols.lead;
     doc.text(thaiDate(o.startDate),x+1,y+6.5,{maxWidth:cols.start-1}); x+=cols.start;
     doc.text(thaiDate(o.endDate),x+1,y+6.5,{maxWidth:cols.end-1}); x+=cols.end;
     doc.text(String(o.workDays||0),x+1,y+6.5,{maxWidth:cols.wd-1}); x+=cols.wd;
@@ -2512,24 +2684,32 @@ async function exportGanttPDF(){
     }
   }
 
-  let curY=margin+headH+1, pg=1;
-  drawHeader(doc,pg);
+  drawPlanCover(doc,p,u,logo,{margin,pageW,pageH,footH});
+  doc.addPage();
+  let curY=margin+headH+1;
+  drawHeader(doc);
   for(const g of groups){
     if(curY>margin+headH+1&&curY+g.length*rowH>pageH-margin-footH){
-      drawFooter(doc,pg,totalPages); doc.addPage(); pg++; curY=margin+headH+1; drawHeader(doc,pg);
+      doc.addPage(); curY=margin+headH+1; drawHeader(doc);
     }
     g.forEach(r=>{ drawRow(doc,r,curY); curY+=rowH; });
   }
-  drawFooter(doc,pg,totalPages);
   if(p.notes){
+    // บันทึกเพิ่มเติม: ตัวอักษร 10 · ระยะบรรทัด 1.6 เท่า · เว้นระหว่างย่อหน้า · ขึ้นหน้าใหม่เมื่อเต็ม
+    const lh=10*0.3528*1.6, bottom=pageH-margin-footH;
     doc.addPage();
     doc.setTextColor(46,125,50); doc.setFont('Sarabun','bold'); doc.setFontSize(12);
     doc.text('บันทึกเพิ่มเติม',margin,margin+8);
-    doc.setTextColor(60,60,60); doc.setFont('Sarabun','normal'); doc.setFontSize(9);
-    const lines=doc.splitTextToSize(p.notes,usableW);
-    doc.text(lines,margin,margin+16);
-    drawFooter(doc,pg+1,totalPages+1);
+    doc.setTextColor(60,60,60); doc.setFont('Sarabun','normal'); doc.setFontSize(10);
+    let ny=margin+17;
+    p.notes.split(/\r?\n/).forEach(para=>{
+      const lines=para.trim()?doc.splitTextToSize(para,usableW):[''];
+      lines.forEach(ln=>{ if(ny>bottom){ doc.addPage(); doc.setTextColor(60,60,60); doc.setFont('Sarabun','normal'); doc.setFontSize(10); ny=margin+8; } doc.text(ln,margin,ny); ny+=lh; });
+      ny+=lh*0.4;
+    });
   }
+  const tot=doc.getNumberOfPages();
+  for(let i=1;i<=tot;i++){ doc.setPage(i); drawFooter(doc,i,tot); }
   const fn=makeExportName('3.ProjPlan','pdf');
   await previewAndSavePDF(doc, fn);
 }
@@ -2596,10 +2776,10 @@ async function exportSCurvePDF(){
   const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
   setupThaiFont(doc);
   const margin=13, pageW=297, pageH=210;
+  const logo=await getPdfLogo();
   doc.setFillColor(46,125,50); doc.rect(margin,margin,pageW-2*margin,10,'F');
-  const lw=drawPdfLogo(doc,await getPdfLogo(),margin,margin,10);
   doc.setTextColor(255,255,255); doc.setFont('Sarabun','bold'); doc.setFontSize(12);
-  doc.text('S-Curve — '+(p.projectName||''),margin+2+lw,margin+7);
+  doc.text('S-Curve — '+(p.projectName||''),margin+2,margin+7);
   doc.setFont('Sarabun','normal'); doc.setFontSize(8);
   doc.text(`${pdfDateRange(p)}  |  PM: ${p.projectManager||''}`,pageW-margin-2,margin+7,{align:'right'});
   const canvas=document.getElementById('scurve-canvas');
@@ -2608,7 +2788,7 @@ async function exportSCurvePDF(){
   const fy=pageH-margin-8;
   doc.setDrawColor(160,200,160); doc.line(margin,fy-2,pageW-margin,fy-2);
   doc.setTextColor(100,100,100); doc.setFont('Sarabun','normal'); doc.setFontSize(8);
-  doc.text(`${u.fullName||''}${u.company?' | '+u.company:''}${u.phone?' | '+u.phone:''}`,margin,fy+2,{maxWidth:pageW-2*margin-35});
+  drawPdfFootInfo(doc,logo,margin,fy+2,pageW-2*margin-35);
   doc.text('หน้า 1/1',pageW-margin,fy+2,{align:'right'});
   const fn=makeExportName('3.S_Curve','pdf');
   await previewAndSavePDF(doc, fn);
@@ -2828,10 +3008,10 @@ async function exportWeeklyPDF(){
   const u=appData.user, margin=15, pageW=210, pageH=297;
   const usableW=pageW-2*margin;
   // Header
+  const logo=await getPdfLogo();
   doc.setFillColor(46,125,50); doc.rect(margin,margin,usableW,10,'F');
-  const lw=drawPdfLogo(doc,await getPdfLogo(),margin,margin,10);
   doc.setTextColor(255,255,255); doc.setFont('Sarabun','bold'); doc.setFontSize(11);
-  doc.text(`Weekly Report - ${p.projectName||''}`,margin+2+lw,margin+7);
+  doc.text(`Weekly Report - ${p.projectName||''}`,margin+2,margin+7);
   doc.setFont('Sarabun','normal'); doc.setFontSize(8);
   doc.text(`สัปดาห์ที่ ${week.weekNo}: ${thaiDate(week.startDate)} – ${thaiDate(week.endDate)}`,pageW-margin-2,margin+7,{align:'right'});
   // Table via autoTable
@@ -2854,7 +3034,7 @@ async function exportWeeklyPDF(){
   if(week.summary){ doc.setFontSize(9); doc.text('สรุป: '+week.summary,margin,fy,{maxWidth:usableW}); fy+=10; }
   // Footer
   doc.setFontSize(8); doc.setTextColor(120,120,120);
-  doc.text(`${u.fullName||''}${u.company?' | '+u.company:''}`,margin,pageH-margin);
+  drawPdfFootInfo(doc,logo,margin,pageH-margin,usableW-30);
   doc.text('หน้า 1/1',pageW-margin,pageH-margin,{align:'right'});
   const fn=makeExportName('4.Week('+week.weekNo+')','pdf');
   await previewAndSavePDF(doc, fn);
@@ -3009,10 +3189,10 @@ async function exportDailyPDF(wid,dateISO){
   setupThaiFont(doc);
   const u=appData.user, margin=15, pageW=210, pageH=297;
   const usableW=pageW-2*margin;
+  const logo=await getPdfLogo();
   doc.setFillColor(46,125,50); doc.rect(margin,margin,usableW,10,'F');
-  const lw=drawPdfLogo(doc,await getPdfLogo(),margin,margin,10);
   doc.setTextColor(255,255,255); doc.setFont('Sarabun','bold'); doc.setFontSize(11);
-  doc.text(`Daily Report — ${thaiDate(dateISO)}`,margin+2+lw,margin+7);
+  doc.text(`Daily Report — ${thaiDate(dateISO)}`,margin+2,margin+7);
   doc.setFont('Sarabun','normal'); doc.setFontSize(8);
   doc.text(p.projectName||'',pageW-margin-2,margin+7,{align:'right'});
   const rows=dr.activities.map(a=>[a.taskDesc,a.plannedPct+'%',a.actualPct+'%',a.remarks]);
@@ -3021,7 +3201,7 @@ async function exportDailyPDF(wid,dateISO){
   let fy=doc.lastAutoTable.finalY+6;
   if(dr.notes){ doc.setFontSize(9); doc.text('บันทึก: '+dr.notes,margin,fy,{maxWidth:usableW}); }
   doc.setFontSize(8); doc.setTextColor(120,120,120);
-  doc.text(`${u.fullName||''}${u.company?' | '+u.company:''}`,margin,pageH-margin);
+  drawPdfFootInfo(doc,logo,margin,pageH-margin,usableW-30);
   doc.text('หน้า 1/1',pageW-margin,pageH-margin,{align:'right'});
   const fn=makeDailyName('pdf',dateISO,week.weekNo);
   await previewAndSavePDF(doc, fn);
@@ -3162,22 +3342,21 @@ async function exportKickOffPDF(){
   const logo=await getPdfLogo();
   function drawKOHeader(pg){
     doc.setFillColor(46,125,50); doc.rect(margin,margin,usableW,10,'F');
-    const lw=drawPdfLogo(doc,logo,margin,margin,10);
     doc.setTextColor(255,255,255); doc.setFont('Sarabun','bold'); doc.setFontSize(11);
-    doc.text('Kick Off Plan & S-Curve — '+(p.projectName||''),margin+2+lw,margin+7);
+    doc.text('Kick Off Plan & S-Curve — '+(p.projectName||''),margin+2,margin+7);
     doc.setFont('Sarabun','normal'); doc.setFontSize(8);
     doc.text(pdfDateRange(p),pageW-margin-2,margin+7,{align:'right'});
     let x=margin; const y=margin+12;
     doc.setFillColor(200,232,200); doc.rect(x,y,usableW,rowH,'F');
     doc.setTextColor(27,94,32); doc.setFont('Sarabun','bold'); doc.setFontSize(7.5);
-    [['Item',cols.item],['คำอธิบาย',cols.desc],['Lead',cols.lead],['แผน%',cols.planPct],['ผล%',cols.actPct],['Gantt',ganttW]].forEach(([lbl,w])=>{ doc.text(lbl,x+1,y+6.5,{maxWidth:w-1}); x+=w; });
-    if(ganttW>0) months.forEach((m,i)=>{ doc.setFontSize(6.5); doc.text(m.label,margin+dataW+i*ganttW/months.length+ganttW/months.length/2,y+6.5,{align:'center',maxWidth:ganttW/months.length-1}); });
+    [['Item',cols.item],['คำอธิบาย',cols.desc],['Lead',cols.lead],['แผน%',cols.planPct],['ผล%',cols.actPct]].forEach(([lbl,w])=>{ doc.text(lbl,x+1,y+6.5,{maxWidth:w-1}); x+=w; });
+    if(ganttW>0) months.forEach((m,i)=>drawPdfMonthHead(doc,m.label,margin+dataW+i*ganttW/months.length+ganttW/months.length/2,y,ganttW/months.length-1));
   }
   function drawKOFooter(pg,tot){
     const fy=pageH-margin-footH+3;
     doc.setDrawColor(160,200,160); doc.line(margin,fy,pageW-margin,fy);
     doc.setTextColor(100,100,100); doc.setFont('Sarabun','normal'); doc.setFontSize(8);
-    doc.text(`${u.fullName||''}${u.company?' | '+u.company:''}`,margin,fy+5,{maxWidth:usableW-35});
+    drawPdfFootInfo(doc,logo,margin,fy+5,usableW-35);
     doc.text(`หน้า ${pg}/${tot}`,pageW-margin,fy+5,{align:'right'});
     }
   function drawKORow(r,y){
@@ -3190,7 +3369,7 @@ async function exportKickOffPDF(){
     let x=margin; const pl=isMain?0:3;
     doc.text(o.itemNo||'',x+1,y+6.5,{maxWidth:cols.item-1}); x+=cols.item;
     doc.text((o.description||'').slice(0,38),x+1+pl,y+6.5,{maxWidth:cols.desc-2}); x+=cols.desc;
-    doc.text(leadStr(o.lead),x+1,y+6.5,{maxWidth:cols.lead-1}); x+=cols.lead;
+    doc.text(isMain?leadStr(o.lead):'',x+1,y+6.5,{maxWidth:cols.lead-1}); x+=cols.lead;
     doc.text(pPct+'%',x+1,y+6.5,{maxWidth:cols.planPct-1}); x+=cols.planPct;
     doc.text(String(o.percentDone||0)+'%',x+1,y+6.5,{maxWidth:cols.actPct-1}); x+=cols.actPct;
     if(ganttW>0&&pStart&&pEnd&&totalMs>0&&o.startDate&&o.endDate){
@@ -3421,13 +3600,13 @@ const HELP=[
     result:['ทุกการแก้ไขบันทึกในเบราว์เซอร์อัตโนมัติ','แผนงาน / S-Curve / รายงาน ใช้ข้อมูลจากที่นี่'],
     note:['นำเข้า XLSX/CSV จะแทนที่รายการงานเดิมทั้งหมด (ข้อมูลโครงการไม่ถูกแตะ)','ควรกด 💾 บันทึกโครงการ เก็บไฟล์ไว้เป็นระยะ']},
   {sel:'.card-title',match:'รายละเอียดโครงการ',title:'ข้อมูลโครงการ',
-    todo:['กรอกชื่อโครงการ ที่อยู่ ผู้ติดต่อ ผู้จัดการโครงการ','เลือกวันเริ่มต้นโครงการ (และวันสิ้นสุดโดยประมาณ)'],
-    result:['วันเริ่มต้นโครงการ = วันเริ่มของงานแรกเสมอ — เปลี่ยนแล้วรายการงานทั้งหมดเลื่อนตามเมื่อเปิดแท็บรายการงาน','จำนวนวันโครงการ (ตามปฏิทิน) และจำนวนวันทำงาน (จ–ศ) คำนวณให้'],
+    todo:['กรอกชื่อโครงการ ที่อยู่ ผู้ประสานงานของโครงการ (ชื่อ สกุล โทร.) ผู้จัดการโครงการ + โทร.','เลือกวันเริ่มต้นโครงการ (และวันสิ้นสุดโดยประมาณ)'],
+    result:['ข้อมูลนี้แสดงในหน้าปก PDF แผนงาน','วันเริ่มต้นโครงการ = วันเริ่มของงานแรกเสมอ — เปลี่ยนแล้วรายการงานทั้งหมดเลื่อนตามเมื่อเปิดแท็บรายการงาน','จำนวนวันโครงการ (ตามปฏิทิน) และจำนวนวันทำงาน (จ–ศ) คำนวณให้'],
     note:['วันสิ้นสุดและวันทำงานถูกปรับตามรายการงานอัตโนมัติ (ใช้งานที่จบช้าที่สุด งานขนานไม่นับซ้ำ)']},
   {sel:'.card-title',match:'ทีมงานโครงการ',title:'ทีมงานโครงการ',
-    todo:['พิมพ์ชื่อ แล้วกด + เพิ่ม · กด × เพื่อลบ'],
-    result:['รายชื่อนี้ให้เลือกในช่อง "ผู้รับผิดชอบ" ของรายการงาน'],
-    note:['นำเข้า XLSX/CSV ที่มีชื่อใหม่ ระบบเพิ่มชื่อให้เอง']},
+    todo:['กรอก คำนำหน้า · ชื่อ-สกุล · ตำแหน่ง · โทร. แล้วกด + เพิ่ม','แก้ข้อมูลในแถวได้เลย · กด × เพื่อลบ','ลาก ⠿ ขึ้น-ลง เพื่อสลับลำดับ'],
+    result:['ชื่อ-สกุล (ไม่มีคำนำหน้า) ให้เลือกในช่อง "ผู้รับผิดชอบ" ของรายการงาน','หน้าปก PDF แผนงานแสดง "ผู้รับผิดชอบโครงการ" ทุกคนตามลำดับนี้'],
+    note:['แก้ชื่อ-สกุลแล้ว ชื่อในรายการงานเปลี่ยนตามให้เอง','นำเข้า XLSX/CSV ที่มีชื่อใหม่ ระบบเพิ่มชื่อให้เอง']},
   {sel:'.card-title',match:'รายการตัวอย่าง',title:'รายการตัวอย่าง',
     todo:['ลากหัวข้อ/รายการย่อยไปวางในตารางรายการงาน หรือคลิก ➕','📤 ส่งทั้งหมด = เพิ่มตัวอย่างทั้งหมดเข้าตาราง','ลากแถวจากตารางงานมาวางกรอบล่าง เพื่อเก็บเป็นตัวอย่างใช้ครั้งหน้า','📂 / 💾 นำเข้า–ส่งออกรายการตัวอย่าง (JSON/CSV)'],
     result:['ได้แถวงานใหม่ในตาราง (สร้างใหม่ ไม่ใช่ย้าย)'],
@@ -3511,6 +3690,8 @@ loadStore();
 injectHelp();
 document.getElementById('sb-username').textContent='👤 '+(appData.user.username||'admin');
 renderMenu1Fields();
+// เติมฟอร์มโครงการตั้งแต่เปิดโปรแกรม: สั่ง PDF/บันทึกทั้งหมดก่อนเข้าหน้าตั้งค่าโครงการ ต้องไม่อ่านฟอร์มว่างไปทับข้อมูล
+if(currentProject){ fillProjectForm(); renderLeadsTags(); }
 ['u-name','u-username','u-company','u-addr','u-phone'].forEach(id=>{
   document.getElementById(id).addEventListener('change',()=>{ if(collectUserForm()) saveStore(); });
 });
