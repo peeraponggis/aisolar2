@@ -370,6 +370,10 @@ span.flatpickr-weekday{color:var(--primary)!important;font-weight:600}
               <span id="p-end-th" class="text-muted" style="display:none"></span>
             </div>
             <div class="form-group">
+              <label>จำนวนวันโครงการ (ตามปฏิทิน)</label>
+              <div class="readonly-val" id="p-caldays">—</div>
+            </div>
+            <div class="form-group">
               <label>จำนวนวันทำงาน (WorkDays)</label>
               <div class="readonly-val" id="p-workdays">—</div>
             </div>
@@ -587,7 +591,7 @@ span.flatpickr-weekday{color:var(--primary)!important;font-weight:600}
   <!-- Sidebar -->
   <nav id="sidebar">
     <div class="sb-header">
-      <div class="sb-logo">📋 Project Plan<span>โปรแกรมบริหารโครงการ</span><span class="sb-ver">v1.3.0 · ปรับปรุง 2 พ.ย. 2569</span></div>
+      <div class="sb-logo">📋 Project Plan<span>โปรแกรมบริหารโครงการ</span><span class="sb-ver">v1.3.1 · ปรับปรุง 2 พ.ย. 2569</span></div>
     </div>
     <div class="sb-nav">
       <button class="sb-btn active" data-menu="1" onclick="showMenu(1)"><span class="icon">⚙️</span>ตั้งค่าผู้ใช้งาน</button>
@@ -1199,6 +1203,7 @@ function fillProjectForm(){
   setDatePicker('p-end',currentProject.endDate);
   document.getElementById('p-start-th').textContent=thaiDate(currentProject.startDate);
   document.getElementById('p-end-th').textContent=thaiDate(currentProject.endDate);
+  document.getElementById('p-caldays').textContent=calDays(currentProject.startDate,currentProject.endDate)+' วัน';
   document.getElementById('p-workdays').textContent=(currentProject.workDays||0)+' วัน';
   document.getElementById('p-notes').value=currentProject.notes||'';
 }
@@ -1208,6 +1213,7 @@ function onProjectDateChange(){
   if(currentProject){ currentProject.startDate=s; currentProject.endDate=e; }
   document.getElementById('p-start-th').textContent=thaiDate(s);
   document.getElementById('p-end-th').textContent=thaiDate(e);
+  document.getElementById('p-caldays').textContent=calDays(s,e)+' วัน';
 }
 function collectProjectForm(){
   if(!currentProject) currentProject=blankProject();
