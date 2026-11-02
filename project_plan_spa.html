@@ -393,6 +393,10 @@ span.flatpickr-weekday{color:var(--primary)!important;font-weight:600}
               <input id="p-pm-phone" type="text"/>
             </div>
             <div class="form-group">
+              <label>ขนาดระบบ (kWp)</label>
+              <input id="p-kwp" type="text" inputmode="decimal" placeholder="เช่น 990.05"/>
+            </div>
+            <div class="form-group">
               <label>วันเริ่มต้นโครงการ</label>
               <input id="p-start" type="text" class="thai-date-input" readonly placeholder="เลือกวันที่"/>
               <span id="p-start-th" class="text-muted" style="display:none"></span>
@@ -630,7 +634,7 @@ span.flatpickr-weekday{color:var(--primary)!important;font-weight:600}
   <!-- Sidebar -->
   <nav id="sidebar">
     <div class="sb-header">
-      <div class="sb-logo">📋 Project Plan<span>โปรแกรมบริหารโครงการ</span><span class="sb-ver">v1.5.0 · ปรับปรุง 2 พ.ย. 2569</span></div>
+      <div class="sb-logo">📋 Project Plan<span>โปรแกรมบริหารโครงการ</span><span class="sb-ver">v1.5.1 · ปรับปรุง 2 พ.ย. 2569</span></div>
     </div>
     <div class="sb-nav">
       <button class="sb-btn active" data-menu="1" onclick="showMenu(1)"><span class="icon">⚙️</span>ตั้งค่าผู้ใช้งาน</button>
@@ -1007,32 +1011,44 @@ function validateDateContinuity(){
     +(info.length?`<details class="dn-info"><summary>ℹ️ งานขนาน/เว้นช่วง ${info.length} รายการ — ทำได้ตามปกติ วันเริ่มของแถวเหล่านี้ปักไว้ 📌 ไม่เลื่อนตามแถวก่อนหน้า (คลิกดู)</summary>${ul(info)}</details>`:'');
 }
 
-/* File name: projectName_ThaiDate_HHmm.ext */
-function makeFileName(ext){
+/* ชื่อไฟล์: ชื่อโครงการ (ตัดคำทั่วไป) + kWp + วันที่ไทยแบบสั้น + เวลา เช่น เอส พี เอ็ม อาหารสัตว์ รง.4_990.05kWp_2พ.ย.2569_1530 */
+const KWP_RE=/([\d,]+(?:\.\d+)?)\s*kWp/i;
+function projectKwp(p){
+  if(!p) return '';
+  if(p.kwp) return String(p.kwp).replace(/[,\s]/g,'');
+  const m=(p.projectName||'').match(KWP_RE);
+  return m?m[1].replace(/,/g,''):'';
+}
+function fileProjectName(p){
+  let n=(p&&p.projectName)||'โครงการ';
+  n=n.replace(KWP_RE,'');
+  ['ห้างหุ้นส่วนจำกัด','ห้างหุ้นส่วน','(มหาชน)','มหาชน','บริษัท','บจก.','หจก.','จำกัด','ขนาดกำลังการผลิต'].forEach(w=>{ n=n.split(w).join(' '); });
+  n=n.replace(/[\\\/:*?"<>|()[\]{}]/g,' ').replace(/\s+/g,' ').trim();
+  if(n.length>80) n=n.substring(0,80).trim();
+  return n||'โครงการ';
+}
+function fileDate(d){
+  d=d||new Date();
+  return d.getDate()+d.toLocaleDateString('th-TH',{month:'short'})+(d.getFullYear()+543);
+}
+function fileDateTime(){
   const now=new Date();
-  const pname=(currentProject&&currentProject.projectName)||'โครงการ';
-  const datePart=now.toLocaleDateString('th-TH',{day:'numeric',month:'long',year:'numeric'});
-  const h=String(now.getHours()).padStart(2,'0');
-  const m=String(now.getMinutes()).padStart(2,'0');
-  const safe=pname.replace(/[\\/:*?"<>|]/g,'_');
-  return `${safe}_${datePart}_${h}${m}.${ext}`;
+  return fileDate(now)+'_'+String(now.getHours()).padStart(2,'0')+String(now.getMinutes()).padStart(2,'0');
+}
+function fileProjectPart(){
+  const k=projectKwp(currentProject);
+  return fileProjectName(currentProject)+(k?'_'+k+'kWp':'');
+}
+function makeFileName(ext){
+  return `${fileProjectPart()}_${fileDateTime()}.${ext}`;
 }
 function makeExportName(prefix, ext){
-  const now=new Date();
-  const pname=(currentProject&&currentProject.projectName)||'โครงการ';
-  const datePart=now.toLocaleDateString('th-TH',{day:'numeric',month:'long',year:'numeric'});
-  const h=String(now.getHours()).padStart(2,'0');
-  const m=String(now.getMinutes()).padStart(2,'0');
-  const safe=pname.replace(/[\\\/:*?"<>|()[\]]/g,'').replace(/\s+/g,' ').trim().substring(0,60).trim();
-  return `${prefix}_${safe}_${datePart}_${h}${m}.${ext}`;
+  return `${prefix}_${fileProjectPart()}_${fileDateTime()}.${ext}`;
 }
 function makeDailyName(ext, dateISO, weekNo){
   const now=new Date();
-  const h=String(now.getHours()).padStart(2,'0');
-  const m=String(now.getMinutes()).padStart(2,'0');
-  const dPart=thaiDate(dateISO).replace(/\s/g,'');
-  const safe=(currentProject&&currentProject.projectName||'โครงการ').replace(/[\/:*?"<>|]/g,'_');
-  return `5.Daily(${dPart}_${h}${m})_Week(${weekNo})_${safe}.${ext}`;
+  const hm=String(now.getHours()).padStart(2,'0')+String(now.getMinutes()).padStart(2,'0');
+  return `5.Daily(${fileDate(new Date(dateISO+'T00:00:00'))}_${hm})_Week(${weekNo})_${fileProjectPart()}.${ext}`;
 }
 
 /* Save file to local disk — uses File System Access API (Chrome 86+) with fallback to <a> download */
@@ -1200,8 +1216,7 @@ async function exportUserJSON(){
   if(!collectUserForm()) return;
   saveStore();
   document.getElementById('sb-username').textContent='👤 '+appData.user.username;
-  const now=new Date();
-  const fn='1.'+appData.user.username+'_'+now.toLocaleDateString('th-TH',{day:'numeric',month:'long',year:'numeric'})+'_'+String(now.getHours()).padStart(2,'0')+String(now.getMinutes()).padStart(2,'0')+'.json';
+  const fn='1.'+appData.user.username+'_'+fileDateTime()+'.json';
   await saveLocalFile(new Blob([JSON.stringify(userForExport(),null,2)],{type:'application/json'}),fn);
 }
 function importUserJSON(inp){
@@ -1231,7 +1246,7 @@ function importUserJSON(inp){
    MENU 2 — PROJECT INFO
 ═══════════════════════════════════════════ */
 function blankProject(){
-  return {id:uuid(),projectName:'',address:'',contact:'',projectManager:'',projectManagerPhone:'',
+  return {id:uuid(),projectName:'',address:'',contact:'',projectManager:'',projectManagerPhone:'',kwp:'',
     team:[],leads:[],startDate:'',endDate:'',workDays:0,notes:'',items:[],
     reportEnabled:false,weeklyReports:[]};
 }
@@ -1278,6 +1293,7 @@ function fillProjectForm(){
   document.getElementById('p-contact').value=currentProject.contact||'';
   document.getElementById('p-pm').value=currentProject.projectManager||'';
   document.getElementById('p-pm-phone').value=currentProject.projectManagerPhone||'';
+  document.getElementById('p-kwp').value=projectKwp(currentProject);
   initProjectDatePickers();
   setDatePicker('p-start',currentProject.startDate);
   setDatePicker('p-end',currentProject.endDate);
@@ -1303,6 +1319,7 @@ function collectProjectForm(){
   currentProject.contact=document.getElementById('p-contact').value.trim();
   currentProject.projectManager=document.getElementById('p-pm').value.trim();
   currentProject.projectManagerPhone=document.getElementById('p-pm-phone').value.trim();
+  currentProject.kwp=document.getElementById('p-kwp').value.replace(/[,\s]/g,'').replace(/kwp/i,'');
   currentProject.startDate=getDateISO('p-start');
   currentProject.endDate=getDateISO('p-end');
   currentProject.notes=document.getElementById('p-notes').value;
@@ -1311,8 +1328,7 @@ function saveProject(){
   collectProjectForm();
   saveStore();
   toast('✅ บันทึกโครงการแล้ว');
-  const now=new Date();
-  const fn='2.ตั้งค่าโครงการ_'+now.toLocaleDateString('th-TH',{day:'numeric',month:'long',year:'numeric'})+'_'+String(now.getHours()).padStart(2,'0')+String(now.getMinutes()).padStart(2,'0')+'.json';
+  const fn=makeExportName('2.ตั้งค่าโครงการ','json');
   saveLocalFile(new Blob([JSON.stringify(currentProject,null,2)],{type:'application/json'}),fn);
 }
 function loadProjectJSON(inp){
@@ -1646,7 +1662,7 @@ function addAllSamplesToTask(){
 
 /* Export sample list as JSON */
 async function exportSampleJSON(){
-  const fn='รายการตัวอย่าง_'+new Date().toLocaleDateString('th-TH').replace(/\//g,'-')+'.json';
+  const fn='รายการตัวอย่าง_'+fileDateTime()+'.json';
   const blob=new Blob([JSON.stringify(sampleItems,null,2)],{type:'application/json'});
   await saveLocalFile(blob,fn);
 }
@@ -3601,7 +3617,7 @@ const HELP=[
     note:['นำเข้า XLSX/CSV จะแทนที่รายการงานเดิมทั้งหมด (ข้อมูลโครงการไม่ถูกแตะ)','ควรกด 💾 บันทึกโครงการ เก็บไฟล์ไว้เป็นระยะ']},
   {sel:'.card-title',match:'รายละเอียดโครงการ',title:'ข้อมูลโครงการ',
     todo:['กรอกชื่อโครงการ ที่อยู่ ผู้ประสานงานของโครงการ (ชื่อ สกุล โทร.) ผู้จัดการโครงการ + โทร.','เลือกวันเริ่มต้นโครงการ (และวันสิ้นสุดโดยประมาณ)'],
-    result:['ข้อมูลนี้แสดงในหน้าปก PDF แผนงาน','วันเริ่มต้นโครงการ = วันเริ่มของงานแรกเสมอ — เปลี่ยนแล้วรายการงานทั้งหมดเลื่อนตามเมื่อเปิดแท็บรายการงาน','จำนวนวันโครงการ (ตามปฏิทิน) และจำนวนวันทำงาน (จ–ศ) คำนวณให้'],
+    result:['ข้อมูลนี้แสดงในหน้าปก PDF แผนงาน','ชื่อไฟล์ที่บันทึก = ชื่อโครงการ (ตัดคำ บริษัท/จำกัด/ขนาดกำลังการผลิต) + ขนาดระบบ kWp + วันที่ + เวลา','วันเริ่มต้นโครงการ = วันเริ่มของงานแรกเสมอ — เปลี่ยนแล้วรายการงานทั้งหมดเลื่อนตามเมื่อเปิดแท็บรายการงาน','จำนวนวันโครงการ (ตามปฏิทิน) และจำนวนวันทำงาน (จ–ศ) คำนวณให้'],
     note:['วันสิ้นสุดและวันทำงานถูกปรับตามรายการงานอัตโนมัติ (ใช้งานที่จบช้าที่สุด งานขนานไม่นับซ้ำ)']},
   {sel:'.card-title',match:'ทีมงานโครงการ',title:'ทีมงานโครงการ',
     todo:['กรอก คำนำหน้า · ชื่อ-สกุล · ตำแหน่ง · โทร. แล้วกด + เพิ่ม','แก้ข้อมูลในแถวได้เลย · กด × เพื่อลบ','ลาก ⠿ ขึ้น-ลง เพื่อสลับลำดับ'],
