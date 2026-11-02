@@ -586,7 +586,7 @@ span.flatpickr-weekday{color:var(--primary)!important;font-weight:600}
   <!-- Sidebar -->
   <nav id="sidebar">
     <div class="sb-header">
-      <div class="sb-logo">📋 Project Plan<span>โปรแกรมบริหารโครงการ</span><span class="sb-ver">v1.1.1</span></div>
+      <div class="sb-logo">📋 Project Plan<span>โปรแกรมบริหารโครงการ</span><span class="sb-ver">v1.1.2 · ปรับปรุง 2 พ.ย. 2569</span></div>
     </div>
     <div class="sb-nav">
       <button class="sb-btn active" data-menu="1" onclick="showMenu(1)"><span class="icon">⚙️</span>ตั้งค่าผู้ใช้งาน</button>
@@ -2011,11 +2011,8 @@ function renderTaskTable(){
         const iso=toISO(sel[0]);
         const type=c.dataset.type, mainId=c.dataset.mainId, subId=c.dataset.subId||null, field=c.dataset.field;
         c.setAttribute('data-val',iso);
-        window._taskDateFp.close();
+        if(window._taskDateFp.isOpen) window._taskDateFp.close();
         updateField(type,mainId,subId,field,iso);
-        window._taskDateCell=null;
-      },
-      onClose:function(){
         window._taskDateCell=null;
       }
     });
