@@ -608,7 +608,7 @@ span.flatpickr-weekday{color:var(--primary)!important;font-weight:600}
   <!-- Sidebar -->
   <nav id="sidebar">
     <div class="sb-header">
-      <div class="sb-logo">📋 Project Plan<span>โปรแกรมบริหารโครงการ</span><span class="sb-ver">v1.4.2 · ปรับปรุง 2 พ.ย. 2569</span></div>
+      <div class="sb-logo">📋 Project Plan<span>โปรแกรมบริหารโครงการ</span><span class="sb-ver">v1.4.3 · ปรับปรุง 2 พ.ย. 2569</span></div>
     </div>
     <div class="sb-nav">
       <button class="sb-btn active" data-menu="1" onclick="showMenu(1)"><span class="icon">⚙️</span>ตั้งค่าผู้ใช้งาน</button>
@@ -727,6 +727,10 @@ function drawPdfLogo(doc,logo,x,y,h){
   doc.setFillColor(255,255,255); doc.roundedRect(x,y,iw+1.6,h,1,1,'F');
   doc.addImage(logo.data,'PNG',x+0.8,y+(h-ih)/2,iw,ih);
   return iw+1.6+1;
+}
+function pdfDateRange(p){
+  const n=calDays(p.startDate,p.endDate);
+  return `${thaiDate(p.startDate)} — ${thaiDate(p.endDate)}${n?` (${n} วัน)`:''}`;
 }
 function setupThaiFont(doc){
   doc.addFileToVFS('Sarabun-Regular.ttf', SARABUN_NORMAL);
@@ -2464,7 +2468,7 @@ async function exportGanttPDF(){
     doc.setTextColor(255,255,255); doc.setFont('Sarabun','bold'); doc.setFontSize(11);
     doc.text(p.projectName||'Schedule Project',margin+2+lw,margin+7);
     doc.setFont('Sarabun','normal'); doc.setFontSize(8);
-    doc.text(`${thaiDate(p.startDate)} — ${thaiDate(p.endDate)}  |  PM: ${p.projectManager||''}  |  ${p.workDays||0} วันทำงาน`,pageW-margin-2,margin+7,{align:'right'});
+    doc.text(`${pdfDateRange(p)}  |  PM: ${p.projectManager||''}`,pageW-margin-2,margin+7,{align:'right'});
     // Column headers
     let x=margin; const y=margin+12;
     doc.setFillColor(200,232,200); doc.rect(x,y,usableW,rowH,'F');
@@ -2597,7 +2601,7 @@ async function exportSCurvePDF(){
   doc.setTextColor(255,255,255); doc.setFont('Sarabun','bold'); doc.setFontSize(12);
   doc.text('S-Curve — '+(p.projectName||''),margin+2+lw,margin+7);
   doc.setFont('Sarabun','normal'); doc.setFontSize(8);
-  doc.text(`${thaiDate(p.startDate)} — ${thaiDate(p.endDate)}  |  PM: ${p.projectManager||''}`,pageW-margin-2,margin+7,{align:'right'});
+  doc.text(`${pdfDateRange(p)}  |  PM: ${p.projectManager||''}`,pageW-margin-2,margin+7,{align:'right'});
   const canvas=document.getElementById('scurve-canvas');
   try{ doc.addImage(canvas.toDataURL('image/png'),'PNG',margin,margin+14,pageW-2*margin,pageH-2*margin-26); }
   catch(e){ doc.setTextColor(100,100,100); doc.text('ไม่สามารถแสดงกราฟได้',margin,margin+40); }
@@ -3162,7 +3166,7 @@ async function exportKickOffPDF(){
     doc.setTextColor(255,255,255); doc.setFont('Sarabun','bold'); doc.setFontSize(11);
     doc.text('Kick Off Plan & S-Curve — '+(p.projectName||''),margin+2+lw,margin+7);
     doc.setFont('Sarabun','normal'); doc.setFontSize(8);
-    doc.text(`${thaiDate(p.startDate)} — ${thaiDate(p.endDate)}`,pageW-margin-2,margin+7,{align:'right'});
+    doc.text(pdfDateRange(p),pageW-margin-2,margin+7,{align:'right'});
     let x=margin; const y=margin+12;
     doc.setFillColor(200,232,200); doc.rect(x,y,usableW,rowH,'F');
     doc.setTextColor(27,94,32); doc.setFont('Sarabun','bold'); doc.setFontSize(7.5);
