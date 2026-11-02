@@ -1840,27 +1840,27 @@ function updateField(type,mainId,subId,field,val){
     obj.startDate=val;
     if(obj.workDays>0){ obj.endDate=addWorkDays(val,obj.workDays); }
     obj.days=calDays(obj.startDate,obj.endDate);
-    if(type==='main'){ cascadeSubDates(obj); renderTaskTable(); return; }
-    if(type==='sub'){ const m=items.find(x=>x.id===mainId); if(m){ const idx=m.subItems.indexOf(obj); cascadeSubDatesFrom(m,idx); recalcMainFromSubs(m); renderTaskTable(); return; } }
+    if(type==='main'){ cascadeSubDates(obj); cascadeMainItems(items.indexOf(obj)+1); recalcProjectDatesFromItems(); saveStore(); renderTaskTable(); return; }
+    if(type==='sub'){ const m=items.find(x=>x.id===mainId); if(m){ const idx=m.subItems.indexOf(obj); cascadeSubDatesFrom(m,idx); recalcMainFromSubs(m); cascadeMainItems(items.indexOf(m)+1); recalcProjectDatesFromItems(); saveStore(); renderTaskTable(); return; } }
   } else if(field==='endDate'){
     obj.endDate=val;
     obj.days=calDays(obj.startDate,obj.endDate);
     obj.workDays=calcWorkDays(obj.startDate,obj.endDate);
-    if(type==='sub'){ const m=items.find(x=>x.id===mainId); if(m){ const idx=m.subItems.indexOf(obj); cascadeSubDatesFrom(m,idx+1); recalcMainFromSubs(m); renderTaskTable(); return; } }
-    if(type==='main'){ recalcMainFromSubs(obj); renderTaskTable(); return; }
+    if(type==='sub'){ const m=items.find(x=>x.id===mainId); if(m){ const idx=m.subItems.indexOf(obj); cascadeSubDatesFrom(m,idx+1); recalcMainFromSubs(m); cascadeMainItems(items.indexOf(m)+1); recalcProjectDatesFromItems(); saveStore(); renderTaskTable(); return; } }
+    if(type==='main'){ recalcMainFromSubs(obj); cascadeMainItems(items.indexOf(obj)+1); recalcProjectDatesFromItems(); saveStore(); renderTaskTable(); return; }
   } else if(field==='workDays'){
     obj.workDays=Math.max(0,parseInt(val)||0);
     const base=obj.startDate||pStart;
     if(obj.workDays>0) obj.endDate=addWorkDays(base,obj.workDays);
     obj.days=calDays(obj.startDate||base,obj.endDate);
-    if(type==='sub'){ const m=items.find(x=>x.id===mainId); if(m){ const idx=m.subItems.indexOf(obj); cascadeSubDatesFrom(m,idx+1); recalcMainFromSubs(m); renderTaskTable(); return; } }
-    if(type==='main'){ cascadeSubDates(obj); renderTaskTable(); return; }
+    if(type==='sub'){ const m=items.find(x=>x.id===mainId); if(m){ const idx=m.subItems.indexOf(obj); cascadeSubDatesFrom(m,idx+1); recalcMainFromSubs(m); cascadeMainItems(items.indexOf(m)+1); recalcProjectDatesFromItems(); saveStore(); renderTaskTable(); return; } }
+    if(type==='main'){ cascadeSubDates(obj); cascadeMainItems(items.indexOf(obj)+1); recalcProjectDatesFromItems(); saveStore(); renderTaskTable(); return; }
   } else if(field==='percentDone'){
     obj.percentDone=Math.min(100,Math.max(0,parseFloat(val)||0));
   } else if(field==='description'||field==='lead'){
     obj[field]=val;
   }
-  // Re-render just the affected row cells (not full re-render)
+  saveStore();
   updateRowDisplay(type,mainId,subId,obj);
 }
 
