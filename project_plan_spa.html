@@ -516,6 +516,7 @@ span.flatpickr-weekday{color:var(--primary)!important;font-weight:600}
           <button class="btn btn-success" onclick="exportGanttPDF()">📄 บันทึก PDF</button>
           <button class="btn btn-outline" onclick="exportAllData()" title="บันทึกข้อมูลทั้งหมด (JSON) นำเข้ากลับได้ครบ">💾 บันทึก</button>
           <button class="btn btn-outline" onclick="exportXLSX()">📗 บันทึก XLSX</button>
+          <button class="btn btn-outline" onclick="exportOnePagePDF()" title="แผนงานทั้งหมดในกระดาษ A4 แนวนอน 1 หน้า">📄 PDF 1 หน้า</button>
         </div>
       </div>
       <div id="gantt-project-info" class="card" style="padding:12px;margin-bottom:12px"></div>
@@ -662,7 +663,7 @@ span.flatpickr-weekday{color:var(--primary)!important;font-weight:600}
   <!-- Sidebar -->
   <nav id="sidebar">
     <div class="sb-header">
-      <div class="sb-logo">📋 Project Plan<span>โปรแกรมบริหารโครงการ</span><span class="sb-ver">v1.7.0 · ปรับปรุง 3 พ.ย. 2569</span></div>
+      <div class="sb-logo">📋 Project Plan<span>โปรแกรมบริหารโครงการ</span><span class="sb-ver">v1.7.1 · ปรับปรุง 3 พ.ย. 2569</span></div>
     </div>
     <div class="sb-nav">
       <button class="sb-btn active" data-menu="1" onclick="showMenu(1)"><span class="icon">⚙️</span>ตั้งค่าผู้ใช้งาน</button>
@@ -749,7 +750,7 @@ const DEFAULT_SAMPLE = [
    STATE
 ═══════════════════════════════════════════ */
 const STORE_KEY = 'pp_app_v3';
-const APP_VERSION = '1.7.0';
+const APP_VERSION = '1.7.1';
 const SAMPLE_KEY = 'pp_sample_v3';
 let appData = null;
 let currentProject = null;
@@ -2631,8 +2632,8 @@ async function exportXLSX(){
   const thin={style:'thin',color:{argb:'FFB4D7B4'}};
   const wb=new ExcelJS.Workbook(); wb.creator=u.company||'Project Plan';
   const ws=wb.addWorksheet('แผนงาน',{views:[{state:'frozen',xSplit:9,ySplit:4,showGridLines:false}],
-    pageSetup:{paperSize:9,orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0,printTitlesRow:'3:4',
-      margins:{left:0.4,right:0.4,top:0.5,bottom:0.6,header:0.2,footer:0.25}}});
+    pageSetup:{paperSize:9,orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:1,horizontalCentered:true,verticalCentered:true,
+      margins:{left:0.3,right:0.3,top:0.35,bottom:0.45,header:0.15,footer:0.2}}});
   ws.headerFooter.oddFooter='&L&8'+[u.company,u.address,u.phone].filter(Boolean).join(' | ').replace(/&/g,'&&')+'&R&8หน้า &P/&N';
   // คอลัมน์ A–I = ข้อมูล (B ประเภท, H วัน ซ่อนไว้ใช้ตอนนำเข้า) · J.. = สัปดาห์
   // ผู้รับผิดชอบ (D) กว้างกว่าชื่อ-สกุลที่ยาวที่สุด 2 ตัวอักษร · ชื่อละบรรทัด เฉพาะหัวข้อหลัก
@@ -2930,7 +2931,7 @@ function renderGantt(){
     html+=`<tr class="gantt-left-row" data-ri="${ri}" style="${bg}">
       <td style="padding:5px 6px;border:1px solid var(--border);color:var(--primary);font-weight:700">${o.itemNo||''}</td>
       <td style="padding:5px 6px;border:1px solid var(--border);${pl};max-width:220px">${esc(o.description)}</td>
-      <td style="padding:5px 6px;border:1px solid var(--border)">${normalizeLeadArray(o.lead).map(n=>`<div style="white-space:nowrap">${esc(n)}</div>`).join('')}</td>
+      <td style="padding:5px 6px;border:1px solid var(--border)">${isMain?normalizeLeadArray(o.lead).map(n=>`<div style="white-space:nowrap">${esc(n)}</div>`).join(''):''}</td>
       <td style="padding:5px 6px;border:1px solid var(--border);font-size:11px">${thaiDate(o.startDate)}</td>
       <td style="padding:5px 6px;border:1px solid var(--border);font-size:11px">${thaiDate(o.endDate)}</td>
       <td style="padding:5px 6px;border:1px solid var(--border);text-align:right">${o.workDays||0}</td>
@@ -3085,6 +3086,117 @@ function drawPlanCover(doc,p,u,logo,{margin,pageW,pageH}){
   const tw=[8,47,34,colW-97];
   box(margin+colW+gap,y,'ผู้รับผิดชอบโครงการ',
     team.length?team.map((t,i)=>[`${i+1}.`,teamFullName(t),t.position||'-',t.phone?'โทร. '+t.phone:'-']):[[' ','ยังไม่ได้กรอกทีมงานโครงการ',' ',' ']],tw);
+}
+/* PDF 1 หน้า A4 แนวนอน (หน้าตาแบบแผ่น แผนงาน ใน XLSX): ทุกแถว + บันทึกเพิ่มเติมในหน้าเดียว
+   ลดขนาดตัวอักษรเองจนพอดีหน้า แล้วจัดไว้กลางหน้ากระดาษ · ชื่อไฟล์ 1P_โครงการ_kWp_วันที่_เวลา.pdf */
+function shortThaiDate(iso){ return iso?new Date(iso+'T00:00:00').toLocaleDateString('th-TH',{day:'numeric',month:'short',year:'2-digit'}):''; }
+async function exportOnePagePDF(){
+  if(!currentProject){ toast('❌ ยังไม่มีโครงการ'); return; }
+  collectProjectForm();
+  toast('⏳ กำลังสร้าง PDF 1 หน้า...',5000);
+  const p=currentProject;
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+  setupThaiFont(doc);
+  const pageW=297, pageH=210, m=8, W=pageW-2*m, footH=7, PT=0.3528;
+  const rows=[]; (p.items||[]).forEach(it=>{ rows.push({type:'main',obj:it}); (it.subItems||[]).forEach(x=>rows.push({type:'sub',obj:x})); });
+  const pStart=p.startDate?new Date(p.startDate+'T00:00:00'):null, pEnd=p.endDate?new Date(p.endDate+'T00:00:00'):null;
+  const span=pStart&&pEnd?(pEnd-pStart)+86400000:0;
+  const months=span?buildMonths(pStart,pEnd):[];
+  const logo=await getPdfLogo();
+  // วางผังที่ตัวอักษร fs (pt) → ความสูงรวม (mm)
+  const layout=fs=>{
+    const LH=fs*PT*1.5, pad=fs*PT*1.4;
+    doc.setFont('Sarabun','bold'); doc.setFontSize(fs);
+    const tw=t=>doc.getTextWidth(t);
+    const names=rows.filter(r=>r.type==='main').flatMap(r=>normalizeLeadArray(r.obj.lead));
+    // คำอธิบายกว้างเท่าข้อความยาวสุด (ไม่เกิน 78 มม.) ที่เหลือให้แผนภูมิ
+    const longest=Math.max(tw('คำอธิบาย'),...rows.map(r=>{ doc.setFont('Sarabun',r.type==='main'?'bold':'normal'); return tw(r.obj.description||'')+(r.type==='main'?0:fs*PT*1.4); }));
+    doc.setFont('Sarabun','bold');
+    const cols={item:tw('7.10')+3, desc:Math.min(78,longest+2.5), lead:Math.max(tw('ผู้รับผิดชอบ'),...names.map(tw))+tw('กก')+1.5,
+      start:tw('30 พ.ย. 70')+2.5, end:tw('30 พ.ย. 70')+2.5, wd:tw('วันทำงาน')+2, pct:tw('100%')+2};
+    const L=rows.map(r=>{
+      const isMain=r.type==='main', ind=isMain?0:fs*PT*1.4;
+      doc.setFont('Sarabun',isMain?'bold':'normal');
+      const desc=pdfWrap(doc,r.obj.description,cols.desc-1.5-ind), lead=isMain?normalizeLeadArray(r.obj.lead):[];
+      return {desc,lead,ind,h:Math.max(1,desc.length,lead.length)*LH+pad};
+    });
+    doc.setFont('Sarabun','normal'); doc.setFontSize(fs+1);
+    const notes=p.notes?pdfWrap(doc,p.notes,W):[];
+    const nLH=(fs+1)*PT*1.55, notesH=notes.length?(fs+2)*PT*2.6+notes.length*nLH:0;
+    const hdrH=fs*PT*1.5*2+2.5;
+    return {fs,LH,cols,L,notes,nLH,notesH,hdrH,total:8+hdrH+L.reduce((a,x)=>a+x.h,0)+notesH};
+  };
+  const avail=pageH-2*m-footH;
+  let Lo; for(let fs=8;fs>=3;fs-=0.25){ Lo=layout(fs); if(Lo.total<=avail) break; }
+  const {fs,LH,cols,L,notes,nLH,hdrH}=Lo;
+  const dataW=Object.values(cols).reduce((a,b)=>a+b,0), gx=m+dataW, GW=W-dataW;
+  const xOf=d=>gx+(d-pStart)/span*GW;
+  let y=m+Math.max(0,(avail-Lo.total)/2);   // จัดกลางแนวตั้ง
+  // แถบหัวเขียว
+  doc.setFillColor(46,125,50); doc.rect(m,y,W,7,'F');
+  doc.setTextColor(255,255,255); doc.setFont('Sarabun','bold'); doc.setFontSize(Math.min(11,fs+3.5));
+  doc.text(p.projectName||'Schedule Project',m+2,y+4.9);
+  doc.setFont('Sarabun','normal'); doc.setFontSize(Math.min(8,fs+1.5));
+  doc.text(`${pdfDateRange(p)}  |  PM: ${p.projectManager||''}${p.projectManagerPhone?' โทร. '+p.projectManagerPhone:''}`,m+W-2,y+4.9,{align:'right'});
+  y+=8;
+  // หัวคอลัมน์ + เดือน/ปี
+  doc.setFillColor(200,232,200); doc.rect(m,y,W,hdrH,'F');
+  doc.setTextColor(27,94,32); doc.setFont('Sarabun','bold'); doc.setFontSize(fs);
+  const mid=y+hdrH/2+fs*PT*0.35;
+  let x=m;
+  [['Item',cols.item],['คำอธิบาย',cols.desc],['ผู้รับผิดชอบ',cols.lead],['วันเริ่ม',cols.start],['วันสิ้นสุด',cols.end],['วันทำงาน',cols.wd],['%',cols.pct]]
+    .forEach(([t,w],i)=>{ doc.text(t,i<2?x+1:x+w/2,mid,i<2?{}:{align:'center'}); x+=w; });
+  months.forEach(mo=>{
+    const x0=xOf(mo.rangeStart), x1=xOf(new Date(mo.rangeEnd.getTime()+86400000)), sp=mo.label.lastIndexOf(' ');
+    const [a,b]=sp>0?[mo.label.slice(0,sp),'25'+mo.label.slice(sp+1)]:[mo.label,''];
+    const half=Math.max(doc.getTextWidth(a),doc.getTextWidth(b))/2+0.5, cx=Math.min(Math.max((x0+x1)/2,gx+half),gx+GW-half);   // ไม่ล้นขอบตาราง
+    doc.text(a,cx,mid-fs*PT*0.75,{align:'center'}); if(b) doc.text(b,cx,mid+fs*PT*0.75,{align:'center'});
+  });
+  y+=hdrH;
+  const bodyTop=y;
+  // แถวงาน
+  rows.forEach((r,i)=>{
+    const o=r.obj, isMain=r.type==='main', l=L[i], h=l.h;
+    const base=n=>y+h/2-(Math.max(n,1)-1)*LH/2+fs*PT*0.35;
+    if(isMain){ doc.setFillColor(232,245,233); doc.rect(m,y,W,h,'F'); }
+    doc.setDrawColor(190,222,190); doc.setLineWidth(0.15); doc.line(m,y+h,m+W,y+h);
+    doc.setTextColor(isMain?46:70,isMain?125:70,isMain?50:70); doc.setFont('Sarabun',isMain?'bold':'normal'); doc.setFontSize(fs);
+    let cx=m;
+    doc.text(o.itemNo||'',cx+1,base(1)); cx+=cols.item;
+    l.desc.forEach((t,k)=>doc.text(t,cx+1+l.ind,base(l.desc.length)+k*LH)); cx+=cols.desc;
+    l.lead.forEach((t,k)=>doc.text(t,cx+cols.lead/2,base(l.lead.length)+k*LH,{align:'center'})); cx+=cols.lead;
+    doc.text(shortThaiDate(o.startDate),cx+cols.start/2,base(1),{align:'center'}); cx+=cols.start;
+    doc.text(shortThaiDate(o.endDate),cx+cols.end/2,base(1),{align:'center'}); cx+=cols.end;
+    doc.text(String(o.workDays||0),cx+cols.wd/2,base(1),{align:'center'}); cx+=cols.wd;
+    doc.text((o.percentDone||0)+'%',cx+cols.pct/2,base(1),{align:'center'});
+    if(span&&o.startDate&&o.endDate){
+      const s0=new Date(o.startDate+'T00:00:00'), e0=new Date(o.endDate+'T00:00:00');
+      const bx=xOf(s0), bw=Math.max(0.6,xOf(new Date(e0.getTime()+86400000))-bx), bh=Math.min(h*0.6,fs*PT*1.7), by=y+h/2-bh/2;
+      doc.setFillColor(165,214,167); doc.rect(bx,by,bw,bh,'F');
+      const pw=bw*(o.percentDone||0)/100; if(pw>0){ doc.setFillColor(76,175,80); doc.rect(bx,by,pw,bh,'F'); }
+    }
+    y+=h;
+  });
+  // เส้นแบ่งเดือน + เส้นแบ่งตาราง/แผนภูมิ
+  doc.setDrawColor(170,205,170); doc.setLineWidth(0.1);
+  months.forEach(mo=>{ const xx=xOf(mo.rangeStart); doc.line(xx,bodyTop-hdrH,xx,y); });
+  doc.setDrawColor(46,125,50); doc.setLineWidth(0.3); doc.line(gx,bodyTop-hdrH,gx,y); doc.setLineWidth(0.2);
+  // บันทึกเพิ่มเติม
+  if(notes.length){
+    y+=(fs+2)*PT*1.2;
+    doc.setTextColor(46,125,50); doc.setFont('Sarabun','bold'); doc.setFontSize(fs+2);
+    doc.text('บันทึกเพิ่มเติม',m,y+(fs+2)*PT); y+=(fs+2)*PT*1.4;
+    doc.setTextColor(60,60,60); doc.setFont('Sarabun','normal'); doc.setFontSize(fs+1);
+    notes.forEach((t,k)=>doc.text(t,m,y+(k+1)*nLH));
+  }
+  // ท้ายกระดาษ
+  const fy=pageH-m-1.5;
+  doc.setDrawColor(160,200,160); doc.line(m,fy-4.5,pageW-m,fy-4.5);
+  doc.setTextColor(100,100,100); doc.setFont('Sarabun','normal'); doc.setFontSize(7);
+  drawPdfFootInfo(doc,logo,m,fy,W-45);
+  doc.text('พิมพ์ '+thaiDate(localISO(new Date())),pageW-m,fy,{align:'right'});
+  await previewAndSavePDF(doc,makeExportName('1P','pdf'));
 }
 async function exportGanttPDF(){
   if(!currentProject){ toast('❌ ยังไม่มีโครงการ'); return; }
@@ -4127,7 +4239,7 @@ const HELP=[
     result:['เก็บไว้กับโครงการ ติดไปกับไฟล์ JSON ที่บันทึก'],
     note:['พิมพ์แล้วบันทึกอัตโนมัติ · แสดงในหน้าสุดท้ายของ PDF แผนงาน และท้ายแผ่น แผนงาน ใน XLSX']},
   {sel:'.section-title',match:'แผนงานโครงการ',title:'แผนงานโครงการ',
-    todo:['ดูอย่างเดียว — แก้ไขที่ ตั้งค่าโครงการ › รายการงาน','📄 บันทึก PDF · 💾 บันทึก (JSON ทั้งหมด) · 📗 บันทึก XLSX'],
+    todo:['ดูอย่างเดียว — แก้ไขที่ ตั้งค่าโครงการ › รายการงาน','📄 บันทึก PDF · 💾 บันทึก (JSON ทั้งหมด) · 📗 บันทึก XLSX · 📄 PDF 1 หน้า (แผนงานทั้งหมดใน A4 แนวนอนหน้าเดียว)'],
     result:['ตารางงาน + แถบช่วงเวลารายเดือน อัปเดตตามรายการงานทันที','งานขนานแสดงแถบซ้อนช่วงเวลากัน'],
     note:['📗 XLSX หน้าตาเหมือน PDF: แก้วันเริ่ม/วันสิ้นสุด/% ใน Excel แล้วแถบสีเลื่อนตาม · วันทำงานคำนวณด้วยสูตร · หัวข้อหลักสรุปวันที่จากรายการย่อย','ส่งลูกค้าแก้: 📗 บันทึก XLSX → ลูกค้าแก้แผ่นงาน "แผนงาน" (ห้ามเปลี่ยนหัวคอลัมน์) → นำกลับที่ บันทึกโครงการทั้งหมด › 📂 นำเข้าไฟล์','ลูกค้าพิมพ์วันที่แบบ 9/11/2569 (พ.ศ.) หรือ 9/11/2026 ได้']},
   {sel:'.section-title',match:'S-Curve',title:'S-Curve ความคืบหน้า',
