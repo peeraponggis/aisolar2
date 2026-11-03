@@ -663,7 +663,7 @@ span.flatpickr-weekday{color:var(--primary)!important;font-weight:600}
   <!-- Sidebar -->
   <nav id="sidebar">
     <div class="sb-header">
-      <div class="sb-logo">📋 Project Plan<span>โปรแกรมบริหารโครงการ</span><span class="sb-ver">v1.7.1 · ปรับปรุง 3 พ.ย. 2569</span></div>
+      <div class="sb-logo">📋 Project Plan<span>โปรแกรมบริหารโครงการ</span><span class="sb-ver">v1.7.2 · ปรับปรุง 4 พ.ย. 2569</span></div>
     </div>
     <div class="sb-nav">
       <button class="sb-btn active" data-menu="1" onclick="showMenu(1)"><span class="icon">⚙️</span>ตั้งค่าผู้ใช้งาน</button>
@@ -673,6 +673,7 @@ span.flatpickr-weekday{color:var(--primary)!important;font-weight:600}
       <button class="sb-btn" data-menu="5" onclick="showMenu(5)"><span class="icon">📋</span>รายงาน</button>
       <button class="sb-btn" data-menu="6" onclick="showMenu(6)"><span class="icon">📖</span>คู่มือใช้งาน</button>
       <button class="sb-btn" data-menu="7" onclick="showMenu(7)"><span class="icon">💾</span>บันทึกโครงการทั้งหมด</button>
+      <button class="sb-btn" onclick="logout()" title="บันทึกข้อมูลลงเบราว์เซอร์ แล้วกลับ ASC Studio"><span class="icon">🚪</span>ออกจากระบบ</button>
     </div>
     <div class="sb-footer">
       <label class="dark-toggle">
@@ -750,7 +751,7 @@ const DEFAULT_SAMPLE = [
    STATE
 ═══════════════════════════════════════════ */
 const STORE_KEY = 'pp_app_v3';
-const APP_VERSION = '1.7.1';
+const APP_VERSION = '1.7.2';
 const SAMPLE_KEY = 'pp_sample_v3';
 let appData = null;
 let currentProject = null;
@@ -1362,6 +1363,18 @@ function flushForms(){
   collectProjectText();
   saveStore();
   return passOk;
+}
+// ออกจากระบบ: บันทึกลงเบราว์เซอร์ (ข้อมูลยังอยู่ เปิดใหม่ทำงานต่อได้) แล้วปิดแท็บ — ปิดไม่ได้ (แท็บที่ผู้ใช้เปิดเอง) ไปหน้า ASC Studio
+const ASC_HOME='https://peeraponggis.github.io/asc/index.html';
+function logout(){
+  clearTimeout(flushTimer);
+  collectOpenDailyForm();
+  flushForms();
+  toast('✅ บันทึกแล้ว — กลับ ASC Studio');
+  setTimeout(()=>{
+    window.top.close();
+    setTimeout(()=>{ window.top.location.href=ASC_HOME; },300);
+  },600);
 }
 let flushTimer=0;
 document.addEventListener('input',e=>{ if(AUTO_SAVE_IDS.includes(e.target.id)){ clearTimeout(flushTimer); flushTimer=setTimeout(flushForms,400); } });
