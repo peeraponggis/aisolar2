@@ -117,6 +117,7 @@ button{cursor:pointer}
 .auto-val{background:var(--bg2,#f1f5f1)!important;color:var(--text-m);cursor:default}
 .fs-ask{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px}
 .fs-box{background:var(--card,#fff);color:var(--text,#222);border-radius:10px;padding:18px 20px;max-width:440px;width:100%;box-shadow:0 8px 30px rgba(0,0,0,.25);font-size:14px;line-height:1.6;word-break:break-word}
+.fs-hint{margin-top:10px;padding:8px 10px;border-radius:6px;background:#fff8e1;color:#5d4037;font-size:12.5px;line-height:1.6}
 .fs-box .btn-group{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-top:14px}
 .save-check{font-size:13px;line-height:1.9;margin:0 0 14px 0;padding-left:0;list-style:none}
 .save-check li b{color:var(--primary)}
@@ -638,7 +639,8 @@ span.flatpickr-weekday{color:var(--primary)!important;font-weight:600}
       </div>
       <div class="card" style="padding:20px;max-width:600px;margin-top:14px">
         <div class="card-title">📁 โฟลเดอร์เก็บงาน</div>
-        <p style="margin-bottom:8px;color:var(--text-m);font-size:13px">ทุกปุ่ม บันทึก/ส่งออก (PDF · JSON · CSV · XLSX) บันทึกลงโฟลเดอร์ชื่อโครงการ ภายในโฟลเดอร์หลักที่เลือกไว้</p>
+        <p style="margin-bottom:8px;color:var(--text-m);font-size:13px">ทุกปุ่ม บันทึก/ส่งออก (PDF · JSON · CSV · XLSX) บันทึกลงโฟลเดอร์ชื่อโครงการ ภายในโฟลเดอร์หลักที่เลือกไว้ (ไดรฟ์ไหนก็ได้)</p>
+        <div class="fs-hint" style="margin:0 0 12px">หลังเลือกโฟลเดอร์ เบราว์เซอร์จะถาม <b>"Allow this site to edit files?"</b> ต้องกด <b>Allow</b> — ถ้ากด Don't Allow จะบันทึกไม่ได้ (โปรแกรมจะแจ้งเตือนและให้เลือกใหม่)</div>
         <div id="save-folder-info" style="margin-bottom:12px;font-size:14px"></div>
         <div class="btn-group" style="align-items:center;flex-wrap:wrap">
           <button class="btn btn-outline btn-sm" onclick="changeRootDir()">📁 เลือก/เปลี่ยนโฟลเดอร์หลัก</button>
@@ -652,7 +654,7 @@ span.flatpickr-weekday{color:var(--primary)!important;font-weight:600}
   <!-- Sidebar -->
   <nav id="sidebar">
     <div class="sb-header">
-      <div class="sb-logo">📋 Project Plan<span>โปรแกรมบริหารโครงการ</span><span class="sb-ver">v1.6.0 · ปรับปรุง 3 พ.ย. 2569</span></div>
+      <div class="sb-logo">📋 Project Plan<span>โปรแกรมบริหารโครงการ</span><span class="sb-ver">v1.6.1 · ปรับปรุง 3 พ.ย. 2569</span></div>
     </div>
     <div class="sb-nav">
       <button class="sb-btn active" data-menu="1" onclick="showMenu(1)"><span class="icon">⚙️</span>ตั้งค่าผู้ใช้งาน</button>
@@ -739,7 +741,7 @@ const DEFAULT_SAMPLE = [
    STATE
 ═══════════════════════════════════════════ */
 const STORE_KEY = 'pp_app_v3';
-const APP_VERSION = '1.6.0';
+const APP_VERSION = '1.6.1';
 const SAMPLE_KEY = 'pp_sample_v3';
 let appData = null;
 let currentProject = null;
@@ -1080,7 +1082,8 @@ function dirStore(mode,fn){
     const rq=indexedDB.open('pp_dirs',1);
     rq.onupgradeneeded=()=>rq.result.createObjectStore('h');
     rq.onerror=()=>rej(rq.error);
-    rq.onsuccess=()=>{ const db=rq.result, tx=db.transaction('h',mode), r=fn(tx.objectStore('h'));
+    rq.onsuccess=()=>{ const db=rq.result; let tx,r;
+      try{ tx=db.transaction('h',mode); r=fn(tx.objectStore('h')); }catch(e){ db.close(); rej(e); return; }
       tx.oncomplete=()=>{ db.close(); res(r&&r.result); }; tx.onerror=()=>{ db.close(); rej(tx.error); }; };
   });
 }
@@ -1101,35 +1104,49 @@ async function pickRootDir(){
   await storeRootDir(root);
   return root;
 }
-// คืนค่า 'ok' | 'cancel' | 'fallback'
+const ALLOW_HINT='หลังเลือกโฟลเดอร์ เบราว์เซอร์จะถาม <b>"Allow this site to edit files?"</b> ต้องกด <b>Allow</b> (ปุ่มที่ไม่ได้เป็นสีเข้ม)';
+const BLOCK_HINT='ถ้าเลือกโฟลเดอร์แล้วไม่มีคำถามขึ้นเลย แปลว่าเบราว์เซอร์จำว่าไม่อนุญาตไว้: คลิกไอคอน ⓘ หน้าชื่อเว็บ › Site settings › <b>File editing</b> › Allow แล้วลองใหม่';
+// เหตุที่บันทึกไม่ได้ เป็นภาษาคน
+function saveFailReason(e){
+  if(e.name==='AbortError') return 'ยกเลิกการเลือกโฟลเดอร์ หรือกด Don\'t Allow';
+  if(e.name==='NotAllowedError'||e.name==='SecurityError') return 'เบราว์เซอร์ไม่อนุญาตให้แก้ไขไฟล์ในโฟลเดอร์นั้น';
+  if(e.name==='NotFoundError') return 'ไม่พบโฟลเดอร์หลักแล้ว (ถูกย้ายหรือลบ)';
+  return 'เขียนไฟล์ไม่ได้ ('+e.name+': '+e.message+')';
+}
+// คืนค่า 'ok' | 'cancel' | 'saveas' — บันทึกไม่ได้ต้องแจ้งเสมอ ห้ามเงียบหรือโยนไปโฟลเดอร์ดาวน์โหลดเอง
 async function saveToProjectFolder(blob,filename){
-  let root=await loadRootDir();
   const folder=projectFolderName();
-  try{
-    if(root&&await root.queryPermission({mode:'readwrite'})!=='granted'){
-      const v=await askClick(`บันทึก <b>${esc(filename)}</b><br>ลงโฟลเดอร์ 📁 <b>${esc(root.name)}\\${esc(folder)}</b>`,
-        [{label:'ยกเลิก',v:'cancel'},{label:'📁 เปลี่ยนโฟลเดอร์หลัก',v:'pick'},{label:'💾 บันทึก',v:'ok',cls:'btn-success'}]);
-      if(v==='cancel') return 'cancel';
-      if(v==='pick') root=await pickRootDir();
-      else if(await root.requestPermission({mode:'readwrite'})!=='granted') return 'cancel';
+  let root=await loadRootDir(), pick=false;
+  for(;;){
+    try{
+      if(pick){ pick=false; root=await pickRootDir(); }
+      if(root&&await root.queryPermission({mode:'readwrite'})!=='granted'){
+        const v=await askClick(`บันทึก <b>${esc(filename)}</b><br>ลงโฟลเดอร์ 📁 <b>${esc(root.name)}\\${esc(folder)}</b><div class="fs-hint">ถ้ามีคำถาม "Allow this site to edit files?" ให้กด <b>Allow</b></div>`,
+          [{label:'ยกเลิก',v:'cancel'},{label:'📁 เปลี่ยนโฟลเดอร์หลัก',v:'pick'},{label:'💾 บันทึก',v:'ok',cls:'btn-success'}]);
+        if(v==='cancel') return 'cancel';
+        if(v==='pick'){ pick=true; continue; }
+        if(await root.requestPermission({mode:'readwrite'})!=='granted') throw new DOMException('denied','NotAllowedError');
+      }
+      if(!root){
+        const v=await askClick(`เลือก <b>โฟลเดอร์หลัก</b> สำหรับเก็บงาน (เลือกครั้งเดียว) จะอยู่ไดรฟ์ไหนก็ได้<br>โปรแกรมจะสร้างโฟลเดอร์ 📁 <b>${esc(folder)}</b> ไว้ข้างใน แล้วบันทึกทุกไฟล์ของโครงการลงที่นั่น<div class="fs-hint">${ALLOW_HINT}</div>`,
+          [{label:'ยกเลิก',v:'cancel'},{label:'เลือกที่เก็บเองทุกครั้ง',v:'dialog'},{label:'📁 เลือกโฟลเดอร์หลัก',v:'pick',cls:'btn-success'}]);
+        if(v==='cancel') return 'cancel';
+        if(v==='dialog'){ setSaveMode('dialog'); return 'saveas'; }
+        pick=true; continue;
+      }
+      const dir=await root.getDirectoryHandle(folder,{create:true});
+      const fh=await dir.getFileHandle(filename,{create:true});
+      const w=await fh.createWritable(); await w.write(blob); await w.close();
+      toast(`✅ บันทึกแล้ว: ${root.name}\\${folder}\\${filename}`,5000);
+      renderSaveFolderInfo();
+      return 'ok';
+    }catch(e){
+      console.warn('save to folder',e);
+      const v=await askClick(`⚠️ <b>ยังไม่ได้บันทึก</b> ${esc(filename)}<br>สาเหตุ: ${esc(saveFailReason(e))}<div class="fs-hint">${ALLOW_HINT}<br>${BLOCK_HINT}</div>`,
+        [{label:'ยกเลิก',v:'cancel'},{label:'💾 เลือกที่เก็บไฟล์นี้เอง',v:'saveas'},{label:'📁 เลือกโฟลเดอร์หลักใหม่',v:'pick',cls:'btn-success'}]);
+      if(v!=='pick') return v;
+      pick=true;
     }
-    if(!root){
-      const v=await askClick(`เลือก <b>โฟลเดอร์หลัก</b> สำหรับเก็บงาน (เลือกครั้งเดียว)<br>โปรแกรมจะสร้างโฟลเดอร์ 📁 <b>${esc(folder)}</b> ไว้ข้างใน แล้วบันทึกทุกไฟล์ของโครงการลงที่นั่น`,
-        [{label:'ยกเลิก',v:'cancel'},{label:'เลือกที่เก็บเองทุกครั้ง',v:'dialog'},{label:'📁 เลือกโฟลเดอร์หลัก',v:'pick',cls:'btn-success'}]);
-      if(v==='cancel') return 'cancel';
-      if(v==='dialog'){ setSaveMode('dialog'); return 'fallback'; }
-      root=await pickRootDir();
-    }
-    const dir=await root.getDirectoryHandle(folder,{create:true});
-    const fh=await dir.getFileHandle(filename,{create:true});
-    const w=await fh.createWritable(); await w.write(blob); await w.close();
-    toast(`✅ บันทึกแล้ว: ${root.name}\\${folder}\\${filename}`,5000);
-    renderSaveFolderInfo();
-    return 'ok';
-  }catch(e){
-    if(e.name==='AbortError') return 'cancel';
-    console.warn('save to folder',e);
-    return 'fallback';
   }
 }
 async function renderSaveFolderInfo(){
@@ -1143,51 +1160,72 @@ async function renderSaveFolderInfo(){
 }
 async function changeRootDir(){
   if(!window.showDirectoryPicker) return;
-  try{ await pickRootDir(); setSaveMode('folder'); toast('✅ เปลี่ยนโฟลเดอร์หลักแล้ว'); }catch(e){}
-}
-/* Save file to local disk — โฟลเดอร์โครงการ → หน้าต่าง Save As (Chrome 86+) → ดาวน์โหลด */
-async function saveLocalFile(blob, filename){
-  if(window.showDirectoryPicker&&saveMode()==='folder'){
-    if(await saveToProjectFolder(blob,filename)!=='fallback') return;
+  for(;;){
+    try{ await pickRootDir(); setSaveMode('folder'); toast('✅ เปลี่ยนโฟลเดอร์หลักแล้ว'); return; }
+    catch(e){
+      console.warn('change root',e);
+      const v=await askClick(`⚠️ <b>ยังไม่ได้เปลี่ยนโฟลเดอร์หลัก</b><br>สาเหตุ: ${esc(saveFailReason(e))}<div class="fs-hint">${ALLOW_HINT}<br>${BLOCK_HINT}</div>`,
+        [{label:'ปิด',v:false},{label:'📁 ลองเลือกใหม่',v:true,cls:'btn-success'}]);
+      if(!v) return;
+    }
   }
+}
+// หน้าต่าง Save As ทีละไฟล์ — ต้องมีการคลิกนำหน้า ถ้าไม่มี (SecurityError) ถามให้คลิกก่อน
+async function saveAsDialog(blob,filename){
   const ext=filename.split('.').pop().toLowerCase();
   const mimeMap={pdf:'application/pdf',json:'application/json',csv:'text/csv',xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'};
   const mime=mimeMap[ext]||'application/octet-stream';
-  if(window.showSaveFilePicker){
+  for(let clicked=false;;){
     try{
-      const handle=await window.showSaveFilePicker({
-        suggestedName:filename,
-        types:[{description:ext.toUpperCase()+' File',accept:{[mime]:['.'+ext]}}]
-      });
+      const handle=await window.showSaveFilePicker({suggestedName:filename,types:[{description:ext.toUpperCase()+' File',accept:{[mime]:['.'+ext]}}]});
       const writable=await handle.createWritable();
-      await writable.write(blob);
-      await writable.close();
-      toast('✅ บันทึกไฟล์แล้ว: '+filename);
-      return;
-    } catch(e){
-      if(e.name==='AbortError') return; // user cancelled
+      await writable.write(blob); await writable.close();
+      toast('✅ บันทึกไฟล์แล้ว: '+handle.name,5000);
+      return 'ok';
+    }catch(e){
+      if(e.name==='AbortError') return 'cancel';
+      console.warn('save as',e);
+      if(e.name==='SecurityError'&&!clicked){
+        clicked=true;
+        if(await askClick(`บันทึก <b>${esc(filename)}</b>`,[{label:'ยกเลิก',v:false},{label:'💾 เลือกที่เก็บ',v:true,cls:'btn-success'}])) continue;
+        return 'cancel';
+      }
+      const v=await askClick(`⚠️ <b>ยังไม่ได้บันทึก</b> ${esc(filename)}<br>สาเหตุ: ${esc(saveFailReason(e))}`,
+        [{label:'ยกเลิก',v:'cancel'},{label:'⬇️ ดาวน์โหลดแทน (ลงโฟลเดอร์ดาวน์โหลดของเบราว์เซอร์)',v:'download'},{label:'💾 เลือกที่เก็บใหม่',v:'retry',cls:'btn-success'}]);
+      if(v!=='retry') return v;
     }
   }
-  // Fallback: browser download
+}
+function downloadFile(blob,filename){
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
   a.download=filename;
   a.click();
   setTimeout(()=>URL.revokeObjectURL(a.href),3000);
-  toast('✅ บันทึก: '+filename);
+  toast('⬇️ ดาวน์โหลดแล้ว: '+filename+' — อยู่ในโฟลเดอร์ดาวน์โหลดของเบราว์เซอร์',6000);
 }
-async function folderNeedsAsk(){
-  if(!window.showDirectoryPicker||saveMode()!=='folder') return false;
-  const root=await loadRootDir();
-  try{ return !root||await root.queryPermission({mode:'readwrite'})!=='granted'; }catch(e){ return true; }
+/* Save file to local disk — โฟลเดอร์โครงการ → หน้าต่าง Save As → ดาวน์โหลด (เฉพาะเบราว์เซอร์ที่ไม่มี 2 แบบแรก หรือผู้ใช้เลือกเอง) */
+async function saveLocalFile(blob, filename){
+  let r='saveas';
+  if(window.showDirectoryPicker&&saveMode()==='folder') r=await saveToProjectFolder(blob,filename);
+  if(r==='saveas') r=window.showSaveFilePicker?await saveAsDialog(blob,filename):'download';
+  if(r==='download') downloadFile(blob,filename);
+}
+// PDF: บันทึกที่ต้องมีการคลิก (ขอสิทธิ์โฟลเดอร์ / Save As) ทำก่อนเปิดแท็บดู PDF — ไม่งั้นกล่องถามไปอยู่หลังแท็บ PDF
+async function saveNeedsClick(){
+  if(window.showDirectoryPicker&&saveMode()==='folder'){
+    const root=await loadRootDir();
+    try{ return !root||await root.queryPermission({mode:'readwrite'})!=='granted'; }catch(e){ return true; }
+  }
+  return !!window.showSaveFilePicker;
 }
 async function previewAndSavePDF(doc, filename){
   const blob=new Blob([doc.output('arraybuffer')],{type:'application/pdf'});
   const url=URL.createObjectURL(blob);
-  const preview=()=>{ if(!window.open(url,'_blank')) toast('⚠️ กรุณาอนุญาต Pop-up เพื่อดู Preview'); };
-  if(await folderNeedsAsk()){ await saveLocalFile(blob, filename); preview(); }
+  const preview=()=>{ if(!window.open(url,'_blank')) askClick(`👁 เปิดดู <b>${esc(filename)}</b>?`,[{label:'ปิด',v:false},{label:'👁 เปิดดู PDF',v:true,cls:'btn-success'}]).then(v=>v&&window.open(url,'_blank')); };
+  if(await saveNeedsClick()){ await saveLocalFile(blob, filename); preview(); }
   else { preview(); await saveLocalFile(blob, filename); }
-  setTimeout(()=>URL.revokeObjectURL(url),60000);
+  setTimeout(()=>URL.revokeObjectURL(url),120000);
 }
 
 /* ═══════════════════════════════════════════
@@ -3948,7 +3986,7 @@ const HELP=[
   {sel:'.section-title',match:'บันทึกโครงการทั้งหมด',title:'บันทึกโครงการทั้งหมด',
     todo:['ตรวจรายการ ✅ ว่าข้อมูลครบ แล้วกด 💾 บันทึก JSON ทั้งหมด','📁 เลือก/เปลี่ยนโฟลเดอร์หลัก ที่ใช้เก็บไฟล์ทุกโครงการ'],
     result:['ได้ไฟล์เดียวที่มีครบ: ตั้งค่าผู้ใช้งาน (ชื่อ, บริษัท, ที่อยู่, เบอร์โทร, โลโก้) + ตั้งค่าโครงการ (ข้อมูลโครงการ, ทีมงาน, รายการงาน, บันทึกเพิ่มเติม) + รายงาน Weekly/Daily + รายการตัวอย่าง','ไม่มีรหัสผ่านในไฟล์ ส่งต่อทีมได้ปลอดภัย','Daily Report ที่เปิดค้างแต่ยังไม่กดบันทึก ถูกเก็บให้ด้วย','ทุกปุ่ม บันทึก/ส่งออก ลงโฟลเดอร์ 📁 <โฟลเดอร์หลัก>\\<ชื่อโครงการ>'],
-    note:['นำเข้าครั้งเดียวได้ครบ: ตั้งค่าโครงการ › 📂 นำเข้า JSON','นำเข้าไฟล์ของทีม = แทนที่ข้อมูลผู้ใช้/บริษัท/โลโก้ และรายการตัวอย่างในเครื่องนี้ด้วย','เก็บเฉพาะโครงการที่เปิดอยู่ (1 ไฟล์ = 1 โครงการ)','เลือกโฟลเดอร์ได้ใน Chrome/Edge บนคอมพิวเตอร์ · เบราว์เซอร์อื่นไฟล์ลงโฟลเดอร์ดาวน์โหลด','เปิดเบราว์เซอร์ใหม่ ครั้งแรกที่บันทึกจะถามยืนยันสิทธิ์โฟลเดอร์ 1 ครั้ง']}
+    note:['นำเข้าครั้งเดียวได้ครบ: ตั้งค่าโครงการ › 📂 นำเข้า JSON','นำเข้าไฟล์ของทีม = แทนที่ข้อมูลผู้ใช้/บริษัท/โลโก้ และรายการตัวอย่างในเครื่องนี้ด้วย','เก็บเฉพาะโครงการที่เปิดอยู่ (1 ไฟล์ = 1 โครงการ)','เลือกโฟลเดอร์ได้ใน Chrome/Edge บนคอมพิวเตอร์ · เบราว์เซอร์อื่นไฟล์ลงโฟลเดอร์ดาวน์โหลด','เปิดเบราว์เซอร์ใหม่ ครั้งแรกที่บันทึกจะถามยืนยันสิทธิ์โฟลเดอร์ 1 ครั้ง','หลังเลือกโฟลเดอร์ต้องกด Allow ที่คำถาม Allow this site to edit files? · ถ้าเคยกด Don’t Allow: ไอคอน ⓘ หน้าชื่อเว็บ › Site settings › File editing › Allow','บันทึกไม่สำเร็จ โปรแกรมจะแจ้งสาเหตุ และให้เลือกโฟลเดอร์ใหม่ หรือเลือกที่เก็บไฟล์นั้นเอง']}
 ];
 function helpEntry(key){ return HELP.find(h=>h.key===key&&h.title)||HELP.find(h=>h.title===key); }
 function showHelp(entry,anchor){
