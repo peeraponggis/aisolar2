@@ -228,6 +228,12 @@ span.flatpickr-weekday{color:var(--primary)!important;font-weight:600}
 .note-label{font-size:12px;font-weight:700;color:var(--text-m);margin-bottom:6px}
 
 /* TOAST */
+#pdf-viewer{position:fixed;inset:0;z-index:9000;background:rgba(40,40,40,.92);display:flex;flex-direction:column}
+#pdf-viewer .pv-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 16px;background:var(--card,#fff);box-shadow:0 2px 8px rgba(0,0,0,.3)}
+#pdf-viewer .pv-name{flex:1 1 240px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--primary)}
+#pdf-viewer .pv-info{font-size:12px;color:var(--text-m)}
+#pdf-viewer .pv-pages{flex:1;overflow:auto;padding:16px;display:flex;flex-direction:column;align-items:center;gap:14px}
+#pdf-viewer canvas{background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.5);max-width:none}
 #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(60px);background:#333;color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;opacity:0;transition:all .3s;z-index:9999;max-width:90vw;text-align:center}
 .date-pin{font-size:10px;margin-left:3px;cursor:help}
 .dn-warn{background:#fff3cd;border:1px solid #ffc107;border-radius:6px;padding:8px 12px;color:#856404;margin-bottom:6px}
@@ -654,7 +660,7 @@ span.flatpickr-weekday{color:var(--primary)!important;font-weight:600}
   <!-- Sidebar -->
   <nav id="sidebar">
     <div class="sb-header">
-      <div class="sb-logo">📋 Project Plan<span>โปรแกรมบริหารโครงการ</span><span class="sb-ver">v1.6.1 · ปรับปรุง 3 พ.ย. 2569</span></div>
+      <div class="sb-logo">📋 Project Plan<span>โปรแกรมบริหารโครงการ</span><span class="sb-ver">v1.6.2 · ปรับปรุง 3 พ.ย. 2569</span></div>
     </div>
     <div class="sb-nav">
       <button class="sb-btn active" data-menu="1" onclick="showMenu(1)"><span class="icon">⚙️</span>ตั้งค่าผู้ใช้งาน</button>
@@ -741,7 +747,7 @@ const DEFAULT_SAMPLE = [
    STATE
 ═══════════════════════════════════════════ */
 const STORE_KEY = 'pp_app_v3';
-const APP_VERSION = '1.6.1';
+const APP_VERSION = '1.6.2';
 const SAMPLE_KEY = 'pp_sample_v3';
 let appData = null;
 let currentProject = null;
@@ -1211,21 +1217,50 @@ async function saveLocalFile(blob, filename){
   if(r==='saveas') r=window.showSaveFilePicker?await saveAsDialog(blob,filename):'download';
   if(r==='download') downloadFile(blob,filename);
 }
-// PDF: บันทึกที่ต้องมีการคลิก (ขอสิทธิ์โฟลเดอร์ / Save As) ทำก่อนเปิดแท็บดู PDF — ไม่งั้นกล่องถามไปอยู่หลังแท็บ PDF
-async function saveNeedsClick(){
-  if(window.showDirectoryPicker&&saveMode()==='folder'){
-    const root=await loadRootDir();
-    try{ return !root||await root.queryPermission({mode:'readwrite'})!=='granted'; }catch(e){ return true; }
-  }
-  return !!window.showSaveFilePicker;
-}
+// PDF: บันทึกก่อน (อาจมีกล่องถามโฟลเดอร์) แล้วเปิดดูในหน้าต่างของโปรแกรม — ไม่เปิดแท็บใหม่ ส่วนเสริม PDF ของเบราว์เซอร์ (เช่น Adobe Acrobat) จึงดักไม่ได้
 async function previewAndSavePDF(doc, filename){
   const blob=new Blob([doc.output('arraybuffer')],{type:'application/pdf'});
-  const url=URL.createObjectURL(blob);
-  const preview=()=>{ if(!window.open(url,'_blank')) askClick(`👁 เปิดดู <b>${esc(filename)}</b>?`,[{label:'ปิด',v:false},{label:'👁 เปิดดู PDF',v:true,cls:'btn-success'}]).then(v=>v&&window.open(url,'_blank')); };
-  if(await saveNeedsClick()){ await saveLocalFile(blob, filename); preview(); }
-  else { preview(); await saveLocalFile(blob, filename); }
-  setTimeout(()=>URL.revokeObjectURL(url),120000);
+  await saveLocalFile(blob, filename);
+  showPdfViewer(blob, filename);
+}
+const PDFJS_URL='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
+async function showPdfViewer(blob, filename){
+  document.getElementById('pdf-viewer')?.remove();
+  const v=document.createElement('div'); v.id='pdf-viewer';
+  v.innerHTML=`<div class="pv-bar"><b class="pv-name">📄 ${esc(filename)}</b><span class="pv-info">กำลังเปิด...</span>
+    <button class="btn btn-outline btn-sm pv-zoom" data-z="-1" title="ย่อ">－</button><button class="btn btn-outline btn-sm pv-zoom" data-z="1" title="ขยาย">＋</button>
+    <button class="btn btn-outline btn-sm pv-tab" title="เปิดในแท็บใหม่ (ใช้พิมพ์)">↗ แท็บใหม่</button><button class="btn btn-success btn-sm pv-close">✕ ปิด</button></div>
+    <div class="pv-pages"></div>`;
+  document.body.appendChild(v);
+  const pages=v.querySelector('.pv-pages'), info=v.querySelector('.pv-info');
+  const close=()=>{ v.remove(); document.removeEventListener('keydown',onKey); };
+  const onKey=e=>{ if(e.key==='Escape') close(); };
+  document.addEventListener('keydown',onKey);
+  v.querySelector('.pv-close').onclick=close;
+  v.querySelector('.pv-tab').onclick=()=>{ const u=URL.createObjectURL(blob); window.open(u,'_blank'); setTimeout(()=>URL.revokeObjectURL(u),120000); };
+  try{
+    if(!window.pdfjsLib){ await loadScript(PDFJS_URL+'pdf.min.js'); pdfjsLib.GlobalWorkerOptions.workerSrc=PDFJS_URL+'pdf.worker.min.js'; }
+    const pdf=await pdfjsLib.getDocument({data:new Uint8Array(await blob.arrayBuffer())}).promise;
+    let zoom=1;
+    const render=async()=>{
+      pages.innerHTML='';
+      const w=Math.min(pages.clientWidth-48,1400)*zoom;
+      for(let i=1;i<=pdf.numPages;i++){
+        if(!v.isConnected) return;
+        const pg=await pdf.getPage(i), vp0=pg.getViewport({scale:1});
+        const scale=w/vp0.width, dpr=window.devicePixelRatio||1, vp=pg.getViewport({scale:scale*dpr});
+        const c=document.createElement('canvas'); c.width=vp.width; c.height=vp.height; c.style.width=(vp.width/dpr)+'px';
+        pages.appendChild(c);
+        await pg.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;
+        info.textContent=`${i}/${pdf.numPages} หน้า`;
+      }
+    };
+    v.querySelectorAll('.pv-zoom').forEach(b=>b.onclick=()=>{ zoom=Math.max(.5,Math.min(3,zoom+(+b.dataset.z)*.25)); render(); });
+    await render();
+  }catch(e){
+    console.warn('pdf viewer',e);
+    info.textContent='เปิดดูในโปรแกรมไม่ได้ ('+e.message+') — กด ↗ แท็บใหม่';
+  }
 }
 
 /* ═══════════════════════════════════════════
