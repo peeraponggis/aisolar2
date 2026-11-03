@@ -119,6 +119,9 @@ button{cursor:pointer}
 .fs-box{background:var(--card,#fff);color:var(--text,#222);border-radius:10px;padding:18px 20px;max-width:440px;width:100%;box-shadow:0 8px 30px rgba(0,0,0,.25);font-size:14px;line-height:1.6;word-break:break-word}
 .fs-hint{margin-top:10px;padding:8px 10px;border-radius:6px;background:#fff8e1;color:#5d4037;font-size:12.5px;line-height:1.6}
 .fs-box .btn-group{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-top:14px}
+.save-modes{display:flex;flex-direction:column;gap:6px;margin-top:12px;font-size:13px;line-height:1.5}
+.save-modes label{display:flex;gap:8px;align-items:flex-start;cursor:pointer}
+.save-modes input{margin-top:3px}
 .save-check{font-size:13px;line-height:1.9;margin:0 0 14px 0;padding-left:0;list-style:none}
 .save-check li b{color:var(--primary)}
 .team-hint{font-size:11px;color:var(--text-m);margin-top:6px}
@@ -651,7 +654,11 @@ span.flatpickr-weekday{color:var(--primary)!important;font-weight:600}
         <div id="save-folder-info" style="margin-bottom:12px;font-size:14px"></div>
         <div class="btn-group" style="align-items:center;flex-wrap:wrap">
           <button class="btn btn-outline btn-sm" onclick="changeRootDir()">📁 เลือก/เปลี่ยนโฟลเดอร์หลัก</button>
-          <label style="font-size:13px;display:flex;gap:6px;align-items:center"><input type="checkbox" id="save-dialog-chk" onchange="setSaveMode(this.checked?'dialog':'folder')"/> ถามที่เก็บทุกครั้ง (ไม่ใช้โฟลเดอร์โครงการ)</label>
+        </div>
+        <div class="save-modes" id="save-modes">
+          <label><input type="radio" name="save-mode" value="folder" onchange="setSaveMode(this.value)"/> 📁 <b>โฟลเดอร์โครงการ</b> — บันทึกลงโฟลเดอร์หลัก\ชื่อโครงการ อัตโนมัติ</label>
+          <label><input type="radio" name="save-mode" value="dialog" onchange="setSaveMode(this.value)"/> 💾 <b>ถามที่เก็บทุกครั้ง</b> — หน้าต่าง Save As ทีละไฟล์</label>
+          <label><input type="radio" name="save-mode" value="download" onchange="setSaveMode(this.value)"/> ⬇️ <b>ดาวน์โหลด</b> — ไม่ต้องขอสิทธิ์แก้ไขไฟล์ ใช้ได้เสมอ · ถ้าอยากเลือกโฟลเดอร์ ให้เปิด Ask where to save each file ที่ chrome://settings/downloads (Edge: edge://settings/downloads)</label>
         </div>
       </div>
     </div>
@@ -661,7 +668,7 @@ span.flatpickr-weekday{color:var(--primary)!important;font-weight:600}
   <!-- Sidebar -->
   <nav id="sidebar">
     <div class="sb-header">
-      <div class="sb-logo">📋 Project Plan<span>โปรแกรมบริหารโครงการ</span><span class="sb-ver">v1.6.3 · ปรับปรุง 3 พ.ย. 2569</span></div>
+      <div class="sb-logo">📋 Project Plan<span>โปรแกรมบริหารโครงการ</span><span class="sb-ver">v1.6.4 · ปรับปรุง 3 พ.ย. 2569</span></div>
     </div>
     <div class="sb-nav">
       <button class="sb-btn active" data-menu="1" onclick="showMenu(1)"><span class="icon">⚙️</span>ตั้งค่าผู้ใช้งาน</button>
@@ -748,7 +755,7 @@ const DEFAULT_SAMPLE = [
    STATE
 ═══════════════════════════════════════════ */
 const STORE_KEY = 'pp_app_v3';
-const APP_VERSION = '1.6.3';
+const APP_VERSION = '1.6.4';
 const SAMPLE_KEY = 'pp_sample_v3';
 let appData = null;
 let currentProject = null;
@@ -1107,17 +1114,22 @@ function askClick(html,buttons){
   });
 }
 async function pickRootDir(){
-  const root=await window.showDirectoryPicker({id:'pp-root',mode:'readwrite',startIn:'documents'});
+  const t0=performance.now();
+  let root;
+  try{ root=await window.showDirectoryPicker({id:'pp-root',mode:'readwrite',startIn:'documents'}); }
+  catch(e){ e.ms=Math.round(performance.now()-t0); throw e; }
   await storeRootDir(root);
   return root;
 }
 const ALLOW_HINT='หลังเลือกโฟลเดอร์ เบราว์เซอร์จะถาม <b>"Allow this site to edit files?"</b> ต้องกด <b>Allow</b> (ปุ่มที่ไม่ได้เป็นสีเข้ม)';
-const BLOCK_HINT='ถ้าเลือกโฟลเดอร์แล้วไม่มีคำถามขึ้นเลย แปลว่าเบราว์เซอร์จำว่าไม่อนุญาตไว้: คลิกไอคอน ⓘ หน้าชื่อเว็บ › Site settings › <b>File editing</b> › Allow แล้วลองใหม่';
+const BLOCK_HINT='ถ้าเลือกโฟลเดอร์แล้วไม่มีคำถามขึ้น หรือหน้าต่างปิดเองทันที แปลว่าเบราว์เซอร์ตั้งไว้ไม่ให้เว็บแก้ไขไฟล์: พิมพ์ในช่องที่อยู่ <b>chrome://settings/content/fileEditing</b> (Edge: <b>edge://settings/content/fileEditing</b>) › เลือก <b>Sites can ask to edit files</b> และลบ peeraponggis.github.io ออกจากรายการ Not allowed · หรือใช้ <b>⬇️ ดาวน์โหลด</b> ซึ่งไม่ต้องขอสิทธิ์นี้';
 // เหตุที่บันทึกไม่ได้ เป็นภาษาคน
 function saveFailReason(e){
-  if(e.name==='AbortError') return 'ยกเลิกการเลือกโฟลเดอร์ หรือกด Don\'t Allow';
-  if(e.name==='NotAllowedError'||e.name==='SecurityError') return 'เบราว์เซอร์ไม่อนุญาตให้แก้ไขไฟล์ในโฟลเดอร์นั้น';
-  if(e.name==='NotFoundError') return 'ไม่พบโฟลเดอร์หลักแล้ว (ถูกย้ายหรือลบ)';
+  const code=' ['+e.name+(e.ms!=null?' · '+e.ms+' ms':'')+']';
+  if(e.name==='AbortError'&&e.ms!=null&&e.ms<500) return 'เบราว์เซอร์ปิดหน้าต่างเลือกโฟลเดอร์เองทันที (ถูกตั้งค่าไม่ให้เว็บแก้ไขไฟล์)'+code;
+  if(e.name==='AbortError') return 'ยกเลิกการเลือกโฟลเดอร์ หรือกด Don\'t Allow'+code;
+  if(e.name==='NotAllowedError'||e.name==='SecurityError') return 'เบราว์เซอร์ไม่อนุญาตให้แก้ไขไฟล์ในโฟลเดอร์นั้น'+code;
+  if(e.name==='NotFoundError') return 'ไม่พบโฟลเดอร์หลักแล้ว (ถูกย้ายหรือลบ)'+code;
   return 'เขียนไฟล์ไม่ได้ ('+e.name+': '+e.message+')';
 }
 // คืนค่า 'ok' | 'cancel' | 'saveas' — บันทึกไม่ได้ต้องแจ้งเสมอ ห้ามเงียบหรือโยนไปโฟลเดอร์ดาวน์โหลดเอง
@@ -1151,7 +1163,7 @@ async function saveToProjectFolder(blob,filename){
     }catch(e){
       console.warn('save to folder',e);
       const v=await askClick(`⚠️ <b>ยังไม่ได้บันทึก</b> ${esc(filename)}<br>สาเหตุ: ${esc(saveFailReason(e))}<div class="fs-hint">${ALLOW_HINT}<br>${BLOCK_HINT}</div>`,
-        [{label:'ยกเลิก',v:'cancel'},{label:'💾 เลือกที่เก็บไฟล์นี้เอง',v:'saveas'},{label:'📁 เลือกโฟลเดอร์หลักใหม่',v:'pick',cls:'btn-success'}]);
+        [{label:'ยกเลิก',v:'cancel'},{label:'⬇️ ดาวน์โหลด',v:'download'},{label:'💾 เลือกที่เก็บไฟล์นี้เอง',v:'saveas'},{label:'📁 เลือกโฟลเดอร์หลักใหม่',v:'pick',cls:'btn-success'}]);
       if(v!=='pick') return v;
       pick=true;
     }
@@ -1159,12 +1171,13 @@ async function saveToProjectFolder(blob,filename){
 }
 async function renderSaveFolderInfo(){
   const el=document.getElementById('save-folder-info'); if(!el) return;
-  const chk=document.getElementById('save-dialog-chk');
-  if(!window.showDirectoryPicker){ el.innerHTML='เบราว์เซอร์นี้เลือกโฟลเดอร์ไม่ได้ — ไฟล์จะลงโฟลเดอร์ดาวน์โหลด (ใช้ Chrome หรือ Edge บนคอมพิวเตอร์เพื่อบันทึกลงโฟลเดอร์โครงการ)'; if(chk) chk.closest('label').style.display='none'; return; }
-  if(chk) chk.checked=saveMode()==='dialog';
+  const modes=document.getElementById('save-modes');
+  if(!window.showDirectoryPicker){ el.innerHTML='เบราว์เซอร์นี้เลือกโฟลเดอร์ไม่ได้ — ไฟล์จะลงโฟลเดอร์ดาวน์โหลด (ใช้ Chrome หรือ Edge บนคอมพิวเตอร์เพื่อบันทึกลงโฟลเดอร์โครงการ)'; if(modes) modes.style.display='none'; return; }
+  const m=saveMode();
+  if(modes) modes.querySelectorAll('input').forEach(i=>{ i.checked=i.value===m; });
   const root=await loadRootDir();
-  el.innerHTML=saveMode()==='dialog'?'ถามที่เก็บทุกครั้ง (ไม่ใช้โฟลเดอร์โครงการ)'
-    :root?`📁 <b>${esc(root.name)}\\${esc(projectFolderName())}</b>`:'ยังไม่ได้เลือกโฟลเดอร์หลัก — จะถามเมื่อกดบันทึกครั้งแรก';
+  el.innerHTML=m==='dialog'?'ตอนนี้: ถามที่เก็บทุกครั้ง':m==='download'?'ตอนนี้: ดาวน์โหลดของเบราว์เซอร์'
+    :root?`ตอนนี้: 📁 <b>${esc(root.name)}\\${esc(projectFolderName())}</b>`:'ยังไม่ได้เลือกโฟลเดอร์หลัก — จะถามเมื่อกดบันทึกครั้งแรก';
 }
 async function changeRootDir(){
   if(!window.showDirectoryPicker) return;
@@ -1173,8 +1186,9 @@ async function changeRootDir(){
     catch(e){
       console.warn('change root',e);
       const v=await askClick(`⚠️ <b>ยังไม่ได้เปลี่ยนโฟลเดอร์หลัก</b><br>สาเหตุ: ${esc(saveFailReason(e))}<div class="fs-hint">${ALLOW_HINT}<br>${BLOCK_HINT}</div>`,
-        [{label:'ปิด',v:false},{label:'📁 ลองเลือกใหม่',v:true,cls:'btn-success'}]);
-      if(!v) return;
+        [{label:'ปิด',v:'close'},{label:'⬇️ ใช้การดาวน์โหลดแทน',v:'download'},{label:'📁 ลองเลือกใหม่',v:'pick',cls:'btn-success'}]);
+      if(v==='download'){ setSaveMode('download'); toast('✅ ใช้การดาวน์โหลดของเบราว์เซอร์'); }
+      if(v!=='pick') return;
     }
   }
 }
@@ -1200,7 +1214,7 @@ async function saveAsDialog(blob,filename){
         return 'cancel';
       }
       const v=await askClick(`⚠️ <b>ยังไม่ได้บันทึก</b> ${esc(filename)}<br>สาเหตุ: ${esc(saveFailReason(e))}`,
-        [{label:'ยกเลิก',v:'cancel'},{label:'⬇️ ดาวน์โหลดแทน (ลงโฟลเดอร์ดาวน์โหลดของเบราว์เซอร์)',v:'download'},{label:'💾 เลือกที่เก็บใหม่',v:'retry',cls:'btn-success'}]);
+        [{label:'ยกเลิก',v:'cancel'},{label:'⬇️ ดาวน์โหลดแทน',v:'download'},{label:'💾 เลือกที่เก็บใหม่',v:'retry',cls:'btn-success'}]);
       if(v!=='retry') return v;
     }
   }
@@ -1211,13 +1225,13 @@ function downloadFile(blob,filename){
   a.download=filename;
   a.click();
   setTimeout(()=>URL.revokeObjectURL(a.href),3000);
-  toast('⬇️ ดาวน์โหลดแล้ว: '+filename+' — อยู่ในโฟลเดอร์ดาวน์โหลดของเบราว์เซอร์',6000);
+  toast('⬇️ ดาวน์โหลดแล้ว: '+filename+' — ลงโฟลเดอร์ดาวน์โหลดของเบราว์เซอร์ (หรือที่เลือกในหน้าต่างของเบราว์เซอร์)',6000);
 }
 /* Save file to local disk — โฟลเดอร์โครงการ → หน้าต่าง Save As → ดาวน์โหลด (เฉพาะเบราว์เซอร์ที่ไม่มี 2 แบบแรก หรือผู้ใช้เลือกเอง) */
 let savedAt='';   // ที่เก็บไฟล์ล่าสุด ('' = ยังไม่ได้บันทึก)
 async function saveLocalFile(blob, filename){
   savedAt='';
-  let r='saveas';
+  let r=saveMode()==='download'?'download':'saveas';
   if(window.showDirectoryPicker&&saveMode()==='folder') r=await saveToProjectFolder(blob,filename);
   if(r==='saveas') r=window.showSaveFilePicker?await saveAsDialog(blob,filename):'download';
   if(r==='download'){ downloadFile(blob,filename); savedAt='โฟลเดอร์ดาวน์โหลดของเบราว์เซอร์'; }
@@ -1569,35 +1583,39 @@ function loadProjectJSON(inp){
   const r=new FileReader();
   r.onload=e=>{
     try{
-      let raw=JSON.parse(e.target.result);
-      if(raw.project && raw.user){
-        const {password,...u}=raw.user;
-        Object.assign(appData.user, u);
-        renderMenu1Fields();
-        document.getElementById('sb-username').textContent='👤 '+(appData.user.username||'admin');
-        if(Array.isArray(raw.sampleItems)){ sampleItems=raw.sampleItems; saveSampleStore(); renderSampleList(); }
-        raw=raw.project;
-      }
-      const p=raw;
-      if(!p.id) p.id=uuid();
-      if(!p.leads) p.leads=[];
-      if(!p.weeklyReports) p.weeklyReports=[];
-      if(p.reportEnabled===undefined) p.reportEnabled=false;
-      currentProject=p;
-      migrateLeadsToArray(p);
-      ensureTeam(p);
-      appData.currentProjectId=p.id;
-      const idx=appData.projects.findIndex(x=>x.id===p.id);
-      if(idx>=0) appData.projects[idx]=p; else appData.projects.push(p);
-      fillProjectForm();
-      renderLeadsTags();
-      renderTaskTable();
-      saveStore();
+      const p=applyProjectData(JSON.parse(e.target.result));
       toast('✅ นำเข้าโครงการ: '+p.projectName);
     } catch(err){ toast('❌ ไม่สามารถอ่านไฟล์ JSON ได้'); }
   };
   r.readAsText(f,'UTF-8');
   inp.value='';
+}
+// ใส่ข้อมูลจากไฟล์ (JSON โครงการ หรือไฟล์บันทึกทั้งหมด {user,project,sampleItems}) แล้วแสดงผล
+function applyProjectData(raw){
+  if(raw.project && raw.user){
+    const {password,...u}=raw.user;
+    Object.assign(appData.user, u);
+    renderMenu1Fields();
+    document.getElementById('sb-username').textContent='👤 '+(appData.user.username||'admin');
+    if(Array.isArray(raw.sampleItems)){ sampleItems=raw.sampleItems; saveSampleStore(); renderSampleList(); }
+    raw=raw.project;
+  }
+  const p=raw;
+  if(!p.id) p.id=uuid();
+  if(!p.leads) p.leads=[];
+  if(!p.weeklyReports) p.weeklyReports=[];
+  if(p.reportEnabled===undefined) p.reportEnabled=false;
+  currentProject=p;
+  migrateLeadsToArray(p);
+  ensureTeam(p);
+  appData.currentProjectId=p.id;
+  const idx=appData.projects.findIndex(x=>x.id===p.id);
+  if(idx>=0) appData.projects[idx]=p; else appData.projects.push(p);
+  fillProjectForm();
+  renderLeadsTags();
+  renderTaskTable();
+  saveStore();
+  return p;
 }
 
 /* LEADS MANAGEMENT — ทีมงาน {prefix,name,position,phone} · leads = ชื่อ-สกุล ตามลำดับทีม */
@@ -2755,6 +2773,10 @@ async function exportXLSX(){
   if(p.notes){ title('บันทึกเพิ่มเติม'); row=put([p.notes]); info.mergeCells(row.number,1,row.number,5); row.getCell(1).alignment={wrapText:true,vertical:'top'}; row.height=Math.min(400,15*(p.notes.split('\n').length+Math.ceil(p.notes.length/110))); }
   ir++; row=put(['หมายเหตุ: แก้ในแผ่นงาน "แผนงาน" ได้ — วันที่ / % งาน แก้แล้วแถบสีเปลี่ยนตาม · ห้ามเปลี่ยนชื่อหัวคอลัมน์แถว 4 · แถวใหม่ใส่ Item แบบ 3.4 = รายการย่อย · นำกลับที่ ตั้งค่าโครงการ › 📂 นำเข้า XLSX/CSV']);
   info.mergeCells(row.number,1,row.number,5); row.getCell(1).font={size:9,italic:true,color:{argb:'FF8A8A8A'}}; row.getCell(1).alignment={wrapText:true}; row.height=30;
+  // แผ่นงานซ่อน _data: ข้อมูลทั้งหมด (เหมือนไฟล์บันทึกทั้งหมด) ใช้ตอนนำเข้ากลับให้ครบทุกช่อง · แบ่งเซลล์ละ 30,000 ตัวอักษร (Excel จำกัด 32,767)
+  const dataWs=wb.addWorksheet('_data',{state:'veryHidden'});
+  const json=JSON.stringify({app:'Project Plan SPA',version:APP_VERSION,user:userForExport(),project:p,sampleItems});
+  for(let i=0;i*30000<json.length;i++) dataWs.getCell(i+1,1).value=json.slice(i*30000,(i+1)*30000);
   const out=await wb.xlsx.writeBuffer();
   await saveLocalFile(new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),makeExportName('3.ProjPlan','xlsx'));
 }
@@ -2802,6 +2824,28 @@ function importPlanTable(aoa){
   renderTaskTable();
   return items.length;
 }
+// แผ่น ข้อมูลโครงการ ใน XLSX → ชื่อ ที่อยู่ kWp ผู้ประสานงาน ทีมงาน บันทึกเพิ่มเติม (ค่า — = ว่าง ไม่แตะ)
+function applyInfoSheet(aoa){
+  if(!currentProject) currentProject=blankProject();
+  const p=currentProject, txt=v=>String(v==null?'':v).trim(), val=v=>{ v=txt(v); return v==='—'?'':v; };
+  const kv={}; let team=null, notes=null;
+  aoa.forEach((r,i)=>{
+    const a=txt(r[0]), b=txt(r[1]);
+    if(a==='แผนงานโครงการ (Project Plan)'&&aoa[i+1]&&val(aoa[i+1][0])) p.projectName=val(aoa[i+1][0]);
+    if(!a&&b) kv[b]=val(r[2]);
+    if(a==='ลำดับ'&&b==='ชื่อ-สกุล') team=[];
+    else if(team&&/^\d+$/.test(a)&&b){
+      const old=(p.team||[]).find(t=>teamFullName(t)===b||t.name===b), sp=old?{prefix:old.prefix,name:old.name}:splitPrefix(b);
+      team.push({prefix:sp.prefix,name:sp.name,position:val(r[2])==='-'?'':val(r[2]),phone:val(r[3])==='-'?'':val(r[3])});
+    }
+    if(a==='บันทึกเพิ่มเติม'&&aoa[i+1]) notes=txt(aoa[i+1][0]);
+  });
+  if(kv['ที่อยู่โครงการ']!==undefined) p.address=kv['ที่อยู่โครงการ'];
+  if(kv['ขนาดระบบ (kWp)']!==undefined) p.kwp=kv['ขนาดระบบ (kWp)'].replace(/[,\s]/g,'').replace(/kwp/i,'');
+  if(kv['ผู้ประสานงานของโครงการ']!==undefined) p.contact=kv['ผู้ประสานงานของโครงการ'];
+  if(team&&team.length){ p.team=team; p.leads=team.map(t=>t.name); syncPmFromTeam(p); }
+  if(notes!==null) p.notes=notes;
+}
 function loadProjectCSV(inp){
   const f=inp.files[0]; if(!f) return;
   const isCSV=/\.csv$/i.test(f.name);
@@ -2815,6 +2859,12 @@ function loadProjectCSV(inp){
         const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
         const name=wb.SheetNames.includes('แผนงาน')?'แผนงาน':wb.SheetNames[0];
         aoa=XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,defval:'',raw:true});
+        // ไฟล์ที่โปรแกรมส่งออก: กู้ข้อมูลทั้งหมดจากแผ่นซ่อน _data แล้วใช้ค่าที่แก้ในแผ่น ข้อมูลโครงการ
+        if(wb.Sheets['_data']){
+          try{ applyProjectData(JSON.parse(XLSX.utils.sheet_to_json(wb.Sheets['_data'],{header:1,defval:''}).map(r=>r[0]).join(''))); }
+          catch(err){ console.warn('xlsx _data',err); }
+        }
+        if(wb.Sheets['ข้อมูลโครงการ']) applyInfoSheet(XLSX.utils.sheet_to_json(wb.Sheets['ข้อมูลโครงการ'],{header:1,defval:'',raw:true}));
       }
       const n=importPlanTable(aoa);
       toast('✅ นำเข้า '+f.name+' สำเร็จ: '+n+' หัวข้อหลัก');
