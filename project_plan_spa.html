@@ -302,6 +302,11 @@ span.flatpickr-weekday{color:var(--primary)!important;font-weight:600}
 .tip-box{background:var(--surface2);border-left:4px solid var(--primary);padding:10px 14px;border-radius:0 6px 6px 0;margin:8px 0;font-size:12px}
 .step-badge{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--primary);color:#fff;font-size:11px;font-weight:700;margin-right:6px;flex-shrink:0}
 </style>
+<!-- โหมดปรับปรุง (ลุงพีสั่ง 8 พ.ย. 2569): โหลดชั้นคลาวด์ของ ASC Enterprise เพื่อตรวจสวิตช์ asc/maintenance.json — เปิดอยู่ = ผู้ใช้ทั่วไปเห็น "กำลังปรับปรุง" ยกเว้นผู้ดูแลระบบ/@proinventive.co.th -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.js"></script>
+<script src="/asc/supabase-config.js"></script>
+<script src="/asc/asc-cloud.js"></script>
+<script>window.addEventListener('load',function(){try{if(window.AscCloud&&AscCloud.maintenanceGuard)AscCloud.maintenanceGuard(true);}catch(e){}});</script>
 </head>
 <body>
 
@@ -663,7 +668,7 @@ span.flatpickr-weekday{color:var(--primary)!important;font-weight:600}
   <!-- Sidebar -->
   <nav id="sidebar">
     <div class="sb-header">
-      <div class="sb-logo">📋 Project Plan<span>โปรแกรมบริหารโครงการ</span><span class="sb-ver">v1.7.2 · ปรับปรุง 4 พ.ย. 2569</span></div>
+      <div class="sb-logo">📋 Project Plan<span>โปรแกรมบริหารโครงการ</span><span class="sb-ver">v1.7.3 · ปรับปรุง 4 พ.ย. 2569</span></div>
     </div>
     <div class="sb-nav">
       <button class="sb-btn active" data-menu="1" onclick="showMenu(1)"><span class="icon">⚙️</span>ตั้งค่าผู้ใช้งาน</button>
@@ -751,7 +756,7 @@ const DEFAULT_SAMPLE = [
    STATE
 ═══════════════════════════════════════════ */
 const STORE_KEY = 'pp_app_v3';
-const APP_VERSION = '1.7.2';
+const APP_VERSION = '1.7.3';
 const SAMPLE_KEY = 'pp_sample_v3';
 let appData = null;
 let currentProject = null;
