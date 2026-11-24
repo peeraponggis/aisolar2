@@ -887,10 +887,11 @@ function downloadText(text, filename, mime) {
     downloadBlob(new Blob(['﻿' + text], { type: (mime || 'text/plain') + ';charset=utf-8' }), filename);
 }
 const TH_MONTHS_FULL = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
-const APP_INFO={version:'4.12.1',created:'2026-08-02',updated:'2026-11-24',author:'ลุงพี'};
+const APP_INFO={version:'4.13.0',created:'2026-08-02',updated:'2026-11-24',author:'ลุงพี'};
 const SURVEY_ICON = (document.querySelector('link[rel="icon"]') || {}).href || ''; /* ไอคอนแท็บ (ใช้ซ้ำในหน้ารายงาน) */
 const PHOTO = { store: {}, edit: [], MAX: 1600, Q: 0.82, seq: 0 }; /* รูปประกอบวัตถุ (ดูส่วนรูปภาพ) */
 const APP_CHANGELOG=[
+  ['4.13.0','2026-11-24','แก้ป้ายกำกับกระโดดตอนซูมเข้า-ออก: ระบบหลบชนป้ายใช้ pixel offset คงที่แทนการแปลง lat/lng ↔ pixel ไป-กลับ ป้ายจึงอยู่ที่เดิมทุกระดับซูม โดย ลุงพี'],
   ['4.12.1','2026-11-24','PDF: ภาพแผนที่เต็มหน้าตอนพิมพ์ (50% บนจอ 100% ตอน Print/PDF) โดย ลุงพี'],
   ['4.12.0','2026-11-24','PDF: ภาพแผนที่สี (PNG แทน JPEG) ลดขนาด 50% · รูปวัตถุในหน้ารายละเอียดเพิ่มขนาด 50% (34mm→51mm) · crop วัตถุเป็น PNG คงสี โดย ลุงพี'],
   ['4.11.0','2026-11-24','รายงาน PDF แสดงหน้ารายละเอียดเฉพาะวัตถุที่มีรูปภาพ (วัตถุไม่มีรูปไม่แสดง) โดย ลุงพี'],
@@ -2790,6 +2791,9 @@ function updateLabelAndCalculations(layer, type) {
         
         labelMarker.on('click', function (ev) { L.DomEvent.stopPropagation(ev); setSelected(layer); openModal(layer, true); });
         
+        labelMarker.on('dragstart', function() {
+            if (layer._annotation) { layer._annotation._pxOff = [0, 0]; applyLabelOffset(layer); }
+        });
         // ผูก Event เมื่อลากป้าย เพื่อให้เส้นชี้ตาม
         labelMarker.on('drag', function(ev) {
             if (layer._annotation && layer._annotation.line) {
@@ -2822,53 +2826,70 @@ function updateLabelAndCalculations(layer, type) {
     avoidLabelCollisions();
 }
 
+/* 4.13.0: หลบชนป้ายด้วย pixel offset คงที่ — ไม่แปลงกลับ lat/lng ป้ายจึงไม่กระโดดตอนซูม */
+function applyLabelOffset(l) {
+    var m = l._annotation && l._annotation.marker;
+    var off = (l._annotation && l._annotation._pxOff) || [0, 0];
+    if (m && m._icon) { m._icon.style.marginLeft = off[0] + 'px'; m._icon.style.marginTop = off[1] + 'px'; }
+}
 function avoidLabelCollisions() {
-    const labels = [];
-    drawnItems.eachLayer(l => {
+    var labels = [];
+    drawnItems.eachLayer(function (l) {
         if (l._annotation && l._annotation.marker && l._annotation.defaultLatLng) {
             if (l.properties && l.properties.labelLocked) {
-                // หากล็อกไว้ ไม่ต้องรีเซ็ตพิกัดและไม่ต้องจับเข้ากลุ่มคำนวณการหลบชน
                 l._annotation.marker.setLatLng(l.properties.customLabelLatLng || l._annotation.defaultLatLng);
+                l._annotation._pxOff = [0, 0];
+                applyLabelOffset(l);
                 syncLeaderLines([l]);
             } else {
                 l._annotation.marker.setLatLng(l._annotation.defaultLatLng);
+                l._annotation._pxOff = [0, 0];
+                applyLabelOffset(l);
                 labels.push(l);
             }
         }
     });
     if (labels.length < 2) { syncLeaderLines(labels); return; }
-    const scale = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--label-scale')) || 1;
-    // เพิ่มระยะห่างให้มากขึ้นป้องกันการซ้อนทับ
-    const minDx = 72 * scale, minDy = 38 * scale;
-    let moved, iter = 0;
+    var scale = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--label-scale')) || 1;
+    var minDx = 72 * scale, minDy = 38 * scale;
+    var pts = labels.map(function (l) { return map.latLngToContainerPoint(l._annotation.defaultLatLng); });
+    var moved, iter = 0;
     do {
         moved = false;
-        for (let i = 0; i < labels.length; i++) {
-            for (let j = i + 1; j < labels.length; j++) {
-                const m1 = labels[i]._annotation.marker, m2 = labels[j]._annotation.marker;
-                const p1 = map.latLngToLayerPoint(m1.getLatLng()), p2 = map.latLngToLayerPoint(m2.getLatLng());
-                const dx = Math.abs(p1.x - p2.x), dy = Math.abs(p1.y - p2.y);
+        for (var i = 0; i < labels.length; i++) {
+            for (var j = i + 1; j < labels.length; j++) {
+                var p1 = pts[i], p2 = pts[j];
+                var dx = Math.abs(p1.x - p2.x), dy = Math.abs(p1.y - p2.y);
                 if (dx < minDx && dy < minDy) {
-                    // ผลักป้ายให้ห่างออกจากกันแรงขึ้น และเพิ่มรอบจำกัดการขยับ
-                    const pushX = (minDx - dx) / 2 + 6, pushY = (minDy - dy) / 2 + 6;
+                    var pushX = (minDx - dx) / 2 + 6, pushY = (minDy - dy) / 2 + 6;
                     if (p2.x >= p1.x) p2.x += pushX; else p2.x -= pushX;
                     if (p2.y >= p1.y) p2.y += pushY; else p2.y -= pushY;
-                    m2.setLatLng(map.layerPointToLatLng(p2));
                     moved = true;
                 }
             }
         }
         iter++;
     } while (moved && iter < 12);
+    labels.forEach(function (l, i) {
+        var base = map.latLngToContainerPoint(l._annotation.defaultLatLng);
+        l._annotation._pxOff = [pts[i].x - base.x, pts[i].y - base.y];
+        applyLabelOffset(l);
+    });
     syncLeaderLines(labels);
 }
 function syncLeaderLines(labels) {
-    labels.forEach(l => {
-        const an = l._annotation;
-        const p1 = an.marker.getLatLng();
-        const p3 = an.arrow.getLatLng();
-        // สร้างจุดหักศอก (Dog-leg) ให้เป็นเส้นฉาก
-        const p2 = L.latLng(p1.lat, p3.lng);
+    labels.forEach(function (l) {
+        var an = l._annotation;
+        var off = an._pxOff || [0, 0];
+        var p1;
+        if (off[0] === 0 && off[1] === 0) {
+            p1 = an.marker.getLatLng();
+        } else {
+            var basePx = map.latLngToContainerPoint(an.marker.getLatLng());
+            p1 = map.containerPointToLatLng(L.point(basePx.x + off[0], basePx.y + off[1]));
+        }
+        var p3 = an.arrow.getLatLng();
+        var p2 = L.latLng(p1.lat, p3.lng);
         an.line.setLatLngs([p1, p2, p3]);
     });
 }
