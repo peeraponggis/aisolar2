@@ -321,6 +321,17 @@
                 <button class="btn btn-toggle" onclick="toggleLabels()">&#128065; ป้ายกำกับ</button>
                 <button class="btn btn-toggle" onclick="toggleSegLabels()">&#128207; ระยะด้าน</button>
             </div>
+            <details id="label-opts" style="margin-top:4px;font-size:12px;background:#fff;border:1px solid #ddd;border-radius:4px;padding:4px 8px;">
+                <summary style="cursor:pointer;font-weight:500;color:#2c3e50;">เลือกข้อมูลบนป้ายกำกับ</summary>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px 8px;margin-top:4px;">
+                    <label><input type="checkbox" id="lbl-name" checked onchange="refreshAllLabels()"> ชื่อวัตถุ</label>
+                    <label><input type="checkbox" id="lbl-area" checked onchange="refreshAllLabels()"> พื้นที่</label>
+                    <label><input type="checkbox" id="lbl-dim" checked onchange="refreshAllLabels()"> กว้าง×ยาว</label>
+                    <label><input type="checkbox" id="lbl-height" checked onchange="refreshAllLabels()"> ความสูง</label>
+                    <label><input type="checkbox" id="lbl-coord" onchange="refreshAllLabels()"> พิกัด</label>
+                    <label><input type="checkbox" id="lbl-kind" onchange="refreshAllLabels()"> ชนิดอุปกรณ์</label>
+                </div>
+            </details>
             <div class="note">รองรับ Lat/Lon (WGS84) และ UTM (E, N, Zone 47/48)</div>
         </div>
 
@@ -860,10 +871,11 @@ function downloadText(text, filename, mime) {
     downloadBlob(new Blob(['﻿' + text], { type: (mime || 'text/plain') + ';charset=utf-8' }), filename);
 }
 const TH_MONTHS_FULL = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
-const APP_INFO={version:'4.8.0',created:'2026-08-02',updated:'2026-11-24',author:'ลุงพี'};
+const APP_INFO={version:'4.9.0',created:'2026-08-02',updated:'2026-11-24',author:'ลุงพี'};
 const SURVEY_ICON = (document.querySelector('link[rel="icon"]') || {}).href || ''; /* ไอคอนแท็บ (ใช้ซ้ำในหน้ารายงาน) */
 const PHOTO = { store: {}, edit: [], MAX: 1600, Q: 0.82, seq: 0 }; /* รูปประกอบวัตถุ (ดูส่วนรูปภาพ) */
 const APP_CHANGELOG=[
+  ['4.9.0','2026-11-24','เลือกข้อมูลบนป้ายกำกับ (ชื่อ/พื้นที่/ขนาด/ความสูง/พิกัด/ชนิดอุปกรณ์) · PDF ตามที่เลือก · ภาพรวมพื้นที่สำรวจเต็มหน้า A4 · รูปวัตถุลดขนาด 50% โดย ลุงพี'],
   ['4.8.0','2026-11-24','คัดลอก/วาง/ทำซ้ำวัตถุ: Ctrl+C Ctrl+V (⌘C ⌘V) ใช้ได้ทุกภาษาแป้นพิมพ์ · Ctrl+D ทำซ้ำ · ปุ่มคัดลอก/วางบนแถบเครื่องมือ · วางที่ตำแหน่งเมาส์ ชื่อเลขถัดไป ติดไปครบทั้งขนาด 3D สี อุปกรณ์ รูป · วางข้ามแท็บได้ · ปุ่มลัดตัวเดียวใช้ได้กับแป้นพิมพ์ภาษาไทย โดย ลุงพี'],
   ['4.7.0','2026-11-24','หมุนวัตถุตามองศาที่กรอก: ช่อง หมุนเพิ่ม (+ = ตามเข็ม) และ ตั้งแนวแกนยาวเทียบทิศเหนือ ในหน้าต่างข้อมูล · หมุนรอบจุดกึ่งกลาง ขนาดไม่เปลี่ยน · ป้ายล็อกหมุนตาม · ย้อนกลับได้ · ย้อนกลับ 1 ครั้งต่อการแก้ 1 ครั้ง (ไม่เก็บสถานะซ้ำ) · ช่องกว้าง/ยาวแสดงขนาดจริงหลังหมุน/แก้ด้าน โดย ลุงพี'],
   ['4.6.0','2026-11-24','ย้ายวัตถุได้ทุกชนิดโดยตรง: คลิกเลือกแล้วลากได้ทันที (จับตรงกลางรูปได้ ไม่ต้องเปิดโหมด ✥) · ป้ายที่ล็อกไว้ย้ายตาม · ตาราง/3D อัปเดต · ย้อนกลับได้ โดย ลุงพี'],
@@ -2667,10 +2679,20 @@ function autoDimensions(layer) {
     return { w: Math.min(best.a, best.b), l: Math.max(best.a, best.b) };
 }
 
+function labelOpts() {
+    const el = id => { const e = document.getElementById(id); return e ? e.checked : true; };
+    return { name: el('lbl-name'), area: el('lbl-area'), dim: el('lbl-dim'), height: el('lbl-height'), coord: el('lbl-coord'), kind: el('lbl-kind') };
+}
+function refreshAllLabels() {
+    drawnItems.eachLayer(l => { if (l.properties) updateLabelAndCalculations(l, l.properties.type); });
+}
 function updateLabelAndCalculations(layer, type) {
     const p = layer.properties; if (!p) return;
     syncPropArrays(layer);
-    let labelText = '<b>' + esc(p.name || '(ไม่มีชื่อ)') + '</b>';
+    const lo = labelOpts();
+    let labelText = '';
+    if (lo.name) labelText += '<b>' + esc(p.name || '(ไม่มีชื่อ)') + '</b>';
+    if (lo.kind && p.kind && EQUIP[p.kind]) labelText += (labelText ? '<br>' : '') + '<i>' + esc(EQUIP[p.kind].short || typeLabel(p)) + '</i>';
     const gj = layer.toGeoJSON();
     let targetGeo;
 
@@ -2680,9 +2702,10 @@ function updateLabelAndCalculations(layer, type) {
         p.perimeter = turf.length(turf.polygonToLine(gj), { units: 'meters' });
         const d = autoDimensions(layer);
         p.autoW = d.w; p.autoL = d.l;
-        labelText += '<br>' + fmt(p.area) + ' ตร.ม.';
-        if (App.opts.dimLabel) labelText += '<br>' + fmt(num(p.width) || d.w) + ' &times; ' + fmt(num(p.length) || d.l) + ' ม.';
-        if (num(p.height) > 0 || p.is3D) labelText += '<br>สูง: ' + fmt(p.height) + ' ม.';
+        if (lo.area) labelText += (labelText ? '<br>' : '') + fmt(p.area) + ' ตร.ม.';
+        if (lo.dim && App.opts.dimLabel) labelText += (labelText ? '<br>' : '') + fmt(num(p.width) || d.w) + ' &times; ' + fmt(num(p.length) || d.l) + ' ม.';
+        if (lo.height && (num(p.height) > 0 || p.is3D)) labelText += (labelText ? '<br>' : '') + 'สูง: ' + fmt(p.height) + ' ม.';
+        if (lo.coord) { const bc = layer.getBounds().getCenter(); labelText += (labelText ? '<br>' : '') + bc.lat.toFixed(6) + ', ' + bc.lng.toFixed(6); }
         const bbox = turf.bbox(gj);
         targetGeo = turf.point([(bbox[0] + bbox[2]) / 2, bbox[3]]);
     } else if (type === 'Line') {
@@ -2690,14 +2713,15 @@ function updateLabelAndCalculations(layer, type) {
         const dist = turf.length(gj, { units: 'meters' });
         p.calculatedDistance = dist;
         if (!num(p.length)) p.length = dist;
-        labelText += '<br>' + fmt(dist) + ' ม.';
-        if (num(p.height) > 0) labelText += '<br>สูง: ' + fmt(p.height) + ' ม.';
+        if (lo.area) labelText += (labelText ? '<br>' : '') + fmt(dist) + ' ม.';
+        if (lo.height && num(p.height) > 0) labelText += (labelText ? '<br>' : '') + 'สูง: ' + fmt(p.height) + ' ม.';
         targetGeo = turf.along(gj, dist / 2, { units: 'meters' });
     } else {
         targetGeo = gj;
         const c = layer.getLatLng();
-        labelText += '<br>' + c.lat.toFixed(6) + ', ' + c.lng.toFixed(6);
+        if (lo.coord) labelText += (labelText ? '<br>' : '') + c.lat.toFixed(6) + ', ' + c.lng.toFixed(6);
     }
+    if (!labelText) labelText = '<b>' + esc(p.name || typeLabel(p)) + '</b>';
 
     const destGeo = turf.destination(targetGeo, 0.012, 0, { units: 'kilometers' });
     const targetPt = [targetGeo.geometry.coordinates[1], targetGeo.geometry.coordinates[0]];
@@ -6727,7 +6751,7 @@ async function exportReportPDF() {
         h += '@page{size:A4 portrait;margin:10mm;} @media print{body{padding:0}.no-print{display:none!important}}';
         h += '.hdr{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #2c3e50;padding-bottom:6px;margin-bottom:8px;}';
         h += '.hdr h1{font-size:19px;margin:0;} .hdr .r{text-align:right;font-size:10.5px;color:#555;}';
-        h += '.desc{font-size:12px;color:#444;margin:0 0 8px;} img.map{width:100%;max-height:150mm;object-fit:contain;border:1px solid #bdc3c7;border-radius:4px;}';
+        h += '.desc{font-size:12px;color:#444;margin:0 0 8px;} img.map{width:100%;object-fit:contain;border:1px solid #bdc3c7;border-radius:4px;}';
         h += '.kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:8px 0;} .kpi div{background:#ecf0f1;border-radius:4px;padding:6px 8px;} .kpi b{display:block;font-size:15px;}';
         h += 'table{width:100%;border-collapse:collapse;font-size:11px;} th,td{border:1px solid #bdc3c7;padding:5px 6px;text-align:left;vertical-align:top;} th{background:#2c3e50;color:#fff;}';
         h += 'tr{page-break-inside:avoid;} td.th img{width:54px;height:40px;object-fit:cover;margin:1px;border-radius:2px;}';
@@ -6736,7 +6760,7 @@ async function exportReportPDF() {
         h += '.objtop{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px;} .objtop img{width:100%;border:1px solid #bdc3c7;border-radius:4px;}';
         h += '.info td:first-child{width:32%;background:#f4f6f7;font-weight:500;}';
         h += '.ph{display:grid;grid-template-columns:1fr 1fr;gap:8px;} .ph figure{margin:0;page-break-inside:avoid;border:1px solid #d6dde3;border-radius:4px;overflow:hidden;}';
-        h += '.ph img{width:100%;height:68mm;object-fit:cover;display:block;} .ph figcaption{padding:3px 6px;font-size:10.5px;background:#f4f6f7;}';
+        h += '.ph img{width:100%;height:34mm;object-fit:cover;display:block;} .ph figcaption{padding:3px 6px;font-size:10.5px;background:#f4f6f7;}';
         h += '.foot{margin-top:10px;font-size:9.5px;color:#999;text-align:center;}';
         h += '</style></head><body>';
         h += '<div class="no-print" style="margin-bottom:12px;padding:10px;background:#eaf2f8;border:1px solid #3498db;border-radius:5px;display:flex;justify-content:space-between;align-items:center;font-size:13px;">' +
@@ -6748,6 +6772,7 @@ async function exportReportPDF() {
             '<div class="r">วันที่ออกรายงาน ' + dateTH + '<br>จุดกึ่งกลาง ' + c.lat.toFixed(6) + ', ' + c.lng.toFixed(6) + '<br>Zoom ' + map.getZoom() + '</div></div>';
         if (m.projectDescription) h += '<p class="desc">' + esc(m.projectDescription).replace(/\n/g, '<br>') + '</p>';
         h += '<img class="map" src="' + canvas.toDataURL('image/jpeg', 0.88) + '">';
+        h += '<div style="page-break-after:always;"></div>';
         let nP = 0, nL = 0, nM = 0, area = 0, len = 0;
         items.forEach(l => { const p = l.properties; if (p.type === 'Polygon') { nP++; area += num(p.area); } else if (p.type === 'Line') { nL++; len += num(p.calculatedDistance); } else nM++; });
         h += '<div class="kpi"><div>วัตถุทั้งหมด<b>' + items.length + '</b>Polygon ' + nP + ' · Line ' + nL + ' · Point ' + nM + '</div>' +
