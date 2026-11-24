@@ -309,6 +309,10 @@
             <h3>ข้อมูลโครงการ</h3>
             <label class="fld">ชื่อโครงการ:</label>
             <input type="text" id="projectName" placeholder="เช่น โครงการพัฒนาพื้นที่โยธา A">
+            <label class="fld">ผู้สำรวจ:</label>
+            <input type="text" id="surveyorName" placeholder="ชื่อผู้สำรวจ">
+            <label class="fld">วันที่สำรวจ:</label>
+            <input type="date" id="surveyDate">
             <label class="fld">ข้อมูลเพิ่มเติม:</label>
             <textarea id="projectDesc" rows="2" maxlength="1000" placeholder="ระบุรายละเอียด..."></textarea>
         </div>
@@ -330,6 +334,18 @@
                     <label><input type="checkbox" id="lbl-height" checked onchange="refreshAllLabels()"> ความสูง</label>
                     <label><input type="checkbox" id="lbl-coord" onchange="refreshAllLabels()"> พิกัด</label>
                     <label><input type="checkbox" id="lbl-kind" onchange="refreshAllLabels()"> ชนิดอุปกรณ์</label>
+                </div>
+            </details>
+            <details id="cat-opts" style="margin-top:4px;font-size:12px;background:#fff;border:1px solid #ddd;border-radius:4px;padding:4px 8px;">
+                <summary style="cursor:pointer;font-weight:500;color:#2c3e50;">เลือกแสดงประเภทวัตถุ</summary>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px 8px;margin-top:4px;">
+                    <label><input type="checkbox" id="cat-polygon" checked onchange="applyCategoryFilter()"> Polygon</label>
+                    <label><input type="checkbox" id="cat-line" checked onchange="applyCategoryFilter()"> Line</label>
+                    <label><input type="checkbox" id="cat-marker" checked onchange="applyCategoryFilter()"> Marker</label>
+                    <label><input type="checkbox" id="cat-pole" checked onchange="applyCategoryFilter()"> เสาไฟฟ้า</label>
+                    <label><input type="checkbox" id="cat-pole_tx" checked onchange="applyCategoryFilter()"> เสา+หม้อแปลง</label>
+                    <label><input type="checkbox" id="cat-mdb" checked onchange="applyCategoryFilter()"> ตู้ MDB</label>
+                    <label><input type="checkbox" id="cat-tree" checked onchange="applyCategoryFilter()"> ต้นไม้</label>
                 </div>
             </details>
             <div class="note">รองรับ Lat/Lon (WGS84) และ UTM (E, N, Zone 47/48)</div>
@@ -871,10 +887,11 @@ function downloadText(text, filename, mime) {
     downloadBlob(new Blob(['﻿' + text], { type: (mime || 'text/plain') + ';charset=utf-8' }), filename);
 }
 const TH_MONTHS_FULL = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
-const APP_INFO={version:'4.9.0',created:'2026-08-02',updated:'2026-11-24',author:'ลุงพี'};
+const APP_INFO={version:'4.10.0',created:'2026-08-02',updated:'2026-11-24',author:'ลุงพี'};
 const SURVEY_ICON = (document.querySelector('link[rel="icon"]') || {}).href || ''; /* ไอคอนแท็บ (ใช้ซ้ำในหน้ารายงาน) */
 const PHOTO = { store: {}, edit: [], MAX: 1600, Q: 0.82, seq: 0 }; /* รูปประกอบวัตถุ (ดูส่วนรูปภาพ) */
 const APP_CHANGELOG=[
+  ['4.10.0','2026-11-24','เพิ่มช่องผู้สำรวจ+วันที่สำรวจ (แสดงใน PDF แบบ วัน เดือน พ.ศ.) · เลือกแสดง/ซ่อนตามประเภทวัตถุ (Polygon/Line/Marker/เสา/หม้อแปลง/MDB/ต้นไม้) · ตารางสรุป+PDF กรองตามประเภทที่เลือก · ข้อมูลบันทึก/นำเข้ากลับได้ โดย ลุงพี'],
   ['4.9.0','2026-11-24','เลือกข้อมูลบนป้ายกำกับ (ชื่อ/พื้นที่/ขนาด/ความสูง/พิกัด/ชนิดอุปกรณ์) · PDF ตามที่เลือก · ภาพรวมพื้นที่สำรวจเต็มหน้า A4 · รูปวัตถุลดขนาด 50% โดย ลุงพี'],
   ['4.8.0','2026-11-24','คัดลอก/วาง/ทำซ้ำวัตถุ: Ctrl+C Ctrl+V (⌘C ⌘V) ใช้ได้ทุกภาษาแป้นพิมพ์ · Ctrl+D ทำซ้ำ · ปุ่มคัดลอก/วางบนแถบเครื่องมือ · วางที่ตำแหน่งเมาส์ ชื่อเลขถัดไป ติดไปครบทั้งขนาด 3D สี อุปกรณ์ รูป · วางข้ามแท็บได้ · ปุ่มลัดตัวเดียวใช้ได้กับแป้นพิมพ์ภาษาไทย โดย ลุงพี'],
   ['4.7.0','2026-11-24','หมุนวัตถุตามองศาที่กรอก: ช่อง หมุนเพิ่ม (+ = ตามเข็ม) และ ตั้งแนวแกนยาวเทียบทิศเหนือ ในหน้าต่างข้อมูล · หมุนรอบจุดกึ่งกลาง ขนาดไม่เปลี่ยน · ป้ายล็อกหมุนตาม · ย้อนกลับได้ · ย้อนกลับ 1 ครั้งต่อการแก้ 1 ครั้ง (ไม่เก็บสถานะซ้ำ) · ช่องกว้าง/ยาวแสดงขนาดจริงหลังหมุน/แก้ด้าน โดย ลุงพี'],
@@ -2683,6 +2700,30 @@ function labelOpts() {
     const el = id => { const e = document.getElementById(id); return e ? e.checked : true; };
     return { name: el('lbl-name'), area: el('lbl-area'), dim: el('lbl-dim'), height: el('lbl-height'), coord: el('lbl-coord'), kind: el('lbl-kind') };
 }
+function catFilter() {
+    const el = id => { const e = document.getElementById(id); return e ? e.checked : true; };
+    return { Polygon: el('cat-polygon'), Line: el('cat-line'), Marker: el('cat-marker'), pole: el('cat-pole'), pole_tx: el('cat-pole_tx'), mdb: el('cat-mdb'), tree: el('cat-tree') };
+}
+function isCatVisible(p) {
+    const cf = catFilter();
+    if (p.kind && cf[p.kind] !== undefined) return cf[p.kind];
+    return cf[p.type] !== false;
+}
+function applyCategoryFilter() {
+    drawnItems.eachLayer(l => {
+        if (!l.properties) return;
+        const show = isCatVisible(l.properties);
+        if (show && !map.hasLayer(l)) { drawnItems.addLayer(l); map.addLayer(l); }
+        if (!show && map.hasLayer(l)) map.removeLayer(l);
+        if (l._annotation) {
+            if (show && !map.hasLayer(l._annotation.marker)) { l._annotation.marker.addTo(map); l._annotation.line.addTo(map); l._annotation.arrow.addTo(map); }
+            if (!show) { if (map.hasLayer(l._annotation.marker)) map.removeLayer(l._annotation.marker); if (map.hasLayer(l._annotation.line)) map.removeLayer(l._annotation.line); if (map.hasLayer(l._annotation.arrow)) map.removeLayer(l._annotation.arrow); }
+        }
+        if (l._segmentLabels) { if (show && l === App.selected && !map.hasLayer(l._segmentLabels)) l._segmentLabels.addTo(map); if (!show && map.hasLayer(l._segmentLabels)) map.removeLayer(l._segmentLabels); }
+    });
+    updateSummaryTable();
+    render3D.redraw();
+}
 function refreshAllLabels() {
     drawnItems.eachLayer(l => { if (l.properties) updateLabelAndCalculations(l, l.properties.type); });
 }
@@ -2842,6 +2883,7 @@ function updateSummaryTable() {
     let html = '', totalArea = 0, totalLen = 0, nP = 0, nL = 0, nM = 0, vol = 0;
     drawnItems.eachLayer(layer => {
         const p = layer.properties; if (!p) return;
+        if (!isCatVisible(p)) return;
         let details = '';
         if (p.type === 'Polygon') {
             nP++; totalArea += num(p.area);
@@ -5319,6 +5361,8 @@ function importProjectTXT(text, srcName) {
 function importProjectObject(obj, srcName) {
     if (obj.photoStore && typeof obj.photoStore === 'object') Object.keys(obj.photoStore).forEach(k => { if (/^data:image\//.test(obj.photoStore[k])) PHOTO.store[k] = obj.photoStore[k]; });
     if (obj.projectName) document.getElementById('projectName').value = obj.projectName;
+    if (obj.surveyorName) document.getElementById('surveyorName').value = obj.surveyorName;
+    if (obj.surveyDate) document.getElementById('surveyDate').value = obj.surveyDate;
     if (obj.projectDescription) document.getElementById('projectDesc').value = obj.projectDescription;
     let n = 0;
     (obj.spatialFeatures || []).forEach(f => { if (addGeoJSONFeature(f)) n++; });
@@ -5653,10 +5697,17 @@ function collectFeatures() {
 function projectMeta() {
     return {
         projectName: document.getElementById('projectName').value || 'Untitled_Project',
+        surveyorName: document.getElementById('surveyorName').value || '',
+        surveyDate: document.getElementById('surveyDate').value || '',
         projectDescription: document.getElementById('projectDesc').value || '',
         exportTimestamp: new Date().toISOString(),
         application: 'Advanced GIS Civil & Orthophoto Workspace V4.0'
     };
+}
+function surveyDateTH(isoStr) {
+    if (!isoStr) return '';
+    const d = new Date(isoStr + 'T00:00:00');
+    return d.getDate() + ' ' + TH_MONTHS_FULL[d.getMonth()] + ' ' + (d.getFullYear() + 543);
 }
 function exportGeoJSON() {
     const m = projectMeta();
@@ -5691,6 +5742,8 @@ function buildProjectJSON() {
         application: m.application,
         applicationVersion: APP_INFO.version,
         projectName: m.projectName,
+        surveyorName: m.surveyorName,
+        surveyDate: m.surveyDate,
         projectDescription: m.projectDescription,
         exportTimestamp: m.exportTimestamp,
         crs: 'EPSG:4326 (WGS84) lng,lat ; vertices.alt = เมตร',
@@ -6726,8 +6779,8 @@ function cropObjectFromMap(canvas, layer) {
 }
 async function exportReportPDF() {
     const items = [];
-    drawnItems.eachLayer(l => { if (l.properties) items.push(l); });
-    if (!items.length) { toast('ยังไม่มีวัตถุในโครงการ', 'warn'); return; }
+    drawnItems.eachLayer(l => { if (l.properties && isCatVisible(l.properties)) items.push(l); });
+    if (!items.length) { toast('ยังไม่มีวัตถุในโครงการ (หรือซ่อนหมดทุกประเภท)', 'warn'); return; }
     const pw = window.open('', '_blank');
     if (!pw) { toast('เบราว์เซอร์บล็อก Pop-up! กรุณาอนุญาต Pop-up เพื่อสร้างรายงาน', 'warn', 5000); return; }
     pw.document.write('<html lang="th"><head><title>กำลังสร้างรายงาน...</title></head><body style="font-family:Kanit,sans-serif;text-align:center;padding-top:10vh;color:#2c3e50;"><h2>กำลังสร้างรายงานพร้อมรูป... กรุณารอสักครู่</h2></body></html>');
@@ -6770,7 +6823,11 @@ async function exportReportPDF() {
         // หน้า 1: ภาพรวมพื้นที่สำรวจ
         h += '<div class="hdr"><div><div style="font-size:11px;color:#c0392b;font-weight:500;">รายงานสำรวจพื้นที่</div><h1>' + esc(m.projectName) + '</h1></div>' +
             '<div class="r">วันที่ออกรายงาน ' + dateTH + '<br>จุดกึ่งกลาง ' + c.lat.toFixed(6) + ', ' + c.lng.toFixed(6) + '<br>Zoom ' + map.getZoom() + '</div></div>';
-        if (m.projectDescription) h += '<p class="desc">' + esc(m.projectDescription).replace(/\n/g, '<br>') + '</p>';
+        const metaLines = [];
+        if (m.surveyorName) metaLines.push('<b>ผู้สำรวจ:</b> ' + esc(m.surveyorName));
+        if (m.surveyDate) metaLines.push('<b>วันที่สำรวจ:</b> ' + surveyDateTH(m.surveyDate));
+        if (m.projectDescription) metaLines.push(esc(m.projectDescription).replace(/\n/g, '<br>'));
+        if (metaLines.length) h += '<p class="desc">' + metaLines.join(' &bull; ') + '</p>';
         h += '<img class="map" src="' + canvas.toDataURL('image/jpeg', 0.88) + '">';
         h += '<div style="page-break-after:always;"></div>';
         let nP = 0, nL = 0, nM = 0, area = 0, len = 0;
