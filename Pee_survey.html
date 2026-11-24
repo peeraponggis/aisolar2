@@ -260,6 +260,9 @@
         .leaflet-pm-toolbar .leaflet-pm-icon-custom-poletx { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='7.8' y='3' width='2.4' height='19' rx='.6' fill='%237f8c8d'/%3E%3Crect x='2' y='5' width='14' height='2' rx='.5' fill='%2334495e'/%3E%3Crect x='11.5' y='9' width='9' height='8' rx='1.2' fill='%238e44ad'/%3E%3Cpath d='M14 9V7.3M16 9V7.3M18 9V7.3' stroke='%238e44ad' stroke-width='1.2'/%3E%3Cpath d='M16.6 10.5l-2 3h1.8l-1 2.5 2.6-3.4h-1.8z' fill='%23f1c40f'/%3E%3C/svg%3E"); background-size:20px; background-position:center; background-repeat:no-repeat; }
         .leaflet-pm-toolbar .leaflet-pm-icon-custom-mdb { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='4.5' y='2.5' width='15' height='19' rx='1.5' fill='%23e67e22'/%3E%3Cpath d='M12 2.5v19' stroke='%23fff' stroke-width='.9'/%3E%3Ccircle cx='10.3' cy='12' r='.9' fill='%23fff'/%3E%3Ccircle cx='13.7' cy='12' r='.9' fill='%23fff'/%3E%3Cpath d='M8.6 5.2l-1.7 2.6h1.4l-.8 2.1 2.2-2.9H8.3z' fill='%23fff'/%3E%3C/svg%3E"); background-size:20px; background-position:center; background-repeat:no-repeat; }
         .equip-icon svg { filter: drop-shadow(0 0 2px #fff) drop-shadow(0 1px 2px rgba(0,0,0,.6)); }
+        .seg-edit div { cursor: pointer; pointer-events: auto; }
+        .seg-edit div:hover { outline: 2px solid #f39c12; }
+        #faceTable input[data-fl] { width: 100%; font-weight: 600; color: #c0392b; }
         .ph-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-top:8px; }
         .ph-card { border:1px solid #d6dde3; border-radius:5px; overflow:hidden; background:#fbfcfd; }
         .ph-card img { width:100%; height:110px; object-fit:cover; display:block; cursor:zoom-in; background:#eee; }
@@ -646,6 +649,8 @@
                 <button class="btn btn-ghost" onclick="exportSKP()">SKP*</button>
             </div>
             <button class="btn btn-dark" style="width:100%; margin-top:6px;" onclick="exportJSON()">&#123;&#125; JSON (ข้อมูลโครงการ + วัตถุ)</button>
+            <button class="btn" style="width:100%; margin-top:6px; background:#1f4e8c;" onclick="exportASCS()">&#128262; ส่งออกให้ ASC Studio (ไฟล์โครงการ)</button>
+            <div class="note">ไฟล์เดียว _ASCS.json &mdash; เปิดใน ASC Studio ได้ทันที: ชื่อ พิกัด อาคาร สิ่งกีดขวาง ต้นไม้ และอุปกรณ์จริง เสาไฟฟ้า / หม้อแปลง / ตู้ MDB พร้อมชื่อ</div>
             <label class="fld" style="margin-top:6px;">ระบบพิกัดสำหรับส่งออก CAD</label>
             <select id="cadOutCRS">
                 <option value="utm" selected>UTM WGS84 (เลือกโซนอัตโนมัติ)</option>
@@ -701,7 +706,7 @@
     <div id="modal-tabs">
         <button data-mpane="mp-gen" class="active">ข้อมูลทั่วไป</button>
         <button data-mpane="mp-3d">3D / ความสูง</button>
-        <button data-mpane="mp-face">สีแต่ละด้าน</button>
+        <button data-mpane="mp-face">ด้าน / ระยะ / สี</button>
         <button data-mpane="mp-photo" id="mtab-photo">&#128247; รูปภาพ</button>
     </div>
     <div id="modal-body">
@@ -733,6 +738,26 @@
                 <div class="modal-field"><label>สีเส้น/สีหลัก:</label><input type="color" id="input-color" class="swatch"></div>
             </div>
             <div class="modal-field"><label>รายละเอียดอื่นๆ:</label><textarea id="input-details" rows="2" placeholder="ระบุรายละเอียด..."></textarea></div>
+            <div id="ascs-box" style="background:#eef3fb; border:1px solid #c9d8ee; border-radius:5px; padding:8px; margin-bottom:8px;">
+                <label class="fld" style="font-weight:600; color:#1f4e8c;">&#128262; ส่งออกไป ASC Studio เป็น</label>
+                <select id="input-ascs-role" style="margin-bottom:4px;"></select>
+                <div class="grid-2" id="ascs-roof">
+                    <div><label class="fld">ทรงหลังคา</label>
+                        <select id="input-roof-type">
+                            <option value="">(ค่าเริ่มของ ASC Studio)</option>
+                            <option value="flat">หลังคาแบน (flat)</option>
+                            <option value="deck">หลังคาเมทัลชีท (deck)</option>
+                            <option value="shed">เพิงหมาแหงน (shed)</option>
+                            <option value="gable">จั่ว (gable)</option>
+                            <option value="hip">ปั้นหยา (hip)</option>
+                            <option value="modern">โมเดิร์น (modern)</option>
+                            <option value="curved">โค้ง (curved)</option>
+                        </select></div>
+                    <div><label class="fld">ความชันหลังคา (องศา)</label><input type="number" id="input-pitch" step="0.5" min="0" max="75" placeholder="ค่าเริ่ม"></div>
+                </div>
+                <div id="ascs-kva-row" style="display:none;"><label class="fld">ขนาดหม้อแปลง (kVA)</label><input type="number" id="input-kva" min="30" step="10" placeholder="250 (ค่าเริ่ม)"></div>
+                <div class="note" id="ascs-hint" style="margin:2px 0 0;"></div>
+            </div>
             <label class="row" style="margin-bottom:6px; background:#fbfcfd; border:1px solid #d6dde3; padding:5px; border-radius:4px;">
                 <input type="checkbox" id="input-label-lock" style="width:auto;margin:0 6px 0 0;">
                 <span style="font-size:12px;font-weight:500;color:#2c3e50;">ล็อกตำแหน่งป้ายกำกับ (เมื่อลากป้ายบนแผนที่ จะล็อกอัตโนมัติ)</span>
@@ -763,14 +788,22 @@
         </div>
 
         <div class="mpane" id="mp-face">
-            <div class="note">กำหนดสีของผนังแต่ละด้าน (ด้าน n = เส้นจากจุด n ไปจุด n+1)</div>
+            <div class="note">แก้ <b>ความยาวแต่ละด้าน</b> ได้ในช่อง "ยาว (m)" (กด Enter) &mdash; รูปบนแผนที่ขยับตามทันที &bull; คลิกป้ายระยะบนแผนที่ก็แก้ได้ &bull; ด้าน n = เส้นจากจุด n ไปจุด n+1</div>
+            <div class="row" style="margin:6px 0; align-items:center; gap:6px;">
+                <label class="fld" style="margin:0; white-space:nowrap;">เมื่อแก้ความยาว:</label>
+                <select id="side-mode" style="flex:1; margin:0;">
+                    <option value="stretch" selected>ยืดทั้งแนว (สี่เหลี่ยมคงมุมฉาก)</option>
+                    <option value="point">ขยับเฉพาะจุดปลายด้าน</option>
+                </select>
+            </div>
+            <div class="note" id="side-msg"></div>
             <div class="row" style="margin:6px 0;">
                 <input type="color" id="input-allface" class="swatch" style="flex:1">
                 <button class="btn-small btn-gcp" onclick="applyAllFaceColors()">ใส่ทุกด้าน</button>
                 <button class="btn-small btn-del" onclick="randomFaceColors()">สุ่มสี</button>
             </div>
             <div style="max-height:280px; overflow:auto;">
-                <table class="tbl" id="faceTable"><thead><tr><th style="width:36px;">ด้าน</th><th>ความยาว (m)</th><th style="width:64px;">สูง (m)</th><th style="width:56px;">สี</th></tr></thead><tbody></tbody></table>
+                <table class="tbl" id="faceTable"><thead><tr><th style="width:36px;">ด้าน</th><th>ยาว (m)</th><th style="width:64px;">สูง (m)</th><th style="width:56px;">สี</th></tr></thead><tbody></tbody></table>
             </div>
         </div>
     </div>
@@ -814,10 +847,11 @@ function downloadText(text, filename, mime) {
     downloadBlob(new Blob(['﻿' + text], { type: (mime || 'text/plain') + ';charset=utf-8' }), filename);
 }
 const TH_MONTHS_FULL = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
-const APP_INFO={version:'4.4.0',created:'2026-08-02',updated:'2026-11-24',author:'ลุงพี'};
+const APP_INFO={version:'4.5.0',created:'2026-08-02',updated:'2026-11-24',author:'ลุงพี'};
 const SURVEY_ICON = (document.querySelector('link[rel="icon"]') || {}).href || ''; /* ไอคอนแท็บ (ใช้ซ้ำในหน้ารายงาน) */
 const PHOTO = { store: {}, edit: [], MAX: 1600, Q: 0.82, seq: 0 }; /* รูปประกอบวัตถุ (ดูส่วนรูปภาพ) */
 const APP_CHANGELOG=[
+  ['4.5.0','2026-11-24','แก้ความยาวแต่ละด้านได้ (ตาราง ด้าน/ระยะ หรือคลิกป้ายระยะ · ยืดทั้งแนว/ขยับจุดปลาย · เตือนด้านที่เปลี่ยนตาม) · ส่งออกให้ ASC Studio ไฟล์โครงการเดียว (ชื่อ พิกัด อาคาร สิ่งกีดขวาง ต้นไม้ + อุปกรณ์จริง เสาไฟฟ้า/หม้อแปลง/ตู้ MDB พร้อมชื่อ) · บันทึกไม่ปัดขนาดเป็น ซม. เงียบ ๆ โดย ลุงพี'],
   ['4.4.0','2026-11-24','ปุ่มวางอุปกรณ์: เสาไฟฟ้า 12 ม. · เสาไฟฟ้า + หม้อแปลง · ตู้ MDB (สี่เหลี่ยม 3D) พร้อมไอคอนบนแผนที่ โมเดล 3D ชื่อในตาราง/รายงาน · ระยะแต่ละด้าน/ตัวเลขขนาดแสดงเฉพาะวัตถุที่เลือก (คลิกพื้นที่ว่างหรือ Esc = ยกเลิกเลือก) · แก้บัควาดต้นไม้ค้าง (คลิกจบวงกลมไม่ได้) และหน้าต่างข้อมูลกรอกไม่ได้หลังวาดต้นไม้ โดย ลุงพี'],
   ['4.3.0','2026-11-24','แนบรูปประกอบวัตถุ (แท็บ 📷 รูปภาพ, ย่ออัตโนมัติ ≤1600px JPEG), รูปย่อในตารางสรุป, รายงาน PDF พร้อมรูป (ภาพรวมพื้นที่ + ตาราง + 1 หน้าต่อวัตถุ), JSON เก็บ/นำเข้ารูปได้, ไอคอนแท็บเบราว์เซอร์ Survey โดย ลุงพี'],
   ['4.1.0','2026-10-19','เพิ่มส่งออก JSON (ข้อมูลโครงการ + วัตถุ + นำกลับเข้าได้), ตั้งชื่อไฟล์ส่งออกทุกรูปแบบเป็น โครงการ_วันเดือนปี(พ.ศ.)_เวลา, แสดงเวอร์ชัน วันที่สร้าง วันที่ปรับปรุง โดยลุงพี'],
@@ -2534,10 +2568,12 @@ function updateSegmentLabels(layer) {
             const hh = (fh !== null) ? fh : (vertexHeight(p, i) + vertexHeight(p, (i + 1) % coords.length)) / 2;
             if (hh > 0) txt += ' | H ' + fmt(hh) + ' ม.';
         }
+        const segIdx = i;
         L.marker(mid, {
-            icon: L.divIcon({ className: 'segment-label', html: '<div>' + txt + '</div>', iconSize: [0, 0] }),
-            interactive: false, pmIgnore: true
-        }).addTo(layer._segmentLabels);
+            icon: L.divIcon({ className: 'segment-label seg-edit', html: '<div title="คลิกเพื่อแก้ความยาวด้านนี้">' + txt + '</div>', iconSize: [0, 0] }),
+            interactive: true, pmIgnore: true, bubblingMouseEvents: false
+        }).on('click', ev => { L.DomEvent.stopPropagation(ev); App._lastLayerClick = Date.now(); promptSideLength(layer, segIdx); })
+          .addTo(layer._segmentLabels);
     }
     applySegVisibility();
 }
@@ -2910,6 +2946,9 @@ function openModal(layer, isEdit) {
 
     buildVertexTable(layer);
     buildFaceTable(layer);
+    markSizeInputs();
+    fillAscsBox(layer);
+    const sm = document.getElementById('side-msg'); if (sm) sm.innerHTML = '';
     PHOTO.edit = (p.photos || []).map(x => ({ id: x.id, caption: x.caption || '' }));
     buildPhotoGrid();
     updateSizeReadout(layer);
@@ -2947,7 +2986,7 @@ function buildFaceTable(layer) {
     for (let i = 0; i < n; i++) {
         const j = (i + 1) % ring.length;
         const d = map.distance(ring[i], ring[j]);
-        html += '<tr class="vt-row"><td>' + (i + 1) + '</td><td>' + fmt(d) + '</td>' +
+        html += '<tr class="vt-row"><td>' + (i + 1) + '</td><td><input type="number" step="0.01" min="0.01" data-fl="' + i + '" value="' + d.toFixed(2) + '" title="พิมพ์ความยาวใหม่แล้วกด Enter"></td>' +
             '<td><input type="number" step="any" data-fh="' + i + '" value="' + (p.faceHeights[i] === '' ? '' : p.faceHeights[i]) + '" placeholder="auto"></td>' +
             '<td><input type="color" data-fc="' + i + '" value="' + toHex(faceColorAt(p, i)) + '" style="width:100%;height:22px;padding:0;"></td></tr>';
     }
@@ -2993,6 +3032,10 @@ function saveModalData() {
     p.is3D = document.getElementById('input-is3d').checked;
     readPhotoCaptions();
     p.photos = PHOTO.edit.map(x => ({ id: x.id, caption: x.caption }));
+    p.ascsRole = document.getElementById('input-ascs-role').value || 'auto';
+    p.roofType = document.getElementById('input-roof-type').value || '';
+    p.pitchDeg = document.getElementById('input-pitch').value === '' ? '' : num(document.getElementById('input-pitch').value);
+    p.kva = num(document.getElementById('input-kva').value) || '';
     
     const lockEl = document.getElementById('input-label-lock');
     if (lockEl) {
@@ -3002,7 +3045,8 @@ function saveModalData() {
 
     /* ปรับรูปทรงจริงบนแผนที่ตามตัวเลข กว้าง x ยาว ที่กรอก */
     const liveEl = document.getElementById('input-livesize');
-    if ((!liveEl || liveEl.checked) && (layer instanceof L.Polyline)) {
+    /* 4.5.0: ปรับรูปเฉพาะเมื่อผู้ใช้แก้ช่อง กว้าง/ยาว จริง — กันการปัดเศษเป็น ซม. แบบเงียบ ๆ ตอนกดบันทึก (ทับความยาวด้านที่พิมพ์ไว้) */
+    if ((!liveEl || liveEl.checked) && (layer instanceof L.Polyline) && sizeInputsChanged()) {
         applyParametricSize(true);
         syncPropArrays(layer);
         if (isPolygonLayer(layer)) { const o = obbOf(layer); if (o) { p.width = o.w; p.length = o.l; } }
@@ -5167,6 +5211,10 @@ function addGeoJSONFeature(f) {
     });
     if (layer.properties.kind && layer.setIcon && !(layer instanceof L.Polyline)) layer.setIcon(equipIcon(layer.properties.kind));
     if (layer.properties.kind === 'tree' && layer.setStyle) layer.setStyle({ fill: true, fillColor: color, fillOpacity: 0.25 });
+    if (props.ascsRole) layer.properties.ascsRole = String(props.ascsRole);
+    if (props.roofType) layer.properties.roofType = String(props.roofType);
+    if (num(props.kva) > 0) layer.properties.kva = num(props.kva);
+    if (props.pitchDeg !== undefined && props.pitchDeg !== '') layer.properties.pitchDeg = num(props.pitchDeg);
     if (Array.isArray(props.photos)) layer.properties.photos = props.photos.filter(x => x && x.id).map(x => ({ id: x.id, caption: x.caption || '' }));
     if (Array.isArray(props.vertexHeights)) layer.properties.vertexHeights = props.vertexHeights.slice();
     if (Array.isArray(props.faceColors)) layer.properties.faceColors = props.faceColors.slice();
@@ -5985,6 +6033,262 @@ async function exportPNG() {
     finally { busy(false); }
 }
 
+
+/* =====================================================================
+   4.5.0 : แก้ความยาวแต่ละด้าน
+   - ยืดทั้งแนว (ค่าเริ่ม): จุดที่อยู่ "ฝั่งปลาย" ของด้านนั้นเลื่อนตามแนวด้าน → สี่เหลี่ยมคงมุมฉาก
+   - ขยับเฉพาะจุดปลาย: เลื่อนจุดปลายด้านจุดเดียวตามแนวด้าน
+   - เส้น (Line): เลื่อนจุดถัดไปทั้งหมด → ด้านอื่นยาวเท่าเดิม
+   ค่าที่พิมพ์ต้องได้ตามนั้น · ด้านอื่นที่เปลี่ยนตาม/รูปตัดกันเอง = เตือน ⚠ (ไม่แก้กลับเงียบ ๆ)
+   ===================================================================== */
+function markSizeInputs() {
+    ['input-width', 'input-length'].forEach(id => { const el = document.getElementById(id); if (el) el.dataset.orig = el.value; });
+}
+function sizeInputsChanged() {
+    return ['input-width', 'input-length'].some(id => { const el = document.getElementById(id); return el && el.offsetParent !== null && el.value !== (el.dataset.orig || ''); });
+}
+function sideLengths(layer) {
+    const r = getRing(layer), closed = isPolygonLayer(layer), n = closed ? r.length : r.length - 1, out = [];
+    for (let i = 0; i < n; i++) out.push(map.distance(r[i], r[(i + 1) % r.length]));
+    return out;
+}
+function keepUnsavedTableEdits(layer) {
+    if (layer !== App.currentLayer) return;
+    const p = layer.properties;
+    document.querySelectorAll('#faceTable input[data-fh]').forEach(i => { p.faceHeights[+i.dataset.fh] = i.value === '' ? '' : num(i.value); });
+    document.querySelectorAll('#faceTable input[data-fc]').forEach(i => { p.faceColors[+i.dataset.fc] = i.value; });
+    document.querySelectorAll('#vertexTable input[data-vh]').forEach(i => { p.vertexHeights[+i.dataset.vh] = i.value === '' ? '' : num(i.value); });
+}
+function setSideLength(layer, i, Lnew, mode) {
+    if (!layer || !(layer instanceof L.Polyline)) return null;
+    if (!(Lnew > 0)) { toast('ความยาวด้านต้องมากกว่า 0', 'warn'); return null; }
+    const ring = getRing(layer), closed = isPolygonLayer(layer), n = ring.length;
+    if (i < 0 || i >= (closed ? n : n - 1)) return null;
+    const j = (i + 1) % n, ref = ring[0].lat;
+    const before = sideLengths(layer);
+    const P = ring.map(ll => planarXY(ll, ref));
+    const dx = P[j][0] - P[i][0], dy = P[j][1] - P[i][1], Lc = Math.hypot(dx, dy);
+    if (Lc < 1e-6) { toast('ด้านนี้ยาว 0 แก้ไม่ได้', 'warn'); return null; }
+    const ux = dx / Lc, uy = dy / Lc;
+    /* ใช้ความยาวจริงบนแผนที่ (map.distance) เป็นฐาน แล้วชดเชยด้วยอัตราส่วน ระนาบ/จริง ให้ได้ค่าที่พิมพ์ตรง */
+    const d = (Lnew - before[i]) * (Lc / before[i]);
+    let move;
+    if (!closed) move = k => k >= j;
+    else if (mode === 'point') move = k => k === j;
+    else {
+        const pi = P[i][0] * ux + P[i][1] * uy, pj = P[j][0] * ux + P[j][1] * uy, mid = (pi + pj) / 2;
+        move = k => (P[k][0] * ux + P[k][1] * uy) > mid;
+    }
+    keepUnsavedTableEdits(layer);
+    setRing(layer, P.map((q, k) => move(k) ? planarToLatLng(q[0] + ux * d, q[1] + uy * d, ref) : planarToLatLng(q[0], q[1], ref)));
+    const after = sideLengths(layer);
+    const p = layer.properties;
+    syncPropArrays(layer);
+    if (closed) { const o = obbOf(layer); if (o) { p.width = o.w; p.length = o.l; } }
+    else { p.length = after.reduce((a, b) => a + b, 0); }
+    updateLabelAndCalculations(layer, p.type);
+    updateSummaryTable(); render3D.redraw(); avoidLabelCollisions();
+    if (typeof V3D !== 'undefined' && V3D.ready) V3D.rebuildFeatures();
+    saveHistoryState();
+    const warn = [];
+    if (Math.abs(after[i] - Lnew) > 0.005) warn.push('ด้าน ' + (i + 1) + ' ได้ ' + fmt(after[i]) + ' ม. (ไม่ตรงค่าที่พิมพ์)');
+    const changed = after.map((v, k) => (k !== i && Math.abs(v - before[k]) > 0.005) ? 'ด้าน ' + (k + 1) + ': ' + fmt(before[k]) + ' &rarr; ' + fmt(v) + ' ม.' : null).filter(Boolean);
+    if (closed) { try { if (turf.kinks(layer.toGeoJSON()).features.length) warn.push('รูปตัดกันเอง (เส้นไขว้) &mdash; ตรวจรูปทรงอีกครั้ง'); } catch (e) { } }
+    return { after: after, changed: changed, warn: warn };
+}
+function reportSideChange(i, Lnew, r) {
+    if (!r) return;
+    let msg = '&#10004; ด้าน ' + (i + 1) + ' = <b>' + fmt(Lnew) + ' ม.</b>';
+    if (r.changed.length) msg += '<br>&#9888; ด้านที่เปลี่ยนตาม: ' + r.changed.join(' &bull; ');
+    if (r.warn.length) msg += '<br>&#9888; ' + r.warn.join('<br>&#9888; ');
+    const sm = document.getElementById('side-msg'); if (sm && App.currentLayer) sm.innerHTML = msg;
+    toast(msg, (r.changed.length || r.warn.length) ? 'warn' : 'ok', r.changed.length || r.warn.length ? 6000 : 2200);
+}
+function refreshModalAfterGeom(layer) {
+    if (layer !== App.currentLayer || !document.getElementById('data-modal').classList.contains('open')) return;
+    buildFaceTable(layer); buildVertexTable(layer); updateSizeReadout(layer);
+    const p = layer.properties;
+    if (isPolygonLayer(layer)) {
+        document.getElementById('input-width').value = num(p.width).toFixed(2);
+        document.getElementById('input-length').value = num(p.length).toFixed(2);
+    } else document.getElementById('input-length').value = num(p.length).toFixed(2);
+    markSizeInputs();
+}
+function promptSideLength(layer, i) {
+    const cur = sideLengths(layer)[i];
+    const v = window.prompt('ความยาวด้านที่ ' + (i + 1) + ' (เมตร)\nตอนนี้ ' + cur.toFixed(2) + ' ม.', cur.toFixed(2));
+    if (v === null || v.trim() === '') return;
+    const Lnew = num(v.replace(',', '.'));
+    const mode = (document.getElementById('side-mode') || {}).value || 'stretch';
+    const r = setSideLength(layer, i, Lnew, mode);
+    reportSideChange(i, Lnew, r);
+    refreshModalAfterGeom(layer);
+}
+document.getElementById('faceTable').addEventListener('change', e => {
+    const inp = e.target.closest && e.target.closest('input[data-fl]');
+    if (!inp || !App.currentLayer) return;
+    const i = +inp.dataset.fl, Lnew = num(inp.value);
+    const r = setSideLength(App.currentLayer, i, Lnew, document.getElementById('side-mode').value);
+    reportSideChange(i, Lnew, r);
+    refreshModalAfterGeom(App.currentLayer);
+});
+
+/* =====================================================================
+   4.5.0 : ส่งออกให้ ASC Studio — ไฟล์โครงการแบบของ ASC Studio เอง (schema design-auto/1) ไฟล์เดียว
+   เปิดใน ASC Studio ได้ทันที (ไม่ต้องแก้ฝั่ง ASC Studio): ชื่อ + พิกัด + อาคาร + สิ่งกีดขวาง + ต้นไม้
+   + อุปกรณ์จริง เสาไฟฟ้า (pole) · หม้อแปลงบนเสา (transformer) · ตู้ MDB (mdb) พร้อมชื่อ
+   พิกัดในไฟล์ = เมตร ENU รอบจุดกึ่งกลางโครงการ (สูตรเดียวกับ wgs84ToEnu ของ ASC Studio)
+   ค่าเริ่มของอุปกรณ์ตาม ASC Studio: เสา 0.3×0.3 ม. · หม้อแปลงตามตาราง kVA แขวนสูง 4 ม. · MDB วางพื้น
+   ===================================================================== */
+const ASCS_ROLES = {
+    auto: 'อัตโนมัติ', building: 'อาคาร / หลังคา (วางแผงได้)', obstacle: 'สิ่งกีดขวาง (มีความสูง)', keepout: 'พื้นที่ห้ามวางแผง',
+    walkway: 'ทางเดิน', neighbor: 'อาคารข้างเคียง (บังเงา)', tree: 'ต้นไม้', mdb: 'ตู้ MDB (อุปกรณ์)',
+    pole: 'เสาไฟฟ้า (อุปกรณ์)', transformer: 'หม้อแปลงบนเสา (อุปกรณ์)', none: 'ไม่ส่งออก'
+};
+/* ตาราง kVA → ขนาดตัวถัง (มม.) ชุดเดียวกับ ASC Studio (power.ts TRAFO_DIM) */
+const ASCS_TRAFO = [[30, 750, 600, 950], [50, 850, 650, 1050], [100, 1000, 750, 1200], [160, 1100, 800, 1300], [250, 1250, 850, 1400],
+    [315, 1300, 900, 1450], [400, 1400, 950, 1500], [500, 1500, 1000, 1600], [630, 1600, 1050, 1650], [800, 1700, 1100, 1750],
+    [1000, 1800, 1200, 1850], [1250, 1900, 1300, 1950], [1500, 2000, 1350, 2050], [1600, 2050, 1350, 2050], [2000, 2200, 1450, 2200]];
+function ascsAutoRole(layer) {
+    const p = layer.properties || {};
+    if (p.kind === 'tree') return 'tree';
+    if (p.kind === 'mdb') return 'mdb';
+    if (p.kind === 'pole') return 'pole';
+    if (p.kind === 'pole_tx') return 'transformer';
+    if (isPolygonLayer(layer)) return 'building';
+    return 'none';
+}
+function ascsRoleOf(layer) {
+    const p = layer.properties || {};
+    if (!isPolygonLayer(layer) && !p.kind) return 'none';   // เส้น / หมุดทั่วไป ASC Studio ยังไม่รับ
+    return p.ascsRole && p.ascsRole !== 'auto' ? p.ascsRole : ascsAutoRole(layer);
+}
+function fillAscsBox(layer) {
+    const p = layer.properties, sel = document.getElementById('input-ascs-role');
+    let opts;
+    if (p.kind === 'tree') opts = ['auto', 'tree', 'obstacle', 'keepout', 'none'];
+    else if (p.kind === 'mdb') opts = ['auto', 'mdb', 'obstacle', 'none'];
+    else if (p.kind === 'pole') opts = ['auto', 'pole', 'obstacle', 'none'];
+    else if (p.kind === 'pole_tx') opts = ['auto', 'transformer', 'pole', 'obstacle', 'none'];
+    else if (isPolygonLayer(layer)) opts = ['auto', 'building', 'obstacle', 'keepout', 'walkway', 'neighbor', 'none'];
+    else opts = ['none'];
+    const autoR = ascsAutoRole(layer);
+    sel.innerHTML = opts.map(k => '<option value="' + k + '">' + (k === 'auto' ? 'อัตโนมัติ (' + ASCS_ROLES[autoR] + ')' : ASCS_ROLES[k]) + '</option>').join('');
+    sel.value = opts.includes(p.ascsRole) ? p.ascsRole : opts[0];
+    document.getElementById('input-roof-type').value = p.roofType || '';
+    document.getElementById('input-pitch').value = (p.pitchDeg === '' || p.pitchDeg == null) ? '' : p.pitchDeg;
+    document.getElementById('input-kva').value = p.kva || '';
+    const upd = () => {
+        const r = sel.value === 'auto' ? autoR : sel.value;
+        document.getElementById('ascs-roof').style.display = r === 'building' ? '' : 'none';
+        document.getElementById('ascs-kva-row').style.display = r === 'transformer' ? '' : 'none';
+        document.getElementById('ascs-hint').innerHTML =
+            r === 'building' ? 'อาคาร: ความสูงชายคา = ช่อง "สูง Height" (ว่าง = 3.5 ม.) · ทรง/ความชันว่าง = จั่ว 20° ตาม ASC Studio' :
+            r === 'none' ? (opts.length === 1 ? 'ASC Studio ยังไม่รับเส้น/หมุดทั่วไป &mdash; ไม่ส่งออก' : 'ไม่ส่งออกวัตถุนี้') :
+            r === 'mdb' ? 'ตู้ MDB: กว้าง/ลึก จากรูปสี่เหลี่ยม · สูง = ช่อง "สูง Height" · ชื่อติดไปด้วย' :
+            r === 'pole' ? 'เสาไฟฟ้า 0.3 × 0.3 ม. · สูง = ช่อง "สูง Height" (ว่าง = 12 ม.)' :
+            r === 'transformer' ? 'หม้อแปลงแขวนบนเสา (ASC Studio วาดเสาให้เอง) · สูงเสา = ช่อง "สูง Height" · ขนาดตัวถังตาม kVA' :
+            r === 'tree' ? 'ต้นไม้: รัศมีพุ่มจากขนาดวงกลม · สูง = ช่อง "สูง Height" (ว่าง = 6 ม.)' :
+            'ASC Studio เก็บเป็นสี่เหลี่ยมครอบรูป · สูง = ช่อง "สูง Height" · ฐาน = ช่อง "ระดับฐาน"';
+    };
+    sel.onchange = upd; upd();
+}
+/* WGS84 → ENU (เมตร) สูตรเดียวกับ wgs84ToEnu ของ ASC Studio */
+function ascsEnu(o, ll) {
+    const a = 6378137, f = 1 / 298.257223563, e2 = f * (2 - f), D = Math.PI / 180;
+    const phi0 = o.lat * D, sp = Math.sin(phi0);
+    const rn = a / Math.sqrt(1 - e2 * sp * sp), rm = (a * (1 - e2)) / Math.pow(1 - e2 * sp * sp, 1.5);
+    const r3 = v => Math.round(v * 1000) / 1000;
+    return { x: r3((ll.lng - o.lng) * D * rn * Math.cos(phi0)), y: r3((ll.lat - o.lat) * D * rm) };
+}
+/* สี่เหลี่ยมหมุนครอบรูป (แนวขอบยาวสุด) — สูตรเดียวกับ rectFromRing ของ ASC Studio */
+function ascsRect(r) {
+    let best = 0, ang = 0;
+    for (let i = 0; i < r.length; i++) { const A = r[i], B = r[(i + 1) % r.length]; const Lr = Math.hypot(B.x - A.x, B.y - A.y); if (Lr > best) { best = Lr; ang = Math.atan2(B.y - A.y, B.x - A.x); } }
+    const c = Math.cos(-ang), sn = Math.sin(-ang);
+    const loc = r.map(q => ({ x: q.x * c - q.y * sn, y: q.x * sn + q.y * c }));
+    const xs = loc.map(q => q.x), ys = loc.map(q => q.y);
+    const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+    const ci = Math.cos(ang), si = Math.sin(ang), r3 = v => Math.round(v * 1000) / 1000;
+    return { at: { x: r3(cx * ci - cy * si), y: r3(cx * si + cy * ci) }, wM: r3(Math.max(0.1, Math.max(...xs) - Math.min(...xs))), dM: r3(Math.max(0.1, Math.max(...ys) - Math.min(...ys))), rotDeg: r3(ang * 180 / Math.PI) };
+}
+function centerOf(layer) { return layer.getBounds ? layer.getBounds().getCenter() : layer.getLatLng(); }
+let _ascsSeq = 0;
+function ascsId(p) { return p + '-' + Date.now().toString(36) + (_ascsSeq++).toString(36); }
+function buildAscsProject() {
+    const m = projectMeta();
+    const bnd = drawnItems.getBounds(), ctr = bnd.isValid() ? bnd.getCenter() : map.getCenter();
+    const o = { lat: +ctr.lat.toFixed(7), lng: +ctr.lng.toFixed(7) };
+    const ringOf = layer => { const r = getRing(layer).map(ll => ascsEnu(o, ll)); const a = r[0], z = r[r.length - 1]; if (r.length > 1 && a.x === z.x && a.y === z.y) r.pop(); return r; };
+    const buildings = [], obstacles = [], trees = [], equipment = [], skipped = [], counts = {};
+    const add = k => counts[k] = (counts[k] || 0) + 1;
+    const eqBase = (kind, name, at, w, h, d, bottom) => ({ id: ascsId('e'), kind: kind, name: name, qty: 1, at: at, bottomM: bottom, facingDeg: 180, widthMm: w, heightMm: h, depthMm: d, mount: 'floor', spdClass: '' });
+    drawnItems.eachLayer(layer => {
+        const p = layer.properties; if (!p) return;
+        const role = ascsRoleOf(layer), name = p.name || typeLabel(p), h = num(p.height), base = num(p.base);
+        const at = ascsEnu(o, centerOf(layer));
+        if (role === 'none') { skipped.push(name + ' (' + typeLabel(p) + ')'); return; }
+        if (role === 'pole') {
+            equipment.push(eqBase('pole', name, at, 300, Math.round((h > 0 ? h : 12) * 1000), 300, base)); add('pole'); return;
+        }
+        if (role === 'transformer') {
+            const kva = num(p.kva) > 0 ? num(p.kva) : 250;
+            const row = ASCS_TRAFO.find(r => r[0] >= kva) || ASCS_TRAFO[ASCS_TRAFO.length - 1];
+            const e = eqBase('transformer', name, at, row[1], row[3], row[2], kva > 1000 ? 0.5 : 4);
+            e.kva = row[0]; e.poleH = h > 0 ? h : 12;
+            equipment.push(e); add('transformer'); return;
+        }
+        if (role === 'mdb') {
+            let w = 800, d = 300, face = 180;
+            if (isPolygonLayer(layer)) { const R = ascsRect(ringOf(layer)); w = Math.round(R.wM * 1000); d = Math.round(R.dM * 1000); face = Math.round(((180 - R.rotDeg) % 360 + 360) % 360); /* หน้าตู้ตั้งฉากด้านยาว (0 = เหนือ ตามเข็ม) */ }
+            const e = eqBase('mdb', name, at, w, Math.round((h > 0 ? h : 2) * 1000), d, base);
+            e.facingDeg = face; e.poles = 4; e.spdClass = 'II';
+            equipment.push(e); add('mdb'); return;
+        }
+        if (role === 'tree') {
+            const r = num(p.treeRadius) || (isPolygonLayer(layer) ? Math.sqrt(num(p.area) / Math.PI) : 2);
+            trees.push({ id: ascsId('t'), name: name, at: at, canopyRM: Math.round(r * 100) / 100, heightM: h > 0 ? h : 6, growthMPerYear: 0.3 }); add('tree'); return;
+        }
+        let ring;
+        if (isPolygonLayer(layer)) ring = ringOf(layer);
+        else if (layer.getLatLng) { const s2 = (p.kind === 'pole_tx' ? 1.2 : 0.4) / 2; ring = [[-s2, -s2], [s2, -s2], [s2, s2], [-s2, s2]].map(q => ({ x: at.x + q[0], y: at.y + q[1] })); }
+        if (!ring || ring.length < 3) { skipped.push(name + ' (' + typeLabel(p) + ')'); return; }
+        if (role === 'building') {
+            const rt = p.roofType || 'gable';
+            const pitch = (p.pitchDeg !== '' && p.pitchDeg != null && isFinite(p.pitchDeg)) ? num(p.pitchDeg) : (rt === 'flat' ? 0 : 20);
+            buildings.push({ id: ascsId('b'), name: name, footprint: ring, roofType: rt, eaveHeightM: h > 0 ? h : 3.5, pitchDeg: pitch, ridgeAxis: 'long', slopeDownAzimuthDeg: 180 });
+            add('building'); return;
+        }
+        const R = ascsRect(ring);
+        obstacles.push({ id: ascsId('o'), kind: role, name: name, at: R.at, wM: R.wM, dM: R.dM, rotDeg: R.rotDeg,
+            heightM: h > 0 ? h : (role === 'keepout' || role === 'walkway' ? 0 : 1), baseM: base, bufferM: 0.3 });
+        add(role);
+    });
+    const now = new Date().toISOString();
+    const desc = m.projectDescription || '';
+    const state = {
+        schema: 'design-auto/1', createdAt: now, updatedAt: now,
+        site: {
+            projectName: m.projectName, lat: o.lat, lng: o.lng, address: desc.split(/\r?\n/)[0].slice(0, 200), province: '', utility: 'PEA',
+            ambientMinC: 10, ambientMaxC: 40, installationClass: 'commercial', meterPhases: 3,
+            note: 'ส่งออกจาก Survey ' + APP_INFO.version + (desc ? ' · ' + desc : '')
+        },
+        buildings: buildings, obstacles: obstacles, trees: trees, equipment: equipment
+    };
+    return { state: state, counts: counts, skipped: skipped, center: o };
+}
+function exportASCS() {
+    let n = 0; drawnItems.eachLayer(l => { if (l.properties) n++; });
+    if (!n) { toast('ยังไม่มีวัตถุในโครงการ', 'warn'); return; }
+    const r = buildAscsProject();
+    downloadText(JSON.stringify(r.state, null, 2), exportBase() + '_ASCS.json', 'application/json');
+    const lab = { building: 'อาคาร', obstacle: 'สิ่งกีดขวาง', keepout: 'ห้ามวางแผง', walkway: 'ทางเดิน', neighbor: 'อาคารข้างเคียง', tree: 'ต้นไม้', mdb: 'ตู้ MDB', pole: 'เสาไฟฟ้า', transformer: 'หม้อแปลง' };
+    const list = Object.keys(r.counts).map(k => lab[k] + ' ' + r.counts[k]).join(' · ');
+    toast('&#128262; ส่งออกให้ ASC Studio แล้ว (ไฟล์เดียว _ASCS.json)<br>' + (list || '-') +
+        (r.skipped.length ? '<br>&#9888; ไม่ส่ง ' + r.skipped.length + ' รายการ (เส้น/หมุดทั่วไป หรือเลือก "ไม่ส่งออก"): ' + r.skipped.slice(0, 6).map(esc).join(', ') + (r.skipped.length > 6 ? ' …' : '') : '') +
+        '<br><b>ใน ASC Studio:</b> เปิดไฟล์นี้ (นำเข้า/ลากวาง) = โครงการใหม่ที่พิกัด ' + r.center.lat.toFixed(6) + ', ' + r.center.lng.toFixed(6),
+        r.skipped.length ? 'warn' : 'ok', 12000);
+}
 /* =====================================================================
    รูปภาพประกอบวัตถุ (4.3.0)
    - รูปเก็บใน PHOTO.store {id: dataURL} แยกจาก properties
