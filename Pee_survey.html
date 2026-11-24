@@ -887,11 +887,12 @@ function downloadText(text, filename, mime) {
     downloadBlob(new Blob(['﻿' + text], { type: (mime || 'text/plain') + ';charset=utf-8' }), filename);
 }
 const TH_MONTHS_FULL = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
-const APP_INFO={version:'4.14.1',created:'2026-08-02',updated:'2026-11-24',author:'ลุงพี'};
+const APP_INFO={version:'4.15.0',created:'2026-08-02',updated:'2026-11-24',author:'ลุงพี'};
 const SURVEY_ICON = (document.querySelector('link[rel="icon"]') || {}).href || ''; /* ไอคอนแท็บ (ใช้ซ้ำในหน้ารายงาน) */
 const PHOTO = { store: {}, edit: [], MAX: 1600, Q: 0.82, seq: 0 }; /* รูปประกอบวัตถุ (ดูส่วนรูปภาพ) */
 const APP_CHANGELOG=[
-  ['4.14.1','2026-11-24','แก้ป้ายเลื่อนผิดตำแหน่งเมื่อ pan แผนที่: เปลี่ยนจาก CSS margin เป็น setLatLng ตำแหน่งจริง (เริ่มจาก defaultLatLng ทุกครั้ง ไม่สะสม drift) — ป้ายอยู่กับที่ตอนเลื่อน/ซูม โดย ลุงพี'],
+  ['4.15.0','2026-11-24','แก้ป้ายเลื่อนผิดตำแหน่งเมื่อ pan แผนที่ (แก้จริง): ใช้ CSS transform บน wrapper div ภายใน DivIcon แทน setLatLng/CSS margin — Leaflet จัดการตำแหน่ง marker เอง ป้ายไม่สะสม drift อีกต่อไป โดย ลุงพี'],
+  ['4.14.1','2026-11-24','(ยกเลิก — setLatLng ยังมี drift จาก containerPointToLatLng)'],
   ['4.14.0','2026-11-24','(ยกเลิก — moveend ไม่แก้ปัญหา)'],
   ['4.13.1','2026-11-24','แก้ป้ายเลื่อนเมื่อติ๊กออก checkbox: ป้ายที่ซ่อนไม่ผลักป้ายที่มองเห็นอีกต่อไป · applyCategoryFilter + refreshAllLabels เรียก avoidLabelCollisions ให้ป้ายเข้าที่ โดย ลุงพี'],
   ['4.13.0','2026-11-24','แก้ป้ายกำกับกระโดดตอนซูมเข้า-ออก: ระบบหลบชนป้ายใช้ pixel offset คงที่แทนการแปลง lat/lng ↔ pixel ไป-กลับ ป้ายจึงอยู่ที่เดิมทุกระดับซูม โดย ลุงพี'],
@@ -2784,7 +2785,7 @@ function updateLabelAndCalculations(layer, type) {
 
     const layerId = L.Util.stamp(layer);
     const col = p.color || '#2c3e50';
-    const labelHtml = '<div class="custom-label-box" style="border-color:' + col + ';">' + labelText + '</div>';
+    const labelHtml = '<div class="label-offset-wrap"><div class="custom-label-box" style="border-color:' + col + ';">' + labelText + '</div></div>';
 
     if (!layer._annotation) {
         const line = L.polyline([topPt, targetPt], { className: 'leader-line', color: col, weight: 2, dashArray: '3,3', pmIgnore: true, interactive: false }).addTo(map);
@@ -2797,6 +2798,7 @@ function updateLabelAndCalculations(layer, type) {
         labelMarker.on('click', function (ev) { L.DomEvent.stopPropagation(ev); setSelected(layer); openModal(layer, true); });
         
         labelMarker.on('dragstart', function() {
+            if (layer._annotation) { layer._annotation._pxOff = [0, 0]; applyWrapperOffset(layer); }
         });
         // ผูก Event เมื่อลากป้าย เพื่อให้เส้นชี้ตาม
         labelMarker.on('drag', function(ev) {
@@ -2830,8 +2832,18 @@ function updateLabelAndCalculations(layer, type) {
     avoidLabelCollisions();
 }
 
-/* 4.14.1: หลบชนป้ายด้วย setLatLng — เริ่มจาก defaultLatLng ทุกครั้ง (ไม่สะสม drift)
-   ไม่ใช้ CSS margin (ขัด Leaflet internal ทำป้ายเลื่อนตอน pan) */
+/* 4.15.0: หลบชนป้ายด้วย CSS transform บน wrapper ภายใน DivIcon
+   - marker อยู่ที่ defaultLatLng เสมอ (Leaflet จัดการ pan/zoom ได้ถูกต้อง)
+   - ภาพป้ายเลื่อนด้วย CSS transform: translate(px,px) บน .label-offset-wrap
+   - leader line อัปเดตหลัง pan (moveend) ให้ตรงกับภาพป้าย */
+function applyWrapperOffset(l) {
+    var off = (l._annotation && l._annotation._pxOff) || [0, 0];
+    var m = l._annotation && l._annotation.marker;
+    if (m && m._icon) {
+        var wrap = m._icon.querySelector('.label-offset-wrap');
+        if (wrap) wrap.style.transform = (off[0] === 0 && off[1] === 0) ? '' : 'translate(' + off[0] + 'px,' + off[1] + 'px)';
+    }
+}
 function avoidLabelCollisions() {
     var labels = [];
     drawnItems.eachLayer(function (l) {
@@ -2839,9 +2851,13 @@ function avoidLabelCollisions() {
             if (!map.hasLayer(l)) return;
             if (l.properties && l.properties.labelLocked) {
                 l._annotation.marker.setLatLng(l.properties.customLabelLatLng || l._annotation.defaultLatLng);
+                l._annotation._pxOff = [0, 0];
+                applyWrapperOffset(l);
                 syncLeaderLines([l]);
             } else {
                 l._annotation.marker.setLatLng(l._annotation.defaultLatLng);
+                l._annotation._pxOff = [0, 0];
+                applyWrapperOffset(l);
                 labels.push(l);
             }
         }
@@ -2868,18 +2884,36 @@ function avoidLabelCollisions() {
         iter++;
     } while (moved && iter < 12);
     labels.forEach(function (l, i) {
-        l._annotation.marker.setLatLng(map.containerPointToLatLng(pts[i]));
+        var base = map.latLngToContainerPoint(l._annotation.defaultLatLng);
+        l._annotation._pxOff = [pts[i].x - base.x, pts[i].y - base.y];
+        applyWrapperOffset(l);
     });
     syncLeaderLines(labels);
 }
 function syncLeaderLines(labels) {
     labels.forEach(function (l) {
         var an = l._annotation;
-        var p1 = an.marker.getLatLng();
+        var off = an._pxOff || [0, 0];
+        var p1;
+        if (off[0] === 0 && off[1] === 0) {
+            p1 = an.marker.getLatLng();
+        } else {
+            var basePx = map.latLngToContainerPoint(an.marker.getLatLng());
+            p1 = map.containerPointToLatLng(L.point(basePx.x + off[0], basePx.y + off[1]));
+        }
         var p3 = an.arrow.getLatLng();
         var p2 = L.latLng(p1.lat, p3.lng);
         an.line.setLatLngs([p1, p2, p3]);
     });
+}
+function refreshLeaderLinesOnly() {
+    var labels = [];
+    drawnItems.eachLayer(function (l) {
+        if (l._annotation && l._annotation.marker && l._annotation.defaultLatLng && map.hasLayer(l)) {
+            labels.push(l);
+        }
+    });
+    syncLeaderLines(labels);
 }
 
 map.on('zoomend', () => {
@@ -2889,6 +2923,8 @@ map.on('zoomend', () => {
     drawnItems.eachLayer(l => { if (l.properties) updateLabelAndCalculations(l, l.properties.type); });
     avoidLabelCollisions();
 });
+/* 4.15.0: อัปเดต leader line หลัง pan เพื่อให้เส้นชี้ตรงกับภาพป้าย */
+map.on('moveend', refreshLeaderLinesOnly);
 
 function updateSummaryTable() {
     const tbody = document.querySelector('#summaryTable tbody');
