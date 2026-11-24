@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advanced GIS Civil &amp; Orthophoto Workspace V4.0</title>
+    <title>Survey · Advanced GIS Civil &amp; Orthophoto Workspace</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Crect width=%2264%22 height=%2264%22 rx=%2214%22 fill=%22%232c3e50%22/%3E%3Cpath d=%22M8 50 L20 22 L44 28 L56 50 Z%22 fill=%22%2327ae60%22 fill-opacity=%22.35%22 stroke=%22%232ecc71%22 stroke-width=%223.5%22 stroke-linejoin=%22round%22/%3E%3Ccircle cx=%228%22 cy=%2250%22 r=%223.5%22 fill=%22%23fff%22/%3E%3Ccircle cx=%2220%22 cy=%2222%22 r=%223.5%22 fill=%22%23fff%22/%3E%3Ccircle cx=%2244%22 cy=%2228%22 r=%223.5%22 fill=%22%23fff%22/%3E%3Ccircle cx=%2256%22 cy=%2250%22 r=%223.5%22 fill=%22%23fff%22/%3E%3Cpath d=%22M32 6 C24.8 6 19 11.6 19 18.6 C19 28 32 42 32 42 C32 42 45 28 45 18.6 C45 11.6 39.2 6 32 6 Z%22 fill=%22%23e74c3c%22 stroke=%22%23fff%22 stroke-width=%222.5%22/%3E%3Ccircle cx=%2232%22 cy=%2218.5%22 r=%225%22 fill=%22%23fff%22/%3E%3C/svg%3E">
 
     <!-- Three.js (ESM) สำหรับฉาก 3 มิติจริง -->
     <script type="importmap">
@@ -254,6 +255,22 @@
 
         #sectionChart { width:100%; height:170px; background:#fff; border:1px solid #dde3e8; border-radius:4px; }
         .badge3d { display:inline-block; font-size:9.5px; background:#27ae60; color:#fff; border-radius:3px; padding:0 4px; vertical-align:middle; }
+        /* ---- รูปภาพประกอบวัตถุ ---- */
+        .ph-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-top:8px; }
+        .ph-card { border:1px solid #d6dde3; border-radius:5px; overflow:hidden; background:#fbfcfd; }
+        .ph-card img { width:100%; height:110px; object-fit:cover; display:block; cursor:zoom-in; background:#eee; }
+        .ph-card .ph-meta { font-size:10.5px; color:#7f8c8d; padding:2px 5px 0; }
+        .ph-card input { margin:3px 5px 5px; width:calc(100% - 10px); font-size:11.5px; padding:3px 5px; }
+        .ph-card .ph-del { float:right; border:none; background:#e74c3c; color:#fff; font-size:11px; padding:1px 6px; cursor:pointer; border-radius:0 0 0 4px; }
+        .ph-drop { border:2px dashed #95a5a6; border-radius:6px; padding:12px; text-align:center; color:#7f8c8d; font-size:12px; cursor:pointer; }
+        .ph-drop.over { border-color:#27ae60; background:#eafaf1; color:#1e8449; }
+        .tbl-thumbs { display:flex; gap:3px; margin-top:4px; flex-wrap:wrap; }
+        .tbl-thumbs img { width:44px; height:34px; object-fit:cover; border-radius:3px; border:1px solid #ccd5dc; }
+        .tbl-thumbs span { font-size:10.5px; color:#7f8c8d; align-self:center; }
+        #ph-viewer { display:none; position:fixed; inset:0; background:rgba(0,0,0,.85); z-index:3000; align-items:center; justify-content:center; flex-direction:column; cursor:zoom-out; }
+        #ph-viewer.open { display:flex; }
+        #ph-viewer img { max-width:94vw; max-height:86vh; box-shadow:0 4px 30px #000; }
+        #ph-viewer div { color:#fff; margin-top:8px; font-size:14px; }
     </style>
 </head>
 <body>
@@ -606,6 +623,7 @@
                 <button class="btn btn-pdf" onclick="exportPDF()">PDF</button>
                 <button class="btn btn-purple" onclick="exportSVG()">SVG</button>
             </div>
+            <button class="btn btn-pdf" style="width:100%; margin-top:6px; background:#c0392b;" onclick="exportReportPDF()">&#128209; รายงาน PDF พร้อมรูป (แผนที่ + ตาราง + รูปทุกวัตถุ)</button>
             <label class="row" style="margin-top:4px;"><input type="checkbox" id="optSvgRaster" checked style="width:auto;margin:0 6px 0 0;"> <span style="font-size:11.5px;">ฝังภาพพื้นหลังลงใน SVG</span></label>
         </div>
 
@@ -672,6 +690,7 @@
     <div id="busy"><div class="spinner"></div><div id="busy-text">กำลังประมวลผล...</div></div>
 </div>
 
+<div id="ph-viewer" onclick="this.classList.remove('open')"><img id="ph-viewer-img" alt=""><div id="ph-viewer-cap"></div></div>
 <div id="modal-overlay" onclick="closeModal()"></div>
 <div id="data-modal">
     <div id="modal-head">กรอกข้อมูลวัตถุ</div>
@@ -679,6 +698,7 @@
         <button data-mpane="mp-gen" class="active">ข้อมูลทั่วไป</button>
         <button data-mpane="mp-3d">3D / ความสูง</button>
         <button data-mpane="mp-face">สีแต่ละด้าน</button>
+        <button data-mpane="mp-photo" id="mtab-photo">&#128247; รูปภาพ</button>
     </div>
     <div id="modal-body">
         <div class="mpane active" id="mp-gen">
@@ -729,6 +749,13 @@
             <div style="max-height:220px; overflow:auto;">
                 <table class="tbl" id="vertexTable"><thead><tr><th style="width:34px;">จุด</th><th>Latitude</th><th>Longitude</th><th style="width:78px;">สูง (m)</th></tr></thead><tbody></tbody></table>
             </div>
+        </div>
+
+        <div class="mpane" id="mp-photo">
+            <div class="note">แนบรูปถ่ายหน้างานประกอบวัตถุนี้ (หลายรูปได้) &mdash; รูปใหญ่ย่ออัตโนมัติ ด้านยาวไม่เกิน 1600 px (JPEG) เพื่อไม่ให้ไฟล์โครงการใหญ่เกินไป</div>
+            <div class="ph-drop" id="ph-drop" onclick="document.getElementById('ph-file').click()">&#128247; คลิกเพื่อเลือกรูป / ถ่ายรูป หรือ ลากไฟล์รูปมาวางที่นี่</div>
+            <input type="file" id="ph-file" accept="image/*" multiple style="display:none">
+            <div class="ph-grid" id="ph-grid"></div>
         </div>
 
         <div class="mpane" id="mp-face">
@@ -783,8 +810,11 @@ function downloadText(text, filename, mime) {
     downloadBlob(new Blob(['﻿' + text], { type: (mime || 'text/plain') + ';charset=utf-8' }), filename);
 }
 const TH_MONTHS_FULL = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
-const APP_INFO={version:'4.2.0',created:'2026-08-02',updated:'2026-10-19',author:'ลุงพี'};
+const APP_INFO={version:'4.3.0',created:'2026-08-02',updated:'2026-11-24',author:'ลุงพี'};
+const SURVEY_ICON = (document.querySelector('link[rel="icon"]') || {}).href || ''; /* ไอคอนแท็บ (ใช้ซ้ำในหน้ารายงาน) */
+const PHOTO = { store: {}, edit: [], MAX: 1600, Q: 0.82, seq: 0 }; /* รูปประกอบวัตถุ (ดูส่วนรูปภาพ) */
 const APP_CHANGELOG=[
+  ['4.3.0','2026-11-24','แนบรูปประกอบวัตถุ (แท็บ 📷 รูปภาพ, ย่ออัตโนมัติ ≤1600px JPEG), รูปย่อในตารางสรุป, รายงาน PDF พร้อมรูป (ภาพรวมพื้นที่ + ตาราง + 1 หน้าต่อวัตถุ), JSON เก็บ/นำเข้ารูปได้, ไอคอนแท็บเบราว์เซอร์ Survey โดย ลุงพี'],
   ['4.1.0','2026-10-19','เพิ่มส่งออก JSON (ข้อมูลโครงการ + วัตถุ + นำกลับเข้าได้), ตั้งชื่อไฟล์ส่งออกทุกรูปแบบเป็น โครงการ_วันเดือนปี(พ.ศ.)_เวลา, แสดงเวอร์ชัน วันที่สร้าง วันที่ปรับปรุง โดยลุงพี'],
 ];
 function thaiDateFromIso(iso) {
@@ -2558,6 +2588,7 @@ function updateSummaryTable() {
             if (num(p.height) > 0) details += '<br>สูง: ' + fmt(p.height) + ' ม.';
         } else { nM++; details = '-'; }
         if (p.details) details += '<br><span style="color:#7f8c8d;">อื่นๆ: ' + esc(p.details) + '</span>';
+        details += thumbsHTML(p.photos);
         html += '<tr data-id="' + L.Util.stamp(layer) + '" style="cursor:pointer;"><td style="color:' + p.color + '; font-weight:bold;">' + p.type + '</td><td>' + esc(p.name || '-') + '</td><td>' + details + '</td></tr>';
     });
     tbody.innerHTML = html || '<tr><td colspan="3" style="text-align:center; color:#999;">ยังไม่มีการวาดวัตถุในโครงการ</td></tr>';
@@ -2736,6 +2767,8 @@ function openModal(layer, isEdit) {
 
     buildVertexTable(layer);
     buildFaceTable(layer);
+    PHOTO.edit = (p.photos || []).map(x => ({ id: x.id, caption: x.caption || '' }));
+    buildPhotoGrid();
     updateSizeReadout(layer);
     document.querySelectorAll('#modal-tabs button')[0].click();
 }
@@ -2815,6 +2848,8 @@ function saveModalData() {
     p.color = document.getElementById('input-color').value;
     p.roofColor = document.getElementById('input-roofcolor').value;
     p.is3D = document.getElementById('input-is3d').checked;
+    readPhotoCaptions();
+    p.photos = PHOTO.edit.map(x => ({ id: x.id, caption: x.caption }));
     
     const lockEl = document.getElementById('input-label-lock');
     if (lockEl) {
@@ -4985,6 +5020,7 @@ function addGeoJSONFeature(f) {
         labelLocked: !!props.labelLocked,
         customLabelLatLng: props.customLabelLatLng || null
     });
+    if (Array.isArray(props.photos)) layer.properties.photos = props.photos.filter(x => x && x.id).map(x => ({ id: x.id, caption: x.caption || '' }));
     if (Array.isArray(props.vertexHeights)) layer.properties.vertexHeights = props.vertexHeights.slice();
     if (Array.isArray(props.faceColors)) layer.properties.faceColors = props.faceColors.slice();
     if (Array.isArray(props.faceHeights)) layer.properties.faceHeights = props.faceHeights.slice();
@@ -4997,6 +5033,7 @@ function importProjectTXT(text, srcName) {
     importProjectObject(obj, srcName);
 }
 function importProjectObject(obj, srcName) {
+    if (obj.photoStore && typeof obj.photoStore === 'object') Object.keys(obj.photoStore).forEach(k => { if (/^data:image\//.test(obj.photoStore[k])) PHOTO.store[k] = obj.photoStore[k]; });
     if (obj.projectName) document.getElementById('projectName').value = obj.projectName;
     if (obj.projectDescription) document.getElementById('projectDesc').value = obj.projectDescription;
     let n = 0;
@@ -5373,6 +5410,7 @@ function buildProjectJSON() {
         projectDescription: m.projectDescription,
         exportTimestamp: m.exportTimestamp,
         crs: 'EPSG:4326 (WGS84) lng,lat ; vertices.alt = เมตร',
+        photoStore: usedPhotoStore(),
         objects: objects,
         spatialFeatures: collectFeatures(),
         images: App.images.map(im => ({
@@ -5799,6 +5837,233 @@ async function exportPNG() {
     } catch (e) { toast('ส่งออก PNG ไม่สำเร็จ: ' + e.message, 'err'); }
     finally { busy(false); }
 }
+
+/* =====================================================================
+   รูปภาพประกอบวัตถุ (4.3.0)
+   - รูปเก็บใน PHOTO.store {id: dataURL} แยกจาก properties
+     (properties.photos เก็บแค่ {id, caption} → undo/redo ไม่บวมหน่วยความจำ)
+   - ย่ออัตโนมัติ ด้านยาวไม่เกิน PHOTO.MAX px เป็น JPEG
+   ===================================================================== */
+function photoId() { return 'ph' + Date.now().toString(36) + (PHOTO.seq++).toString(36); }
+function kb(n) { return n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.round(n / 1024) + ' KB'; }
+function dataUrlBytes(u) { return Math.round((u.length - u.indexOf(',') - 1) * 3 / 4); }
+function resizeImageFile(file) {
+    return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+            URL.revokeObjectURL(url);
+            const w0 = img.naturalWidth, h0 = img.naturalHeight;
+            const s = Math.min(1, PHOTO.MAX / Math.max(w0, h0));
+            const w = Math.max(1, Math.round(w0 * s)), h = Math.max(1, Math.round(h0 * s));
+            const c = document.createElement('canvas'); c.width = w; c.height = h;
+            const ctx = c.getContext('2d');
+            ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+            ctx.drawImage(img, 0, 0, w, h);
+            resolve({ src: c.toDataURL('image/jpeg', PHOTO.Q), w0: w0, h0: h0, w: w, h: h, bytes0: file.size });
+        };
+        img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('อ่านไฟล์รูปไม่ได้: ' + file.name)); };
+        img.src = url;
+    });
+}
+async function addPhotoFiles(files) {
+    const list = Array.from(files || []).filter(f => /^image\//.test(f.type));
+    if (!list.length) { toast('ไม่พบไฟล์รูปภาพ', 'warn'); return; }
+    readPhotoCaptions();
+    let done = 0, msgs = [];
+    for (const f of list) {
+        try {
+            const r = await resizeImageFile(f);
+            const id = photoId();
+            PHOTO.store[id] = r.src;
+            PHOTO.edit.push({ id: id, caption: f.name.replace(/\.[^.]+$/, '') });
+            done++;
+            if (r.w !== r.w0) msgs.push(f.name + ': ' + r.w0 + '×' + r.h0 + ' → ' + r.w + '×' + r.h + ' (' + kb(r.bytes0) + ' → ' + kb(dataUrlBytes(r.src)) + ')');
+        } catch (e) { toast(e.message, 'err', 4000); }
+    }
+    buildPhotoGrid();
+    toast('เพิ่มรูป ' + done + ' รูป' + (msgs.length ? '<br>ย่อขนาดแล้ว:<br>' + msgs.map(esc).join('<br>') : ''), 'ok', msgs.length ? 6000 : 2000);
+}
+function readPhotoCaptions() {
+    document.querySelectorAll('#ph-grid input[data-phi]').forEach(inp => {
+        const it = PHOTO.edit[+inp.dataset.phi]; if (it) it.caption = inp.value;
+    });
+}
+function buildPhotoGrid() {
+    const g = document.getElementById('ph-grid'); if (!g) return;
+    const tab = document.getElementById('mtab-photo');
+    if (tab) tab.innerHTML = '&#128247; รูปภาพ' + (PHOTO.edit.length ? ' (' + PHOTO.edit.length + ')' : '');
+    g.innerHTML = PHOTO.edit.map((x, i) => {
+        const src = PHOTO.store[x.id];
+        return '<div class="ph-card"><button class="ph-del" title="ลบรูปนี้" onclick="removeEditPhoto(' + i + ')">&#10005;</button>' +
+            (src ? '<img src="' + src + '" onclick="viewPhoto(\'' + x.id + '\',' + i + ')">' : '<div style="height:110px;display:flex;align-items:center;justify-content:center;color:#c0392b;font-size:11px;">ไม่พบไฟล์รูป</div>') +
+            '<div class="ph-meta">รูปที่ ' + (i + 1) + (src ? ' &bull; ' + kb(dataUrlBytes(src)) : '') + '</div>' +
+            '<input type="text" data-phi="' + i + '" value="' + esc(x.caption) + '" placeholder="คำอธิบายรูป"></div>';
+    }).join('') || '<div class="note" style="grid-column:1/-1;text-align:center;">ยังไม่มีรูป</div>';
+}
+function removeEditPhoto(i) {
+    readPhotoCaptions();
+    PHOTO.edit.splice(i, 1);
+    buildPhotoGrid();
+}
+function viewPhoto(id, i) {
+    const src = PHOTO.store[id]; if (!src) return;
+    readPhotoCaptions();
+    document.getElementById('ph-viewer-img').src = src;
+    const it = PHOTO.edit[i];
+    document.getElementById('ph-viewer-cap').textContent = it ? it.caption : '';
+    document.getElementById('ph-viewer').classList.add('open');
+}
+function thumbsHTML(photos) {
+    const ok = (photos || []).filter(x => PHOTO.store[x.id]);
+    if (!ok.length) return '';
+    return '<div class="tbl-thumbs">' + ok.slice(0, 4).map(x => '<img src="' + PHOTO.store[x.id] + '" title="' + esc(x.caption || '') + '">').join('') +
+        (ok.length > 4 ? '<span>+' + (ok.length - 4) + '</span>' : '') + '<span>&#128247; ' + ok.length + '</span></div>';
+}
+function usedPhotoStore() {
+    const out = {};
+    drawnItems.eachLayer(l => { const p = l.properties; if (p && p.photos) p.photos.forEach(x => { if (PHOTO.store[x.id]) out[x.id] = PHOTO.store[x.id]; }); });
+    return out;
+}
+(function initPhotoUI() {
+    const inp = document.getElementById('ph-file');
+    const drop = document.getElementById('ph-drop');
+    if (!inp || !drop) return;
+    inp.addEventListener('change', () => { addPhotoFiles(inp.files); inp.value = ''; });
+    ['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+    ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+    drop.addEventListener('drop', e => addPhotoFiles(e.dataTransfer.files));
+})();
+
+/* ---------- รายงาน PDF พร้อมรูป: หน้าภาพรวมพื้นที่สำรวจ + ตาราง + รายละเอียดรายวัตถุ ---------- */
+function objectInfoRows(layer) {
+    const p = layer.properties, rows = [];
+    if (p.type === 'Polygon') {
+        rows.push(['พื้นที่', fmt(p.area) + ' ตร.ม. (' + fmt(num(p.area) / 1600, 3) + ' ไร่)']);
+        rows.push(['กว้าง × ยาว', fmt(num(p.width) || num(p.autoW)) + ' × ' + fmt(num(p.length) || num(p.autoL)) + ' ม.']);
+        rows.push(['เส้นรอบรูป', fmt(num(p.perimeter)) + ' ม.']);
+        if (num(p.height)) rows.push(['ความสูง', fmt(p.height) + ' ม.']);
+        if (p.is3D) rows.push(['ปริมาตร (3D)', fmt(num(p.area) * num(p.height)) + ' ลบ.ม.']);
+        const c = layer.getBounds().getCenter(); rows.push(['พิกัดกึ่งกลาง', c.lat.toFixed(6) + ', ' + c.lng.toFixed(6)]);
+    } else if (p.type === 'Line') {
+        rows.push(['ความยาว', fmt(p.calculatedDistance) + ' ม.']);
+        if (num(p.height)) rows.push(['ความสูง', fmt(p.height) + ' ม.']);
+    } else if (layer.getLatLng) {
+        const c = layer.getLatLng(), u = toUTM(c.lat, c.lng);
+        rows.push(['พิกัด Lat/Lon', c.lat.toFixed(6) + ', ' + c.lng.toFixed(6)]);
+        rows.push(['UTM', fmt(u.e, 2) + ' E, ' + fmt(u.n, 2) + ' N (Zone ' + u.zone + u.hemi + ')']);
+    }
+    if (num(p.base)) rows.push(['ระดับฐาน', fmt(p.base) + ' ม.']);
+    if (p.details) rows.push(['รายละเอียด', esc(p.details).replace(/\n/g, '<br>')]);
+    return rows;
+}
+function cropObjectFromMap(canvas, layer) {
+    const sz = map.getSize(), k = canvas.width / sz.x;
+    let x0, y0, x1, y1;
+    if (layer.getBounds) {
+        const b = layer.getBounds();
+        const a = map.latLngToContainerPoint(b.getNorthWest()), c = map.latLngToContainerPoint(b.getSouthEast());
+        x0 = a.x; y0 = a.y; x1 = c.x; y1 = c.y;
+    } else {
+        const q = map.latLngToContainerPoint(layer.getLatLng()); x0 = x1 = q.x; y0 = y1 = q.y;
+    }
+    const pad = Math.max(40, 0.35 * Math.max(x1 - x0, y1 - y0));
+    x0 -= pad; y0 -= pad; x1 += pad; y1 += pad;
+    if (x1 < 0 || y1 < 0 || x0 > sz.x || y0 > sz.y) return null; // วัตถุอยู่นอกจอ
+    x0 = Math.max(0, x0); y0 = Math.max(0, y0); x1 = Math.min(sz.x, x1); y1 = Math.min(sz.y, y1);
+    const w = (x1 - x0) * k, h = (y1 - y0) * k;
+    if (w < 20 || h < 20) return null;
+    const s = Math.min(1, 900 / Math.max(w, h));
+    const out = document.createElement('canvas'); out.width = Math.round(w * s); out.height = Math.round(h * s);
+    out.getContext('2d').drawImage(canvas, x0 * k, y0 * k, w, h, 0, 0, out.width, out.height);
+    return out.toDataURL('image/jpeg', 0.85);
+}
+async function exportReportPDF() {
+    const items = [];
+    drawnItems.eachLayer(l => { if (l.properties) items.push(l); });
+    if (!items.length) { toast('ยังไม่มีวัตถุในโครงการ', 'warn'); return; }
+    const pw = window.open('', '_blank');
+    if (!pw) { toast('เบราว์เซอร์บล็อก Pop-up! กรุณาอนุญาต Pop-up เพื่อสร้างรายงาน', 'warn', 5000); return; }
+    pw.document.write('<html lang="th"><head><title>กำลังสร้างรายงาน...</title></head><body style="font-family:Kanit,sans-serif;text-align:center;padding-top:10vh;color:#2c3e50;"><h2>กำลังสร้างรายงานพร้อมรูป... กรุณารอสักครู่</h2></body></html>');
+    pw.document.close();
+    busy(true, 'กำลังเรนเดอร์ภาพแผนที่สำหรับรายงาน...');
+    try {
+        const m = projectMeta();
+        const canvas = await Promise.race([
+            withExportChrome(() => captureMap(2)),
+            new Promise((_, rj) => setTimeout(() => rj(new Error('หมดเวลาโหลดภาพแผนที่ (เซิร์ฟเวอร์แผนที่ฐานอาจไม่ตอบสนอง)')), 20000))
+        ]);
+        const now = new Date();
+        const dateTH = now.getDate() + ' ' + TH_MONTHS_FULL[now.getMonth()] + ' ' + (now.getFullYear() + 543) + ' เวลา ' + pad(now.getHours(), 2) + ':' + pad(now.getMinutes(), 2) + ' น.';
+        const c = map.getCenter();
+        let nPhoto = 0;
+        items.forEach(l => (l.properties.photos || []).forEach(x => { if (PHOTO.store[x.id]) nPhoto++; }));
+
+        let h = '<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>' + esc(exportBase()) + '_รายงาน</title><link rel="icon" href="' + SURVEY_ICON + '">';
+        h += '<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap" rel="stylesheet"><style>';
+        h += 'body{font-family:Kanit,sans-serif;color:#2c3e50;margin:0;padding:16px;font-size:12px;}';
+        h += '@page{size:A4 portrait;margin:10mm;} @media print{body{padding:0}.no-print{display:none!important}}';
+        h += '.hdr{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #2c3e50;padding-bottom:6px;margin-bottom:8px;}';
+        h += '.hdr h1{font-size:19px;margin:0;} .hdr .r{text-align:right;font-size:10.5px;color:#555;}';
+        h += '.desc{font-size:12px;color:#444;margin:0 0 8px;} img.map{width:100%;max-height:150mm;object-fit:contain;border:1px solid #bdc3c7;border-radius:4px;}';
+        h += '.kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:8px 0;} .kpi div{background:#ecf0f1;border-radius:4px;padding:6px 8px;} .kpi b{display:block;font-size:15px;}';
+        h += 'table{width:100%;border-collapse:collapse;font-size:11px;} th,td{border:1px solid #bdc3c7;padding:5px 6px;text-align:left;vertical-align:top;} th{background:#2c3e50;color:#fff;}';
+        h += 'tr{page-break-inside:avoid;} td.th img{width:54px;height:40px;object-fit:cover;margin:1px;border-radius:2px;}';
+        h += 'h2{font-size:15px;border-left:5px solid #c0392b;padding-left:8px;margin:14px 0 8px;}';
+        h += '.obj{page-break-before:always;} .obj h3{font-size:16px;margin:0 0 6px;padding:6px 10px;color:#fff;border-radius:4px;}';
+        h += '.objtop{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px;} .objtop img{width:100%;border:1px solid #bdc3c7;border-radius:4px;}';
+        h += '.info td:first-child{width:32%;background:#f4f6f7;font-weight:500;}';
+        h += '.ph{display:grid;grid-template-columns:1fr 1fr;gap:8px;} .ph figure{margin:0;page-break-inside:avoid;border:1px solid #d6dde3;border-radius:4px;overflow:hidden;}';
+        h += '.ph img{width:100%;height:68mm;object-fit:cover;display:block;} .ph figcaption{padding:3px 6px;font-size:10.5px;background:#f4f6f7;}';
+        h += '.foot{margin-top:10px;font-size:9.5px;color:#999;text-align:center;}';
+        h += '</style></head><body>';
+        h += '<div class="no-print" style="margin-bottom:12px;padding:10px;background:#eaf2f8;border:1px solid #3498db;border-radius:5px;display:flex;justify-content:space-between;align-items:center;font-size:13px;">' +
+            '<span>&#128161; ในหน้าต่างพิมพ์ เลือก Destination = <b>Save as PDF</b> · กระดาษ A4</span>' +
+            '<button onclick="window.print()" style="padding:6px 16px;background:#c0392b;color:#fff;border:none;border-radius:4px;font-family:Kanit;font-size:13px;cursor:pointer;">&#128438; พิมพ์ / บันทึก PDF</button></div>';
+
+        // หน้า 1: ภาพรวมพื้นที่สำรวจ
+        h += '<div class="hdr"><div><div style="font-size:11px;color:#c0392b;font-weight:500;">รายงานสำรวจพื้นที่</div><h1>' + esc(m.projectName) + '</h1></div>' +
+            '<div class="r">วันที่ออกรายงาน ' + dateTH + '<br>จุดกึ่งกลาง ' + c.lat.toFixed(6) + ', ' + c.lng.toFixed(6) + '<br>Zoom ' + map.getZoom() + '</div></div>';
+        if (m.projectDescription) h += '<p class="desc">' + esc(m.projectDescription).replace(/\n/g, '<br>') + '</p>';
+        h += '<img class="map" src="' + canvas.toDataURL('image/jpeg', 0.88) + '">';
+        let nP = 0, nL = 0, nM = 0, area = 0, len = 0;
+        items.forEach(l => { const p = l.properties; if (p.type === 'Polygon') { nP++; area += num(p.area); } else if (p.type === 'Line') { nL++; len += num(p.calculatedDistance); } else nM++; });
+        h += '<div class="kpi"><div>วัตถุทั้งหมด<b>' + items.length + '</b>Polygon ' + nP + ' · Line ' + nL + ' · Point ' + nM + '</div>' +
+            '<div>พื้นที่รวม<b>' + fmt(area) + '</b>ตร.ม. (' + fmt(area / 1600, 3) + ' ไร่)</div>' +
+            '<div>ความยาวรวม<b>' + fmt(len) + '</b>ม.</div><div>รูปประกอบ<b>' + nPhoto + '</b>รูป</div></div>';
+
+        // ตารางสรุป
+        h += '<h2>ตารางสรุปโครงสร้างวัตถุ</h2><table><thead><tr><th style="width:5%">#</th><th style="width:11%">ประเภท</th><th style="width:20%">ชื่อวัตถุ</th><th>รายละเอียด</th><th style="width:25%">รูป</th></tr></thead><tbody>';
+        items.forEach((l, i) => {
+            const p = l.properties;
+            const ph = (p.photos || []).filter(x => PHOTO.store[x.id]);
+            h += '<tr><td>' + (i + 1) + '</td><td style="color:' + p.color + ';font-weight:600">' + p.type + '</td><td>' + esc(p.name || '-') + '</td><td>' +
+                objectInfoRows(l).map(r => '<b>' + r[0] + ':</b> ' + r[1]).join('<br>') + '</td><td class="th">' +
+                (ph.slice(0, 4).map(x => '<img src="' + PHOTO.store[x.id] + '">').join('') + (ph.length > 4 ? ' +' + (ph.length - 4) : '') || '-') + '</td></tr>';
+        });
+        h += '</tbody></table>';
+
+        // รายละเอียดรายวัตถุ (1 วัตถุต่อหน้า + รูปทั้งหมด)
+        items.forEach((l, i) => {
+            const p = l.properties;
+            const ph = (p.photos || []).filter(x => PHOTO.store[x.id]);
+            const crop = cropObjectFromMap(canvas, l);
+            h += '<div class="obj"><h3 style="background:' + toHex(p.color) + '">' + (i + 1) + '. ' + esc(p.name || '-') + ' <span style="font-weight:300;font-size:12px;">(' + p.type + ')</span></h3>';
+            h += '<div class="objtop"><div>' + (crop ? '<img src="' + crop + '">' : '<div style="padding:30px;text-align:center;color:#999;border:1px dashed #ccc;">วัตถุอยู่นอกกรอบแผนที่ที่จับภาพ</div>') + '</div>';
+            h += '<div><table class="info"><tbody>' + objectInfoRows(l).map(r => '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>').join('') + '<tr><td>รูปประกอบ</td><td>' + ph.length + ' รูป</td></tr></tbody></table></div></div>';
+            if (ph.length) h += '<div class="ph">' + ph.map((x, k) => '<figure><img src="' + PHOTO.store[x.id] + '"><figcaption>รูปที่ ' + (i + 1) + '.' + (k + 1) + (x.caption ? ' &mdash; ' + esc(x.caption) : '') + '</figcaption></figure>').join('') + '</div>';
+            h += '</div>';
+        });
+        h += '<div class="foot">Advanced GIS Civil &amp; Orthophoto Workspace เวอร์ชัน ' + APP_INFO.version + ' · โดย ' + APP_INFO.author + '</div>';
+        h += '</body></html>';
+
+        pw.document.open(); pw.document.write(h); pw.document.close();
+        toast('เปิดรายงานแล้ว — ' + items.length + ' วัตถุ, ' + nPhoto + ' รูป', 'ok');
+    } catch (e) {
+        console.error(e); pw.close();
+        toast('สร้างรายงานไม่สำเร็จ: ' + e.message, 'err', 6000);
+    } finally { busy(false); }
+}
 async function exportPDF() {
     // 1. เปิดหน้าต่างรอไว้ล่วงหน้าทันที เพื่อหลีกเลี่ยงระบบบล็อก Pop-up ของเบราว์เซอร์
     const printWindow = window.open('', '_blank');
@@ -5819,7 +6084,7 @@ async function exportPDF() {
             new Promise((_, reject) => setTimeout(() => reject(new Error('หมดเวลาโหลดภาพแผนที่ (เซิร์ฟเวอร์แผนที่ฐานอาจไม่ตอบสนอง)')), 15000))
         ]);
         
-        let html = '<!DOCTYPE html><html lang="th"><head><title>' + esc(exportBase()) + '</title>';
+        let html = '<!DOCTYPE html><html lang="th"><head><title>' + esc(exportBase()) + '</title><link rel="icon" href="' + SURVEY_ICON + '">';
         html += '<style>';
         html += 'body { font-family: "Kanit", sans-serif; padding: 20px; color: #2c3e50; }';
         html += '@media print { @page { margin: 10mm; } body { padding: 0; } .no-print { display: none !important; } }';
