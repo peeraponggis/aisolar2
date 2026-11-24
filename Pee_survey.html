@@ -847,10 +847,11 @@ function downloadText(text, filename, mime) {
     downloadBlob(new Blob(['﻿' + text], { type: (mime || 'text/plain') + ';charset=utf-8' }), filename);
 }
 const TH_MONTHS_FULL = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
-const APP_INFO={version:'4.5.0',created:'2026-08-02',updated:'2026-11-24',author:'ลุงพี'};
+const APP_INFO={version:'4.6.0',created:'2026-08-02',updated:'2026-11-24',author:'ลุงพี'};
 const SURVEY_ICON = (document.querySelector('link[rel="icon"]') || {}).href || ''; /* ไอคอนแท็บ (ใช้ซ้ำในหน้ารายงาน) */
 const PHOTO = { store: {}, edit: [], MAX: 1600, Q: 0.82, seq: 0 }; /* รูปประกอบวัตถุ (ดูส่วนรูปภาพ) */
 const APP_CHANGELOG=[
+  ['4.6.0','2026-11-24','ย้ายวัตถุได้ทุกชนิดโดยตรง: คลิกเลือกแล้วลากได้ทันที (จับตรงกลางรูปได้ ไม่ต้องเปิดโหมด ✥) · ป้ายที่ล็อกไว้ย้ายตาม · ตาราง/3D อัปเดต · ย้อนกลับได้ โดย ลุงพี'],
   ['4.5.0','2026-11-24','แก้ความยาวแต่ละด้านได้ (ตาราง ด้าน/ระยะ หรือคลิกป้ายระยะ · ยืดทั้งแนว/ขยับจุดปลาย · เตือนด้านที่เปลี่ยนตาม) · ส่งออกให้ ASC Studio ไฟล์โครงการเดียว (ชื่อ พิกัด อาคาร สิ่งกีดขวาง ต้นไม้ + อุปกรณ์จริง เสาไฟฟ้า/หม้อแปลง/ตู้ MDB พร้อมชื่อ) · บันทึกไม่ปัดขนาดเป็น ซม. เงียบ ๆ โดย ลุงพี'],
   ['4.4.0','2026-11-24','ปุ่มวางอุปกรณ์: เสาไฟฟ้า 12 ม. · เสาไฟฟ้า + หม้อแปลง · ตู้ MDB (สี่เหลี่ยม 3D) พร้อมไอคอนบนแผนที่ โมเดล 3D ชื่อในตาราง/รายงาน · ระยะแต่ละด้าน/ตัวเลขขนาดแสดงเฉพาะวัตถุที่เลือก (คลิกพื้นที่ว่างหรือ Esc = ยกเลิกเลือก) · แก้บัควาดต้นไม้ค้าง (คลิกจบวงกลมไม่ได้) และหน้าต่างข้อมูลกรอกไม่ได้หลังวาดต้นไม้ โดย ลุงพี'],
   ['4.3.0','2026-11-24','แนบรูปประกอบวัตถุ (แท็บ 📷 รูปภาพ, ย่ออัตโนมัติ ≤1600px JPEG), รูปย่อในตารางสรุป, รายงาน PDF พร้อมรูป (ภาพรวมพื้นที่ + ตาราง + 1 หน้าต่อวัตถุ), JSON เก็บ/นำเข้ารูปได้, ไอคอนแท็บเบราว์เซอร์ Survey โดย ลุงพี'],
@@ -2397,6 +2398,24 @@ function registerLayer(layer, type, color) {
     syncPropArrays(layer);
     layer.on('pm:edit', () => { syncPropArrays(layer); updateLabelAndCalculations(layer, layer.properties.type); updateSummaryTable(); render3D.redraw(); });
     layer.on('pm:markerdragstart pm:dragstart', () => { if (layer.bringToFront) layer.bringToFront(); });
+    /* 4.6.0: ย้ายทั้งชิ้น → ป้ายที่ล็อกตำแหน่งไว้ย้ายตาม · อัปเดตตาราง/3D · บันทึก Undo */
+    layer.on('pm:dragstart', () => { layer._dragFrom = centerOf(layer); });
+    layer.on('pm:drag', () => { App._justDragged = Date.now(); });
+    layer.on('pm:dragend', () => {
+        App._justDragged = Date.now();
+        const p = layer.properties, a = layer._dragFrom, b = centerOf(layer);
+        if (p && p.labelLocked && p.customLabelLatLng && a && b) {
+            p.customLabelLatLng = L.latLng(p.customLabelLatLng.lat + (b.lat - a.lat), p.customLabelLatLng.lng + (b.lng - a.lng));
+        }
+        layer._dragFrom = null;
+        syncPropArrays(layer);
+        updateLabelAndCalculations(layer, p.type);
+        updateSummaryTable(); render3D.redraw(); avoidLabelCollisions();
+        if (typeof V3D !== 'undefined' && V3D.ready) V3D.rebuildFeatures();
+        if (!map.pm.globalDragModeEnabled()) saveHistoryState();
+        const d = (a && b) ? map.distance(a, b) : 0;
+        toast('ย้าย <b>' + esc(p.name || typeLabel(p)) + '</b> ' + fmt(d) + ' ม.', 'ok', 1600);
+    });
     layer.on('pm:drag pm:markerdrag pm:rotate', () => { updateLabelAndCalculations(layer, layer.properties.type); render3D.redraw(); });
     bindLayerClickEvent(layer);
     layer.on('click', () => { App._lastLayerClick = Date.now(); });
@@ -2482,13 +2501,17 @@ map.on('pm:globaleditmodetoggled', e => {
     }
 });
 map.on('pm:globalremovalmodetoggled', e => { map.getContainer().classList.toggle('red-hand-cursor', e.enabled); });
-map.on('pm:globaldragmodetoggled', e => { if (!e.enabled) { updateSummaryTable(); render3D.redraw(); } });
+map.on('pm:globaldragmodetoggled', e => { if (!e.enabled) { updateSummaryTable(); render3D.redraw(); if (App.selected) setDirectDrag(App.selected, true); } });
+/* ออกจากโหมดแก้จุด/ลบ/หมุน → วัตถุที่เลือกกลับมาลากได้ */
+map.on('pm:globaleditmodetoggled pm:globalremovalmodetoggled pm:globalrotatemodetoggled', e => { if (App.selected) setDirectDrag(App.selected, !e.enabled); });
 
 /* ---------- คลิกวัตถุ ---------- */
 function bindLayerClickEvent(layer) {
     layer.on('click', function (ev) {
         // ห้ามกดหน้าต่างเด้งหากกำลังวาดวัตถุใหม่ ป้องกันการขัดจังหวะ
         if (map.pm.globalDrawModeEnabled()) return; 
+        // 4.6.0: เพิ่งลากย้ายเสร็จ → ไม่เปิดหน้าต่างข้อมูล
+        if (Date.now() - (App._justDragged || 0) < 400) { L.DomEvent.stopPropagation(ev); return; }
 
         if (App.splitState && App.splitState.stage === 'pick') {
             L.DomEvent.stopPropagation(ev);
@@ -2518,8 +2541,28 @@ function bindLayerClickEvent(layer) {
         openModal(layer, true);
     });
 }
+/* 4.6.0: วัตถุที่เลือกอยู่ลากย้ายได้ทันที (ไม่ต้องเปิดโหมด ✥) · Polygon ที่ไม่ทึบ เติมจาง ๆ ให้จับตรงกลางได้ */
+function setDirectDrag(layer, on) {
+    if (!layer || !layer.pm || !drawnItems.hasLayer(layer)) return;
+    try {
+        if (on) {
+            if (map.pm.globalDrawModeEnabled() || map.pm.globalEditModeEnabled() || map.pm.globalRemovalModeEnabled() || map.pm.globalRotateModeEnabled && map.pm.globalRotateModeEnabled()) return;
+            if (!layer.pm.layerDragEnabled()) layer.pm.enableLayerDrag();
+            if (isPolygonLayer(layer) && !layer.options.fill) { layer._grabFill = true; layer.setStyle({ fill: true, fillColor: layer.options.color, fillOpacity: 0.12 }); }
+            else if (layer instanceof L.Polyline && !isPolygonLayer(layer) && layer._grabWeight == null) { layer._grabWeight = layer.options.weight || 2; layer.setStyle({ weight: Math.max(7, layer._grabWeight) }); }
+            const el = layer.getElement ? layer.getElement() : null; if (el) el.style.cursor = 'move';
+        } else {
+            if (!map.pm.globalDragModeEnabled() && layer.pm.layerDragEnabled()) layer.pm.disableLayerDrag();
+            if (layer._grabFill) { layer._grabFill = false; layer.setStyle({ fill: false }); }
+            if (layer._grabWeight != null) { layer.setStyle({ weight: layer._grabWeight }); layer._grabWeight = null; }
+            const el = layer.getElement ? layer.getElement() : null; if (el) el.style.cursor = '';
+        }
+    } catch (e) { console.warn(e); }
+}
 function setSelected(layer) {
+    if (App.selected && App.selected !== layer) setDirectDrag(App.selected, false);
     App.selected = layer;
+    if (layer) setDirectDrag(layer, true);
     const p = layer && layer.properties;
     const info = document.getElementById('selInfo');
     if (!p) { info.textContent = 'ยังไม่ได้เลือกวัตถุ'; document.getElementById('btnEditSel').disabled = true; applySegVisibility(); return; }
@@ -2529,6 +2572,7 @@ function setSelected(layer) {
     applySegVisibility(); render3D.redraw();
 }
 function clearSelection() {
+    if (App.selected) setDirectDrag(App.selected, false);
     App.selected = null;
     applySegVisibility(); if (typeof render3D !== 'undefined') render3D.redraw();
     document.getElementById('selInfo').textContent = 'ยังไม่ได้เลือกวัตถุ — คลิกที่วัตถุบนแผนที่';
@@ -2561,6 +2605,9 @@ function updateSegmentLabels(layer) {
     for (let i = 0; i < coords.length - 1; i++) {
         const d = turf.distance(turf.point(coords[i]), turf.point(coords[i + 1]), { units: 'meters' });
         if (d < 0.1) continue;
+        /* 4.6.0: ด้านที่สั้นบนจอ (< 40 px) ไม่แสดงป้าย — ป้ายจะบังวัตถุเล็กจนจับลากไม่ได้ (ซูมเข้าแล้วป้ายกลับมา) */
+        const pa = map.latLngToContainerPoint([coords[i][1], coords[i][0]]), pb = map.latLngToContainerPoint([coords[i + 1][1], coords[i + 1][0]]);
+        if (pa.distanceTo(pb) < 40) continue;
         const mid = [(coords[i][1] + coords[i + 1][1]) / 2, (coords[i][0] + coords[i + 1][0]) / 2];
         let txt = fmt(d) + ' ม.';
         if (p && p.is3D) {
