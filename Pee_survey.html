@@ -256,6 +256,10 @@
         #sectionChart { width:100%; height:170px; background:#fff; border:1px solid #dde3e8; border-radius:4px; }
         .badge3d { display:inline-block; font-size:9.5px; background:#27ae60; color:#fff; border-radius:3px; padding:0 4px; vertical-align:middle; }
         /* ---- รูปภาพประกอบวัตถุ ---- */
+        .leaflet-pm-toolbar .leaflet-pm-icon-custom-pole { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='10.8' y='3' width='2.4' height='19' rx='.6' fill='%237f8c8d'/%3E%3Crect x='4' y='5' width='16' height='2' rx='.5' fill='%2334495e'/%3E%3Ccircle cx='5.5' cy='4.4' r='1.1' fill='%232980b9'/%3E%3Ccircle cx='18.5' cy='4.4' r='1.1' fill='%232980b9'/%3E%3C/svg%3E"); background-size:20px; background-position:center; background-repeat:no-repeat; }
+        .leaflet-pm-toolbar .leaflet-pm-icon-custom-poletx { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='7.8' y='3' width='2.4' height='19' rx='.6' fill='%237f8c8d'/%3E%3Crect x='2' y='5' width='14' height='2' rx='.5' fill='%2334495e'/%3E%3Crect x='11.5' y='9' width='9' height='8' rx='1.2' fill='%238e44ad'/%3E%3Cpath d='M14 9V7.3M16 9V7.3M18 9V7.3' stroke='%238e44ad' stroke-width='1.2'/%3E%3Cpath d='M16.6 10.5l-2 3h1.8l-1 2.5 2.6-3.4h-1.8z' fill='%23f1c40f'/%3E%3C/svg%3E"); background-size:20px; background-position:center; background-repeat:no-repeat; }
+        .leaflet-pm-toolbar .leaflet-pm-icon-custom-mdb { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='4.5' y='2.5' width='15' height='19' rx='1.5' fill='%23e67e22'/%3E%3Cpath d='M12 2.5v19' stroke='%23fff' stroke-width='.9'/%3E%3Ccircle cx='10.3' cy='12' r='.9' fill='%23fff'/%3E%3Ccircle cx='13.7' cy='12' r='.9' fill='%23fff'/%3E%3Cpath d='M8.6 5.2l-1.7 2.6h1.4l-.8 2.1 2.2-2.9H8.3z' fill='%23fff'/%3E%3C/svg%3E"); background-size:20px; background-position:center; background-repeat:no-repeat; }
+        .equip-icon svg { filter: drop-shadow(0 0 2px #fff) drop-shadow(0 1px 2px rgba(0,0,0,.6)); }
         .ph-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-top:8px; }
         .ph-card { border:1px solid #d6dde3; border-radius:5px; overflow:hidden; background:#fbfcfd; }
         .ph-card img { width:100%; height:110px; object-fit:cover; display:block; cursor:zoom-in; background:#eee; }
@@ -810,10 +814,11 @@ function downloadText(text, filename, mime) {
     downloadBlob(new Blob(['﻿' + text], { type: (mime || 'text/plain') + ';charset=utf-8' }), filename);
 }
 const TH_MONTHS_FULL = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
-const APP_INFO={version:'4.3.0',created:'2026-08-02',updated:'2026-11-24',author:'ลุงพี'};
+const APP_INFO={version:'4.4.0',created:'2026-08-02',updated:'2026-11-24',author:'ลุงพี'};
 const SURVEY_ICON = (document.querySelector('link[rel="icon"]') || {}).href || ''; /* ไอคอนแท็บ (ใช้ซ้ำในหน้ารายงาน) */
 const PHOTO = { store: {}, edit: [], MAX: 1600, Q: 0.82, seq: 0 }; /* รูปประกอบวัตถุ (ดูส่วนรูปภาพ) */
 const APP_CHANGELOG=[
+  ['4.4.0','2026-11-24','ปุ่มวางอุปกรณ์: เสาไฟฟ้า 12 ม. · เสาไฟฟ้า + หม้อแปลง · ตู้ MDB (สี่เหลี่ยม 3D) พร้อมไอคอนบนแผนที่ โมเดล 3D ชื่อในตาราง/รายงาน · ระยะแต่ละด้าน/ตัวเลขขนาดแสดงเฉพาะวัตถุที่เลือก (คลิกพื้นที่ว่างหรือ Esc = ยกเลิกเลือก) · แก้บัควาดต้นไม้ค้าง (คลิกจบวงกลมไม่ได้) และหน้าต่างข้อมูลกรอกไม่ได้หลังวาดต้นไม้ โดย ลุงพี'],
   ['4.3.0','2026-11-24','แนบรูปประกอบวัตถุ (แท็บ 📷 รูปภาพ, ย่ออัตโนมัติ ≤1600px JPEG), รูปย่อในตารางสรุป, รายงาน PDF พร้อมรูป (ภาพรวมพื้นที่ + ตาราง + 1 หน้าต่อวัตถุ), JSON เก็บ/นำเข้ารูปได้, ไอคอนแท็บเบราว์เซอร์ Survey โดย ลุงพี'],
   ['4.1.0','2026-10-19','เพิ่มส่งออก JSON (ข้อมูลโครงการ + วัตถุ + นำกลับเข้าได้), ตั้งชื่อไฟล์ส่งออกทุกรูปแบบเป็น โครงการ_วันเดือนปี(พ.ศ.)_เวลา, แสดงเวอร์ชัน วันที่สร้าง วันที่ปรับปรุง โดยลุงพี'],
 ];
@@ -1985,6 +1990,121 @@ map.pm.Toolbar.createCustomControl({
     onClick: () => startJoinLine()
 });
 
+
+/* =====================================================================
+   อุปกรณ์ไฟฟ้าสำเร็จรูป (4.4.0) : เสาไฟฟ้า 12 ม. · เสา+หม้อแปลง · ตู้ MDB
+   - เสา = จุด (Marker) properties.kind = 'pole' | 'pole_tx'
+   - MDB = Polygon สี่เหลี่ยม 3D properties.kind = 'mdb' (แก้ กว้าง/ยาว/สูง ได้)
+   ===================================================================== */
+const EQUIP = {
+    pole:    { label: 'เสาไฟฟ้า', short: 'เสาไฟฟ้า', h: 12, color: '#7f8c8d' },
+    pole_tx: { label: 'เสาไฟฟ้า + หม้อแปลง', short: 'เสา+หม้อแปลง', h: 12, color: '#8e44ad' },
+    mdb:     { label: 'ตู้ MDB', short: 'MDB', w: 1.2, d: 0.6, h: 2.0, color: '#e67e22' },
+    tree:    { label: 'ต้นไม้', short: 'ต้นไม้', color: '#27ae60' }
+};
+const EQUIP_SVG = {pole:"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect x='10.8' y='3' width='2.4' height='19' rx='.6' fill='#7f8c8d'/><rect x='4' y='5' width='16' height='2' rx='.5' fill='#34495e'/><circle cx='5.5' cy='4.4' r='1.1' fill='#2980b9'/><circle cx='18.5' cy='4.4' r='1.1' fill='#2980b9'/></svg>",pole_tx:"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect x='7.8' y='3' width='2.4' height='19' rx='.6' fill='#7f8c8d'/><rect x='2' y='5' width='14' height='2' rx='.5' fill='#34495e'/><rect x='11.5' y='9' width='9' height='8' rx='1.2' fill='#8e44ad'/><path d='M14 9V7.3M16 9V7.3M18 9V7.3' stroke='#8e44ad' stroke-width='1.2'/><path d='M16.6 10.5l-2 3h1.8l-1 2.5 2.6-3.4h-1.8z' fill='#f1c40f'/></svg>",mdb:"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect x='4.5' y='2.5' width='15' height='19' rx='1.5' fill='#e67e22'/><path d='M12 2.5v19' stroke='#fff' stroke-width='.9'/><circle cx='10.3' cy='12' r='.9' fill='#fff'/><circle cx='13.7' cy='12' r='.9' fill='#fff'/><path d='M8.6 5.2l-1.7 2.6h1.4l-.8 2.1 2.2-2.9H8.3z' fill='#fff'/></svg>"};
+function typeLabel(p) { return (p && p.kind && EQUIP[p.kind]) ? EQUIP[p.kind].label : (p ? p.type : ''); }
+function equipIcon(kind) {
+    return L.divIcon({ className: 'custom-draw-icon equip-icon', html: EQUIP_SVG[kind].replace('<svg ', '<svg width="34" height="34" '), iconSize: [34, 34], iconAnchor: [17, 31] });
+}
+function startPlaceEquip(kind) {
+    disableAllPmModes();
+    App.isSelecting = false; App.isDrawingTree = false;
+    App.placeEquip = kind;
+    map.getContainer().classList.add('pick-cursor');
+    hint('&#128205; คลิกบนแผนที่เพื่อวาง <b>' + EQUIP[kind].label + '</b>' +
+        (kind === 'mdb' ? ' (ขนาดเริ่มต้น ' + EQUIP.mdb.w + ' &times; ' + EQUIP.mdb.d + ' ม. สูง ' + EQUIP.mdb.h + ' ม.)' : ' (สูง ' + EQUIP[kind].h + ' ม.)') + ' &mdash; กด Esc เพื่อยกเลิก');
+}
+function cancelPlaceEquip() {
+    if (!App.placeEquip) return;
+    App.placeEquip = null;
+    map.getContainer().classList.remove('pick-cursor');
+    hint('');
+}
+function placeEquip(kind, ll) {
+    const E = EQUIP[kind];
+    let n = 1; drawnItems.eachLayer(l => { if (l.properties && l.properties.kind === kind) n++; });
+    let layer;
+    if (kind === 'mdb') {
+        const dLat = m => m / 111320, dLng = m => m / (111320 * Math.cos(ll.lat * Math.PI / 180));
+        const hw = E.w / 2, hd = E.d / 2;
+        layer = L.polygon([
+            [ll.lat - dLat(hd), ll.lng - dLng(hw)], [ll.lat - dLat(hd), ll.lng + dLng(hw)],
+            [ll.lat + dLat(hd), ll.lng + dLng(hw)], [ll.lat + dLat(hd), ll.lng - dLng(hw)]
+        ]).addTo(map);
+        registerLayer(layer, 'Polygon', E.color);
+        Object.assign(layer.properties, { kind: kind, name: E.short + ' ' + n, height: E.h, is3D: true, roofColor: '#bdc3c7' });
+        syncPropArrays(layer);
+    } else {
+        layer = L.marker(ll, { icon: equipIcon(kind) }).addTo(map);
+        registerLayer(layer, 'Marker', E.color);
+        Object.assign(layer.properties, { kind: kind, name: E.short + ' ' + n, height: E.h, is3D: true });
+    }
+    updateLabelAndCalculations(layer, layer.properties.type);
+    updateSummaryTable(); render3D.redraw(); avoidLabelCollisions();
+    saveHistoryState();
+    setSelected(layer);
+    openModal(layer, false);
+}
+map.on('click', e => {
+    /* คลิกพื้นที่ว่างบนแผนที่ = ยกเลิกการเลือก (ซ่อนระยะด้าน/ขนาด) */
+    if (!App.placeEquip && App.selected && Date.now() - (App._lastLayerClick || 0) > 120 &&
+        !map.pm.globalDrawModeEnabled() && !App.gcpAddTarget && !App.isSelecting && !(App.splitState)) clearSelection();
+}, null);
+map.on('click', e => {
+    if (!App.placeEquip) return;
+    const k = App.placeEquip;
+    cancelPlaceEquip();
+    placeEquip(k, e.latlng);
+});
+document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    const wasPlacing = !!App.placeEquip;
+    cancelPlaceEquip();
+    if (!wasPlacing && App.selected && !document.getElementById('data-modal').classList.contains('open')) clearSelection();
+});
+[['pole', 'วางเสาไฟฟ้า (สูง 12 ม.)'], ['pole_tx', 'วางเสาไฟฟ้า + หม้อแปลง (สูง 12 ม.)'], ['mdb', 'วางตู้ MDB (สี่เหลี่ยม 1.2 × 0.6 ม. สูง 2 ม.)']].forEach(([k, title]) => {
+    map.pm.Toolbar.createCustomControl({
+        name: 'equip_' + k, block: 'custom', title: title,
+        className: 'leaflet-pm-icon-custom-' + k.replace('_', ''), toggle: false,
+        onClick: () => startPlaceEquip(k)
+    });
+});
+/* 3D : กล่อง / ทรงกระบอก สำหรับอุปกรณ์ */
+function boxTris(cx, cy, z0, w, d, h, c) {
+    const x0 = cx - w / 2, x1 = cx + w / 2, y0 = cy - d / 2, y1 = cy + d / 2, z1 = z0 + h;
+    const P = [[x0, y0, z0], [x1, y0, z0], [x1, y1, z0], [x0, y1, z0], [x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]];
+    const F = [[0, 1, 5, 4], [1, 2, 6, 5], [2, 3, 7, 6], [3, 0, 4, 7], [4, 5, 6, 7], [3, 2, 1, 0]];
+    const t = [];
+    F.forEach(f => { t.push({ v: [P[f[0]], P[f[1]], P[f[2]]], c: c }, { v: [P[f[0]], P[f[2]], P[f[3]]], c: c }); });
+    return t;
+}
+function cylTris(cx, cy, z0, h, r0, r1, c, seg) {
+    seg = seg || 10;
+    const t = [];
+    for (let i = 0; i < seg; i++) {
+        const a1 = i / seg * Math.PI * 2, a2 = (i + 1) / seg * Math.PI * 2;
+        const b1 = [cx + r0 * Math.cos(a1), cy + r0 * Math.sin(a1), z0], b2 = [cx + r0 * Math.cos(a2), cy + r0 * Math.sin(a2), z0];
+        const u1 = [cx + r1 * Math.cos(a1), cy + r1 * Math.sin(a1), z0 + h], u2 = [cx + r1 * Math.cos(a2), cy + r1 * Math.sin(a2), z0 + h];
+        t.push({ v: [b1, b2, u2], c: c }, { v: [b1, u2, u1], c: c }, { v: [u1, u2, [cx, cy, z0 + h]], c: c });
+    }
+    return t;
+}
+function poleTris(q, g, p) {
+    const h = num(p.height, 12) || 12;
+    let t = cylTris(q[0], q[1], g, h, 0.17, 0.11, '#aab7b8'); /* เสาคอนกรีตสีเทา (สีของวัตถุใช้กับไอคอน/ตาราง) */
+    const za = g + h - 0.45;
+    t = t.concat(boxTris(q[0], q[1], za, 2.4, 0.12, 0.12, '#566573'));
+    [-1.05, 0, 1.05].forEach(dx => { t = t.concat(cylTris(q[0] + dx, q[1], za + 0.12, 0.28, 0.06, 0.05, '#ecf0f1', 6)); });
+    if (p.kind === 'pole_tx') {
+        const zt = g + h - 4.6;
+        t = t.concat(boxTris(q[0], q[1] - 0.25, zt + 1.05, 1.4, 0.1, 0.1, '#566573'));
+        t = t.concat(boxTris(q[0], q[1] - 0.72, zt, 1.0, 0.75, 1.1, '#95a5a6'));
+        [-0.3, 0, 0.3].forEach(dx => { t = t.concat(cylTris(q[0] + dx, q[1] - 0.72, zt + 1.1, 0.35, 0.06, 0.05, '#a04000', 6)); });
+    }
+    return t;
+}
+
 /* =====================================================================
    Snap มุมฉาก 90 องศา + เส้นนำทาง
    ===================================================================== */
@@ -2245,6 +2365,7 @@ function registerLayer(layer, type, color) {
     layer.on('pm:markerdragstart pm:dragstart', () => { if (layer.bringToFront) layer.bringToFront(); });
     layer.on('pm:drag pm:markerdrag pm:rotate', () => { updateLabelAndCalculations(layer, layer.properties.type); render3D.redraw(); });
     bindLayerClickEvent(layer);
+    layer.on('click', () => { App._lastLayerClick = Date.now(); });
     return layer;
 }
 function removeLayerCompletely(layer) {
@@ -2280,9 +2401,18 @@ map.on('pm:create', e => {
         }
         map.removeLayer(layer);
         const poly = L.polygon(pts).addTo(map);
-        poly.properties = { ...layer.properties, isTree: true, trunkHeight: 2, radius: r };
         e.layer = poly;
-        registerLayer(poly, 'Tree', '#27ae60');
+        /* 4.4.0: เดิมลงทะเบียนเป็นชนิด 'Tree' ทำให้โค้ดป้าย/หน้าต่างข้อมูลเรียก getLatLng() บน Polygon
+           → error กลางทาง วาดวงกลมค้าง และหน้าต่างข้อมูลกรอกไม่ได้ ตอนนี้ใช้ Polygon + kind 'tree' */
+        registerLayer(poly, 'Polygon', EQUIP.tree.color);
+        let nT = 0; drawnItems.eachLayer(l => { if (l.properties && l.properties.kind === 'tree') nT++; });
+        Object.assign(poly.properties, { kind: 'tree', name: EQUIP.tree.short + ' ' + (nT + 1), treeRadius: r, roofColor: EQUIP.tree.color });
+        poly.setStyle({ color: EQUIP.tree.color, fill: true, fillColor: EQUIP.tree.color, fillOpacity: 0.25 });
+        try { if (map.pm.globalDrawModeEnabled()) map.pm.disableDraw(); } catch (err) { }
+        clearGuides(); hint('');
+        updateLabelAndCalculations(poly, 'Polygon');
+        updateSummaryTable(); render3D.redraw(); avoidLabelCollisions();
+        setSelected(poly);
         openModal(poly, false);
         return;
     }
@@ -2358,13 +2488,15 @@ function setSelected(layer) {
     App.selected = layer;
     const p = layer && layer.properties;
     const info = document.getElementById('selInfo');
-    if (!p) { info.textContent = 'ยังไม่ได้เลือกวัตถุ'; document.getElementById('btnEditSel').disabled = true; return; }
+    if (!p) { info.textContent = 'ยังไม่ได้เลือกวัตถุ'; document.getElementById('btnEditSel').disabled = true; applySegVisibility(); return; }
     info.innerHTML = '<b style="color:' + p.color + '">' + esc(p.type) + '</b> &mdash; ' + esc(p.name || '(ไม่มีชื่อ)') +
         '<br>จุดยอด: ' + ringCount(layer) + ' จุด &bull; 3D: ' + (p.is3D ? 'เปิด' : 'ปิด');
     document.getElementById('btnEditSel').disabled = false;
+    applySegVisibility(); render3D.redraw();
 }
 function clearSelection() {
     App.selected = null;
+    applySegVisibility(); if (typeof render3D !== 'undefined') render3D.redraw();
     document.getElementById('selInfo').textContent = 'ยังไม่ได้เลือกวัตถุ — คลิกที่วัตถุบนแผนที่';
     document.getElementById('btnEditSel').disabled = true;
 }
@@ -2373,6 +2505,16 @@ function openSelectedModal() { if (App.selected) openModal(App.selected, true); 
 /* =====================================================================
    ป้ายกำกับ / ระยะแต่ละด้าน / ตารางสรุป
    ===================================================================== */
+/* 4.4.0: ระยะแต่ละด้าน + ตัวเลขขนาด แสดงเฉพาะวัตถุที่เลือกอยู่ (ไม่เลือก = ไม่แสดง ลดความรก) */
+function applySegVisibility() {
+    if (typeof drawnItems === 'undefined') return;
+    drawnItems.eachLayer(l => {
+        const g = l._segmentLabels; if (!g) return;
+        const show = (l === App.selected);
+        if (show && !map.hasLayer(g)) g.addTo(map);
+        else if (!show && map.hasLayer(g)) map.removeLayer(g);
+    });
+}
 function updateSegmentLabels(layer) {
     if (layer._segmentLabels) layer._segmentLabels.clearLayers();
     else layer._segmentLabels = L.layerGroup().addTo(map);
@@ -2397,6 +2539,7 @@ function updateSegmentLabels(layer) {
             interactive: false, pmIgnore: true
         }).addTo(layer._segmentLabels);
     }
+    applySegVisibility();
 }
 
 function autoDimensions(layer) {
@@ -2586,10 +2729,10 @@ function updateSummaryTable() {
             nL++; totalLen += num(p.calculatedDistance);
             details = 'ยาว: ' + fmt(p.calculatedDistance) + ' ม.';
             if (num(p.height) > 0) details += '<br>สูง: ' + fmt(p.height) + ' ม.';
-        } else { nM++; details = '-'; }
+        } else { nM++; details = (p.kind && EQUIP[p.kind]) ? 'สูง: ' + fmt(p.height) + ' ม.' : '-'; }
         if (p.details) details += '<br><span style="color:#7f8c8d;">อื่นๆ: ' + esc(p.details) + '</span>';
         details += thumbsHTML(p.photos);
-        html += '<tr data-id="' + L.Util.stamp(layer) + '" style="cursor:pointer;"><td style="color:' + p.color + '; font-weight:bold;">' + p.type + '</td><td>' + esc(p.name || '-') + '</td><td>' + details + '</td></tr>';
+        html += '<tr data-id="' + L.Util.stamp(layer) + '" style="cursor:pointer;"><td style="color:' + p.color + '; font-weight:bold;">' + esc(typeLabel(p)) + '</td><td>' + esc(p.name || '-') + '</td><td>' + details + '</td></tr>';
     });
     tbody.innerHTML = html || '<tr><td colspan="3" style="text-align:center; color:#999;">ยังไม่มีการวาดวัตถุในโครงการ</td></tr>';
     tbody.querySelectorAll('tr[data-id]').forEach(tr => {
@@ -2694,7 +2837,7 @@ const Render3DLayer = BaseCanvasLayer.extend({
             ctx.save();
             ctx.font = '600 11px Kanit, sans-serif';
             ctx.textAlign = 'center';
-            jobs.filter(j => j.roof).forEach(j => {
+            jobs.filter(j => j.roof && j.layer === App.selected).forEach(j => {
                 const p = j.p;
                 let cx = 0, cy = 0;
                 j.roof.forEach(q => { cx += q[0]; cy += q[1]; });
@@ -2731,7 +2874,7 @@ function openModal(layer, isEdit) {
     document.getElementById('modal-overlay').style.display = 'block';
     document.getElementById('data-modal').classList.add('open');
     document.getElementById('modal-head').textContent =
-        (isEdit ? 'แก้ไขข้อมูล: ' : 'กรอกข้อมูล: ') + (type === 'Polygon' ? 'พื้นที่/อาคาร (Polygon)' : type === 'Line' ? 'เส้น (Line)' : 'จุด (Point)');
+        (isEdit ? 'แก้ไขข้อมูล: ' : 'กรอกข้อมูล: ') + (p.kind && EQUIP[p.kind] ? EQUIP[p.kind].label : type === 'Polygon' ? 'พื้นที่/อาคาร (Polygon)' : type === 'Line' ? 'เส้น (Line)' : 'จุด (Point)');
 
     document.getElementById('input-name').value = p.name || '';
     document.getElementById('input-details').value = p.details || '';
@@ -3105,6 +3248,7 @@ function featureTris(layer) {
         const c = layer.getLatLng();
         const q = enu(c);
         const g = groundAt(c.lat, c.lng) + num(p.base, 0);
+        if (p.kind === 'pole' || p.kind === 'pole_tx') return { tris: poleTris(q, g, p), lines: [], centroid: [q[0], q[1]] };
         const h = Math.max(num(p.height, 0), 4);
         const r = Math.max(h * 0.16, 0.8);
         const tip = [q[0], q[1], g + h];
@@ -5018,8 +5162,11 @@ function addGeoJSONFeature(f) {
         width: num(props.width), length: num(props.length),
         roofColor: props.roofColor || color,
         labelLocked: !!props.labelLocked,
-        customLabelLatLng: props.customLabelLatLng || null
+        customLabelLatLng: props.customLabelLatLng || null,
+        kind: (props.kind && EQUIP[props.kind]) ? props.kind : ''
     });
+    if (layer.properties.kind && layer.setIcon && !(layer instanceof L.Polyline)) layer.setIcon(equipIcon(layer.properties.kind));
+    if (layer.properties.kind === 'tree' && layer.setStyle) layer.setStyle({ fill: true, fillColor: color, fillOpacity: 0.25 });
     if (Array.isArray(props.photos)) layer.properties.photos = props.photos.filter(x => x && x.id).map(x => ({ id: x.id, caption: x.caption || '' }));
     if (Array.isArray(props.vertexHeights)) layer.properties.vertexHeights = props.vertexHeights.slice();
     if (Array.isArray(props.faceColors)) layer.properties.faceColors = props.faceColors.slice();
@@ -5952,6 +6099,7 @@ function objectInfoRows(layer) {
         const c = layer.getLatLng(), u = toUTM(c.lat, c.lng);
         rows.push(['พิกัด Lat/Lon', c.lat.toFixed(6) + ', ' + c.lng.toFixed(6)]);
         rows.push(['UTM', fmt(u.e, 2) + ' E, ' + fmt(u.n, 2) + ' N (Zone ' + u.zone + u.hemi + ')']);
+        if (p.kind && EQUIP[p.kind]) rows.push(['ความสูง', fmt(p.height) + ' ม.']);
     }
     if (num(p.base)) rows.push(['ระดับฐาน', fmt(p.base) + ' ม.']);
     if (p.details) rows.push(['รายละเอียด', esc(p.details).replace(/\n/g, '<br>')]);
@@ -6037,7 +6185,7 @@ async function exportReportPDF() {
         items.forEach((l, i) => {
             const p = l.properties;
             const ph = (p.photos || []).filter(x => PHOTO.store[x.id]);
-            h += '<tr><td>' + (i + 1) + '</td><td style="color:' + p.color + ';font-weight:600">' + p.type + '</td><td>' + esc(p.name || '-') + '</td><td>' +
+            h += '<tr><td>' + (i + 1) + '</td><td style="color:' + p.color + ';font-weight:600">' + esc(typeLabel(p)) + '</td><td>' + esc(p.name || '-') + '</td><td>' +
                 objectInfoRows(l).map(r => '<b>' + r[0] + ':</b> ' + r[1]).join('<br>') + '</td><td class="th">' +
                 (ph.slice(0, 4).map(x => '<img src="' + PHOTO.store[x.id] + '">').join('') + (ph.length > 4 ? ' +' + (ph.length - 4) : '') || '-') + '</td></tr>';
         });
@@ -6048,7 +6196,7 @@ async function exportReportPDF() {
             const p = l.properties;
             const ph = (p.photos || []).filter(x => PHOTO.store[x.id]);
             const crop = cropObjectFromMap(canvas, l);
-            h += '<div class="obj"><h3 style="background:' + toHex(p.color) + '">' + (i + 1) + '. ' + esc(p.name || '-') + ' <span style="font-weight:300;font-size:12px;">(' + p.type + ')</span></h3>';
+            h += '<div class="obj"><h3 style="background:' + toHex(p.color) + '">' + (i + 1) + '. ' + esc(p.name || '-') + ' <span style="font-weight:300;font-size:12px;">(' + esc(typeLabel(p)) + ')</span></h3>';
             h += '<div class="objtop"><div>' + (crop ? '<img src="' + crop + '">' : '<div style="padding:30px;text-align:center;color:#999;border:1px dashed #ccc;">วัตถุอยู่นอกกรอบแผนที่ที่จับภาพ</div>') + '</div>';
             h += '<div><table class="info"><tbody>' + objectInfoRows(l).map(r => '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>').join('') + '<tr><td>รูปประกอบ</td><td>' + ph.length + ' รูป</td></tr></tbody></table></div></div>';
             if (ph.length) h += '<div class="ph">' + ph.map((x, k) => '<figure><img src="' + PHOTO.store[x.id] + '"><figcaption>รูปที่ ' + (i + 1) + '.' + (k + 1) + (x.caption ? ' &mdash; ' + esc(x.caption) : '') + '</figcaption></figure>').join('') + '</div>';
