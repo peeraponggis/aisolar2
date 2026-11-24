@@ -887,10 +887,11 @@ function downloadText(text, filename, mime) {
     downloadBlob(new Blob(['﻿' + text], { type: (mime || 'text/plain') + ';charset=utf-8' }), filename);
 }
 const TH_MONTHS_FULL = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
-const APP_INFO={version:'4.11.0',created:'2026-08-02',updated:'2026-11-24',author:'ลุงพี'};
+const APP_INFO={version:'4.12.0',created:'2026-08-02',updated:'2026-11-24',author:'ลุงพี'};
 const SURVEY_ICON = (document.querySelector('link[rel="icon"]') || {}).href || ''; /* ไอคอนแท็บ (ใช้ซ้ำในหน้ารายงาน) */
 const PHOTO = { store: {}, edit: [], MAX: 1600, Q: 0.82, seq: 0 }; /* รูปประกอบวัตถุ (ดูส่วนรูปภาพ) */
 const APP_CHANGELOG=[
+  ['4.12.0','2026-11-24','PDF: ภาพแผนที่สี (PNG แทน JPEG) ลดขนาด 50% · รูปวัตถุในหน้ารายละเอียดเพิ่มขนาด 50% (34mm→51mm) · crop วัตถุเป็น PNG คงสี โดย ลุงพี'],
   ['4.11.0','2026-11-24','รายงาน PDF แสดงหน้ารายละเอียดเฉพาะวัตถุที่มีรูปภาพ (วัตถุไม่มีรูปไม่แสดง) โดย ลุงพี'],
   ['4.10.0','2026-11-24','เพิ่มช่องผู้สำรวจ+วันที่สำรวจ (แสดงใน PDF แบบ วัน เดือน พ.ศ.) · เลือกแสดง/ซ่อนตามประเภทวัตถุ (Polygon/Line/Marker/เสา/หม้อแปลง/MDB/ต้นไม้) · ตารางสรุป+PDF กรองตามประเภทที่เลือก · ข้อมูลบันทึก/นำเข้ากลับได้ โดย ลุงพี'],
   ['4.9.0','2026-11-24','เลือกข้อมูลบนป้ายกำกับ (ชื่อ/พื้นที่/ขนาด/ความสูง/พิกัด/ชนิดอุปกรณ์) · PDF ตามที่เลือก · ภาพรวมพื้นที่สำรวจเต็มหน้า A4 · รูปวัตถุลดขนาด 50% โดย ลุงพี'],
@@ -6776,7 +6777,7 @@ function cropObjectFromMap(canvas, layer) {
     const s = Math.min(1, 900 / Math.max(w, h));
     const out = document.createElement('canvas'); out.width = Math.round(w * s); out.height = Math.round(h * s);
     out.getContext('2d').drawImage(canvas, x0 * k, y0 * k, w, h, 0, 0, out.width, out.height);
-    return out.toDataURL('image/jpeg', 0.85);
+    return out.toDataURL('image/png');
 }
 async function exportReportPDF() {
     const items = [];
@@ -6805,7 +6806,7 @@ async function exportReportPDF() {
         h += '@page{size:A4 portrait;margin:10mm;} @media print{body{padding:0}.no-print{display:none!important}}';
         h += '.hdr{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #2c3e50;padding-bottom:6px;margin-bottom:8px;}';
         h += '.hdr h1{font-size:19px;margin:0;} .hdr .r{text-align:right;font-size:10.5px;color:#555;}';
-        h += '.desc{font-size:12px;color:#444;margin:0 0 8px;} img.map{width:100%;object-fit:contain;border:1px solid #bdc3c7;border-radius:4px;}';
+        h += '.desc{font-size:12px;color:#444;margin:0 0 8px;} img.map{width:50%;object-fit:contain;border:1px solid #bdc3c7;border-radius:4px;display:block;margin:0 auto;}';
         h += '.kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:8px 0;} .kpi div{background:#ecf0f1;border-radius:4px;padding:6px 8px;} .kpi b{display:block;font-size:15px;}';
         h += 'table{width:100%;border-collapse:collapse;font-size:11px;} th,td{border:1px solid #bdc3c7;padding:5px 6px;text-align:left;vertical-align:top;} th{background:#2c3e50;color:#fff;}';
         h += 'tr{page-break-inside:avoid;} td.th img{width:54px;height:40px;object-fit:cover;margin:1px;border-radius:2px;}';
@@ -6814,7 +6815,7 @@ async function exportReportPDF() {
         h += '.objtop{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px;} .objtop img{width:100%;border:1px solid #bdc3c7;border-radius:4px;}';
         h += '.info td:first-child{width:32%;background:#f4f6f7;font-weight:500;}';
         h += '.ph{display:grid;grid-template-columns:1fr 1fr;gap:8px;} .ph figure{margin:0;page-break-inside:avoid;border:1px solid #d6dde3;border-radius:4px;overflow:hidden;}';
-        h += '.ph img{width:100%;height:34mm;object-fit:cover;display:block;} .ph figcaption{padding:3px 6px;font-size:10.5px;background:#f4f6f7;}';
+        h += '.ph img{width:100%;height:51mm;object-fit:cover;display:block;} .ph figcaption{padding:3px 6px;font-size:10.5px;background:#f4f6f7;}';
         h += '.foot{margin-top:10px;font-size:9.5px;color:#999;text-align:center;}';
         h += '</style></head><body>';
         h += '<div class="no-print" style="margin-bottom:12px;padding:10px;background:#eaf2f8;border:1px solid #3498db;border-radius:5px;display:flex;justify-content:space-between;align-items:center;font-size:13px;">' +
@@ -6829,7 +6830,7 @@ async function exportReportPDF() {
         if (m.surveyDate) metaLines.push('<b>วันที่สำรวจ:</b> ' + surveyDateTH(m.surveyDate));
         if (m.projectDescription) metaLines.push(esc(m.projectDescription).replace(/\n/g, '<br>'));
         if (metaLines.length) h += '<p class="desc">' + metaLines.join(' &bull; ') + '</p>';
-        h += '<img class="map" src="' + canvas.toDataURL('image/jpeg', 0.88) + '">';
+        h += '<img class="map" src="' + canvas.toDataURL('image/png') + '">';
         h += '<div style="page-break-after:always;"></div>';
         let nP = 0, nL = 0, nM = 0, area = 0, len = 0;
         items.forEach(l => { const p = l.properties; if (p.type === 'Polygon') { nP++; area += num(p.area); } else if (p.type === 'Line') { nL++; len += num(p.calculatedDistance); } else nM++; });
