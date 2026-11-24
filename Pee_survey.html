@@ -887,10 +887,11 @@ function downloadText(text, filename, mime) {
     downloadBlob(new Blob(['﻿' + text], { type: (mime || 'text/plain') + ';charset=utf-8' }), filename);
 }
 const TH_MONTHS_FULL = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
-const APP_INFO={version:'4.13.1',created:'2026-08-02',updated:'2026-11-24',author:'ลุงพี'};
+const APP_INFO={version:'4.14.0',created:'2026-08-02',updated:'2026-11-24',author:'ลุงพี'};
 const SURVEY_ICON = (document.querySelector('link[rel="icon"]') || {}).href || ''; /* ไอคอนแท็บ (ใช้ซ้ำในหน้ารายงาน) */
 const PHOTO = { store: {}, edit: [], MAX: 1600, Q: 0.82, seq: 0 }; /* รูปประกอบวัตถุ (ดูส่วนรูปภาพ) */
 const APP_CHANGELOG=[
+  ['4.14.0','2026-11-24','แก้ป้ายเลื่อนผิดตำแหน่งเมื่อเลื่อนแผนที่ (pan): คำนวณหลบชนป้ายใหม่ทุกครั้งที่เลื่อนแผนที่เสร็จ (moveend) ป้ายที่เข้ามาในจอไม่ทับกัน + leader line ตรงจุด โดย ลุงพี'],
   ['4.13.1','2026-11-24','แก้ป้ายเลื่อนเมื่อติ๊กออก checkbox: ป้ายที่ซ่อนไม่ผลักป้ายที่มองเห็นอีกต่อไป · applyCategoryFilter + refreshAllLabels เรียก avoidLabelCollisions ให้ป้ายเข้าที่ โดย ลุงพี'],
   ['4.13.0','2026-11-24','แก้ป้ายกำกับกระโดดตอนซูมเข้า-ออก: ระบบหลบชนป้ายใช้ pixel offset คงที่แทนการแปลง lat/lng ↔ pixel ไป-กลับ ป้ายจึงอยู่ที่เดิมทุกระดับซูม โดย ลุงพี'],
   ['4.12.1','2026-11-24','PDF: ภาพแผนที่เต็มหน้าตอนพิมพ์ (50% บนจอ 100% ตอน Print/PDF) โดย ลุงพี'],
@@ -2905,6 +2906,8 @@ map.on('zoomend', () => {
     drawnItems.eachLayer(l => { if (l.properties) updateLabelAndCalculations(l, l.properties.type); });
     avoidLabelCollisions();
 });
+/* 4.14.0: pan แล้วป้ายหลบชนใหม่ — ป้ายที่เลื่อนเข้ามาในจอไม่ทับกัน + leader line ตรงจุด */
+map.on('moveend', avoidLabelCollisions);
 
 function updateSummaryTable() {
     const tbody = document.querySelector('#summaryTable tbody');
