@@ -260,6 +260,8 @@
         .leaflet-pm-toolbar .leaflet-pm-icon-custom-poletx { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='7.8' y='3' width='2.4' height='19' rx='.6' fill='%237f8c8d'/%3E%3Crect x='2' y='5' width='14' height='2' rx='.5' fill='%2334495e'/%3E%3Crect x='11.5' y='9' width='9' height='8' rx='1.2' fill='%238e44ad'/%3E%3Cpath d='M14 9V7.3M16 9V7.3M18 9V7.3' stroke='%238e44ad' stroke-width='1.2'/%3E%3Cpath d='M16.6 10.5l-2 3h1.8l-1 2.5 2.6-3.4h-1.8z' fill='%23f1c40f'/%3E%3C/svg%3E"); background-size:20px; background-position:center; background-repeat:no-repeat; }
         .leaflet-pm-toolbar .leaflet-pm-icon-custom-mdb { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='4.5' y='2.5' width='15' height='19' rx='1.5' fill='%23e67e22'/%3E%3Cpath d='M12 2.5v19' stroke='%23fff' stroke-width='.9'/%3E%3Ccircle cx='10.3' cy='12' r='.9' fill='%23fff'/%3E%3Ccircle cx='13.7' cy='12' r='.9' fill='%23fff'/%3E%3Cpath d='M8.6 5.2l-1.7 2.6h1.4l-.8 2.1 2.2-2.9H8.3z' fill='%23fff'/%3E%3C/svg%3E"); background-size:20px; background-position:center; background-repeat:no-repeat; }
         .equip-icon svg { filter: drop-shadow(0 0 2px #fff) drop-shadow(0 1px 2px rgba(0,0,0,.6)); }
+        .leaflet-pm-toolbar .leaflet-pm-icon-custom-copy { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='8' y='8' width='12' height='13' rx='2' fill='none' stroke='%232c3e50' stroke-width='2'/%3E%3Cpath d='M5 16V5a2 2 0 0 1 2-2h9' fill='none' stroke='%232c3e50' stroke-width='2'/%3E%3C/svg%3E"); background-size:19px; background-position:center; background-repeat:no-repeat; }
+        .leaflet-pm-toolbar .leaflet-pm-icon-custom-paste { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='5' y='4' width='14' height='17' rx='2' fill='none' stroke='%232c3e50' stroke-width='2'/%3E%3Crect x='9' y='2' width='6' height='4' rx='1' fill='%232c3e50'/%3E%3Cpath d='M9 12h6M9 16h4' stroke='%2327ae60' stroke-width='2'/%3E%3C/svg%3E"); background-size:19px; background-position:center; background-repeat:no-repeat; }
         .seg-edit div { cursor: pointer; pointer-events: auto; }
         .seg-edit div:hover { outline: 2px solid #f39c12; }
         #faceTable input[data-fl] { width: 100%; font-weight: 600; color: #c0392b; }
@@ -858,10 +860,11 @@ function downloadText(text, filename, mime) {
     downloadBlob(new Blob(['﻿' + text], { type: (mime || 'text/plain') + ';charset=utf-8' }), filename);
 }
 const TH_MONTHS_FULL = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
-const APP_INFO={version:'4.7.0',created:'2026-08-02',updated:'2026-11-24',author:'ลุงพี'};
+const APP_INFO={version:'4.8.0',created:'2026-08-02',updated:'2026-11-24',author:'ลุงพี'};
 const SURVEY_ICON = (document.querySelector('link[rel="icon"]') || {}).href || ''; /* ไอคอนแท็บ (ใช้ซ้ำในหน้ารายงาน) */
 const PHOTO = { store: {}, edit: [], MAX: 1600, Q: 0.82, seq: 0 }; /* รูปประกอบวัตถุ (ดูส่วนรูปภาพ) */
 const APP_CHANGELOG=[
+  ['4.8.0','2026-11-24','คัดลอก/วาง/ทำซ้ำวัตถุ: Ctrl+C Ctrl+V (⌘C ⌘V) ใช้ได้ทุกภาษาแป้นพิมพ์ · Ctrl+D ทำซ้ำ · ปุ่มคัดลอก/วางบนแถบเครื่องมือ · วางที่ตำแหน่งเมาส์ ชื่อเลขถัดไป ติดไปครบทั้งขนาด 3D สี อุปกรณ์ รูป · วางข้ามแท็บได้ · ปุ่มลัดตัวเดียวใช้ได้กับแป้นพิมพ์ภาษาไทย โดย ลุงพี'],
   ['4.7.0','2026-11-24','หมุนวัตถุตามองศาที่กรอก: ช่อง หมุนเพิ่ม (+ = ตามเข็ม) และ ตั้งแนวแกนยาวเทียบทิศเหนือ ในหน้าต่างข้อมูล · หมุนรอบจุดกึ่งกลาง ขนาดไม่เปลี่ยน · ป้ายล็อกหมุนตาม · ย้อนกลับได้ · ย้อนกลับ 1 ครั้งต่อการแก้ 1 ครั้ง (ไม่เก็บสถานะซ้ำ) · ช่องกว้าง/ยาวแสดงขนาดจริงหลังหมุน/แก้ด้าน โดย ลุงพี'],
   ['4.6.0','2026-11-24','ย้ายวัตถุได้ทุกชนิดโดยตรง: คลิกเลือกแล้วลากได้ทันที (จับตรงกลางรูปได้ ไม่ต้องเปิดโหมด ✥) · ป้ายที่ล็อกไว้ย้ายตาม · ตาราง/3D อัปเดต · ย้อนกลับได้ โดย ลุงพี'],
   ['4.5.0','2026-11-24','แก้ความยาวแต่ละด้านได้ (ตาราง ด้าน/ระยะ หรือคลิกป้ายระยะ · ยืดทั้งแนว/ขยับจุดปลาย · เตือนด้านที่เปลี่ยนตาม) · ส่งออกให้ ASC Studio ไฟล์โครงการเดียว (ชื่อ พิกัด อาคาร สิ่งกีดขวาง ต้นไม้ + อุปกรณ์จริง เสาไฟฟ้า/หม้อแปลง/ตู้ MDB พร้อมชื่อ) · บันทึกไม่ปัดขนาดเป็น ซม. เงียบ ๆ โดย ลุงพี'],
@@ -6197,6 +6200,136 @@ document.getElementById('faceTable').addEventListener('change', e => {
 });
 
 
+
+/* =====================================================================
+   4.8.0 : คัดลอก / วาง / ทำซ้ำ วัตถุ
+   - Ctrl+C / Ctrl+V (Mac ⌘C / ⌘V) ผ่าน event copy/paste ของเบราว์เซอร์ → ใช้ได้ทุกภาษาแป้นพิมพ์ (ไทย/อังกฤษ/อื่น ๆ)
+   - Ctrl+D = ทำซ้ำวัตถุที่เลือก (วางข้าง ๆ 3 ม.) · ปุ่มคัดลอก/วาง บนแถบเครื่องมือ
+   - วางที่ตำแหน่งเมาส์บนแผนที่ (ถ้าเมาส์อยู่บนแผนที่) ไม่งั้นวางข้างของเดิม 3 ม.
+   - ติดไปครบ: ขนาด ความสูง 3D สีรายด้าน ชนิดอุปกรณ์ บทบาท ASC Studio รูปภาพ · วางข้ามแท็บ/โครงการได้
+   ===================================================================== */
+const CLIP = { data: null, pasteN: 0 };
+App._mouseOnMap = false;
+map.on('mousemove', e => { App._mouseLL = e.latlng; App._mouseOnMap = true; });
+map.getContainer().addEventListener('mouseleave', () => { App._mouseOnMap = false; });
+function typingInField() {
+    const a = document.activeElement;
+    if (!a) return false;
+    const t = a.tagName;
+    return t === 'INPUT' || t === 'TEXTAREA' || t === 'SELECT' || a.isContentEditable;
+}
+function modalOpen() { return document.getElementById('data-modal').classList.contains('open'); }
+function clipFromLayer(layer) {
+    const p = layer.properties;
+    const gj = layer.toGeoJSON();
+    gj.properties = JSON.parse(JSON.stringify(p));
+    const photos = {};
+    (p.photos || []).forEach(x => { if (PHOTO.store[x.id]) photos[x.id] = PHOTO.store[x.id]; });
+    const c = centerOf(layer);
+    return { app: 'pee-survey', v: 1, features: [gj], photoStore: photos, center: { lat: c.lat, lng: c.lng } };
+}
+function copySelected(viaButton) {
+    const layer = App.selected;
+    if (!layer || !layer.properties) { toast('ยังไม่ได้เลือกวัตถุ &mdash; คลิกวัตถุก่อน แล้วกด Ctrl+C', 'warn'); return null; }
+    CLIP.data = clipFromLayer(layer); CLIP.pasteN = 0;
+    const txt = JSON.stringify(CLIP.data);
+    if (viaButton && navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).catch(() => { });
+    toast('&#128203; คัดลอก <b>' + esc(layer.properties.name || typeLabel(layer.properties)) + '</b> แล้ว &mdash; กด Ctrl+V (⌘V) เพื่อวาง', 'ok', 2200);
+    return txt;
+}
+function nextCopyName(name, kind) {
+    const m = String(name || '').match(/^(.*?)(\s*)(\d+)$/);
+    const names = []; drawnItems.eachLayer(l => { if (l.properties) names.push(l.properties.name || ''); });
+    if (m) {
+        let mx = +m[3];
+        names.forEach(n => { const q = n.match(/^(.*?)(\s*)(\d+)$/); if (q && q[1] === m[1]) mx = Math.max(mx, +q[3]); });
+        return m[1] + m[2] + (mx + 1);
+    }
+    let base = (name || (kind && EQUIP[kind] ? EQUIP[kind].short : 'วัตถุ')) + ' สำเนา', n = base, i = 2;
+    while (names.includes(n)) n = base + ' ' + (i++);
+    return n;
+}
+function shiftCoords(coords, dLat, dLng) {
+    if (typeof coords[0] === 'number') return [coords[0] + dLng, coords[1] + dLat].concat(coords.slice(2));
+    return coords.map(c => shiftCoords(c, dLat, dLng));
+}
+function pasteClip(data) {
+    data = data || CLIP.data;
+    if (!data || data.app !== 'pee-survey' || !Array.isArray(data.features) || !data.features.length) { toast('ยังไม่มีวัตถุที่คัดลอกไว้ &mdash; เลือกวัตถุแล้วกด Ctrl+C ก่อน', 'warn'); return; }
+    Object.keys(data.photoStore || {}).forEach(k => { if (/^data:image\//.test(data.photoStore[k]) && !PHOTO.store[k]) PHOTO.store[k] = data.photoStore[k]; });
+    const src = L.latLng(data.center.lat, data.center.lng);
+    let target;
+    const inView = App._mouseOnMap && App._mouseLL && map.getBounds().contains(App._mouseLL);
+    if (inView && !(CLIP._lastMouse && CLIP._lastMouse.equals(App._mouseLL))) { target = App._mouseLL; CLIP.pasteN = 0; }
+    else {
+        CLIP.pasteN++;
+        const off = 3 * CLIP.pasteN, ref = src.lat, q = planarXY(src, ref);
+        target = inView ? (function () { const m = planarXY(App._mouseLL, ref); return planarToLatLng(m[0] + 3 * CLIP.pasteN, m[1] - 3 * CLIP.pasteN, ref); })() : planarToLatLng(q[0] + off, q[1] - off, ref);
+    }
+    CLIP._lastMouse = inView ? App._mouseLL : null;
+    const dLat = target.lat - src.lat, dLng = target.lng - src.lng;
+    let added = null;
+    data.features.forEach(f0 => {
+        const f = JSON.parse(JSON.stringify(f0));
+        f.geometry.coordinates = shiftCoords(f.geometry.coordinates, dLat, dLng);
+        const p = f.properties || {};
+        p.name = nextCopyName(p.name, p.kind);
+        if (p.customLabelLatLng) p.customLabelLatLng = { lat: p.customLabelLatLng.lat + dLat, lng: p.customLabelLatLng.lng + dLng };
+        const before = new Set(drawnItems.getLayers().map(l => L.Util.stamp(l)));
+        if (!addGeoJSONFeature(f)) return;
+        added = drawnItems.getLayers().find(l => !before.has(L.Util.stamp(l))) || added;
+    });
+    if (!added) { toast('วางไม่สำเร็จ', 'err'); return; }
+    updateSummaryTable(); render3D.redraw(); avoidLabelCollisions();
+    if (typeof V3D !== 'undefined' && V3D.ready) V3D.rebuildFeatures();
+    saveHistoryState();
+    setSelected(added);
+    toast('&#128203; วาง <b>' + esc(added.properties.name) + '</b> แล้ว &mdash; ลากย้ายได้ทันที', 'ok', 2200);
+}
+function duplicateSelected() {
+    if (!App.selected) { toast('ยังไม่ได้เลือกวัตถุ', 'warn'); return; }
+    const d = clipFromLayer(App.selected);
+    const keep = App._mouseOnMap; App._mouseOnMap = false;   // ทำซ้ำ = วางข้างของเดิมเสมอ
+    const saved = CLIP.pasteN; CLIP.pasteN = 0;
+    pasteClip(d);
+    App._mouseOnMap = keep; CLIP.pasteN = saved;
+}
+/* ระบบ copy/paste ของเบราว์เซอร์ — ทำงานกับ Ctrl/⌘ + C/V ทุกภาษาแป้นพิมพ์ และเมนู แก้ไข › คัดลอก/วาง */
+document.addEventListener('copy', e => {
+    clearTimeout(CLIP._kc);
+    if (typingInField() || modalOpen() || !App.selected) return;
+    const sel = window.getSelection && String(window.getSelection()); if (sel) return;   // กำลังคัดลอกข้อความบนหน้า
+    const txt = copySelected(false); if (!txt) return;
+    e.clipboardData.setData('text/plain', txt);
+    e.preventDefault();
+});
+document.addEventListener('paste', e => {
+    clearTimeout(CLIP._kv);
+    if (typingInField() || modalOpen()) return;
+    let data = null;
+    try { const t = e.clipboardData && e.clipboardData.getData('text/plain'); if (t && t.indexOf('"pee-survey"') >= 0) data = JSON.parse(t); } catch (err) { }
+    if (!data && !CLIP.data) return;
+    e.preventDefault();
+    pasteClip(data || CLIP.data);
+});
+document.addEventListener('keydown', e => {
+    if (!(e.ctrlKey || e.metaKey) || e.altKey || typingInField() || modalOpen()) return;
+    const code = e.code || ('Key' + String(e.key || '').toUpperCase());   // แป้นที่ไม่ส่ง code มา → ใช้ตัวอักษรแทน
+    if (code === 'KeyD') { e.preventDefault(); duplicateSelected(); }
+    /* สำรอง: ถ้าเบราว์เซอร์ไม่ส่ง event copy/paste มา (บางเครื่อง/บางโหมด) ทำเองหลัง 60 ms — ตำแหน่งปุ่มจริง (e.code) จึงใช้ได้ทุกภาษา */
+    else if (code === 'KeyC' && App.selected && !String(window.getSelection ? window.getSelection() : '')) { clearTimeout(CLIP._kc); CLIP._kc = setTimeout(() => copySelected(false), 60); }
+    else if (code === 'KeyV' && CLIP.data) { clearTimeout(CLIP._kv); CLIP._kv = setTimeout(() => pasteClip(), 60); }
+});
+map.pm.Toolbar.createCustomControl({
+    name: 'copyTool', block: 'custom', title: 'คัดลอกวัตถุที่เลือก (Ctrl+C · ⌘C)',
+    className: 'leaflet-pm-icon-custom-copy', toggle: false, onClick: () => copySelected(true)
+});
+map.pm.Toolbar.createCustomControl({
+    name: 'pasteTool', block: 'custom', title: 'วางวัตถุที่คัดลอก (Ctrl+V · ⌘V) · ทำซ้ำ Ctrl+D',
+    className: 'leaflet-pm-icon-custom-paste', toggle: false,
+    onClick: () => { const keep = App._mouseOnMap; App._mouseOnMap = false; pasteClip(); App._mouseOnMap = keep; }
+});
+
 /* =====================================================================
    4.7.0 : หมุนวัตถุตามองศาที่กรอก (Polygon / Rectangle / Line / ตู้ MDB / ต้นไม้)
    - หมุนเพิ่ม: + = ตามเข็มนาฬิกา (มองจากบน) รอบจุดกึ่งกลางวัตถุ
@@ -6887,7 +7020,9 @@ window.addEventListener('resize', () => setTimeout(() => { map.invalidateSize();
 /* ---------- คีย์ลัด ---------- */
 document.addEventListener('keydown', e => {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
-    const k = e.key.toLowerCase();
+    if (e.ctrlKey || e.metaKey || e.altKey) return;   // 4.8.0: Ctrl/⌘ + ตัวอักษร = คัดลอก/วาง ฯลฯ ไม่ใช่ปุ่มลัดตัวเดียว
+    /* 4.8.0: ใช้ตำแหน่งปุ่มจริง (e.code) → แป้นพิมพ์ภาษาไทย/ภาษาอื่นกดปุ่มลัดได้เหมือนภาษาอังกฤษ */
+    const k = /^Key[A-Z]$/.test(e.code) ? e.code.slice(3).toLowerCase() : /^Digit\d$/.test(e.code) ? e.code.slice(5) : e.key.toLowerCase();
     if (k === 'p') setPanMode(true);
     else if (k === 'g') { if (!guardRotation()) map.pm.enableDraw('Polygon'); }
     else if (k === 'l') { if (!guardRotation()) map.pm.enableDraw('Line'); }
