@@ -887,10 +887,11 @@ function downloadText(text, filename, mime) {
     downloadBlob(new Blob(['﻿' + text], { type: (mime || 'text/plain') + ';charset=utf-8' }), filename);
 }
 const TH_MONTHS_FULL = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
-const APP_INFO={version:'4.10.0',created:'2026-08-02',updated:'2026-11-24',author:'ลุงพี'};
+const APP_INFO={version:'4.11.0',created:'2026-08-02',updated:'2026-11-24',author:'ลุงพี'};
 const SURVEY_ICON = (document.querySelector('link[rel="icon"]') || {}).href || ''; /* ไอคอนแท็บ (ใช้ซ้ำในหน้ารายงาน) */
 const PHOTO = { store: {}, edit: [], MAX: 1600, Q: 0.82, seq: 0 }; /* รูปประกอบวัตถุ (ดูส่วนรูปภาพ) */
 const APP_CHANGELOG=[
+  ['4.11.0','2026-11-24','รายงาน PDF แสดงหน้ารายละเอียดเฉพาะวัตถุที่มีรูปภาพ (วัตถุไม่มีรูปไม่แสดง) โดย ลุงพี'],
   ['4.10.0','2026-11-24','เพิ่มช่องผู้สำรวจ+วันที่สำรวจ (แสดงใน PDF แบบ วัน เดือน พ.ศ.) · เลือกแสดง/ซ่อนตามประเภทวัตถุ (Polygon/Line/Marker/เสา/หม้อแปลง/MDB/ต้นไม้) · ตารางสรุป+PDF กรองตามประเภทที่เลือก · ข้อมูลบันทึก/นำเข้ากลับได้ โดย ลุงพี'],
   ['4.9.0','2026-11-24','เลือกข้อมูลบนป้ายกำกับ (ชื่อ/พื้นที่/ขนาด/ความสูง/พิกัด/ชนิดอุปกรณ์) · PDF ตามที่เลือก · ภาพรวมพื้นที่สำรวจเต็มหน้า A4 · รูปวัตถุลดขนาด 50% โดย ลุงพี'],
   ['4.8.0','2026-11-24','คัดลอก/วาง/ทำซ้ำวัตถุ: Ctrl+C Ctrl+V (⌘C ⌘V) ใช้ได้ทุกภาษาแป้นพิมพ์ · Ctrl+D ทำซ้ำ · ปุ่มคัดลอก/วางบนแถบเครื่องมือ · วางที่ตำแหน่งเมาส์ ชื่อเลขถัดไป ติดไปครบทั้งขนาด 3D สี อุปกรณ์ รูป · วางข้ามแท็บได้ · ปุ่มลัดตัวเดียวใช้ได้กับแป้นพิมพ์ภาษาไทย โดย ลุงพี'],
@@ -6847,15 +6848,16 @@ async function exportReportPDF() {
         });
         h += '</tbody></table>';
 
-        // รายละเอียดรายวัตถุ (1 วัตถุต่อหน้า + รูปทั้งหมด)
+        // รายละเอียดรายวัตถุ — เฉพาะที่มีรูปภาพเท่านั้น (วัตถุไม่มีรูปไม่แสดงหน้ารายละเอียด)
         items.forEach((l, i) => {
             const p = l.properties;
             const ph = (p.photos || []).filter(x => PHOTO.store[x.id]);
+            if (!ph.length) return;
             const crop = cropObjectFromMap(canvas, l);
             h += '<div class="obj"><h3 style="background:' + toHex(p.color) + '">' + (i + 1) + '. ' + esc(p.name || '-') + ' <span style="font-weight:300;font-size:12px;">(' + esc(typeLabel(p)) + ')</span></h3>';
             h += '<div class="objtop"><div>' + (crop ? '<img src="' + crop + '">' : '<div style="padding:30px;text-align:center;color:#999;border:1px dashed #ccc;">วัตถุอยู่นอกกรอบแผนที่ที่จับภาพ</div>') + '</div>';
             h += '<div><table class="info"><tbody>' + objectInfoRows(l).map(r => '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>').join('') + '<tr><td>รูปประกอบ</td><td>' + ph.length + ' รูป</td></tr></tbody></table></div></div>';
-            if (ph.length) h += '<div class="ph">' + ph.map((x, k) => '<figure><img src="' + PHOTO.store[x.id] + '"><figcaption>รูปที่ ' + (i + 1) + '.' + (k + 1) + (x.caption ? ' &mdash; ' + esc(x.caption) : '') + '</figcaption></figure>').join('') + '</div>';
+            h += '<div class="ph">' + ph.map((x, k) => '<figure><img src="' + PHOTO.store[x.id] + '"><figcaption>รูปที่ ' + (i + 1) + '.' + (k + 1) + (x.caption ? ' &mdash; ' + esc(x.caption) : '') + '</figcaption></figure>').join('') + '</div>';
             h += '</div>';
         });
         h += '<div class="foot">Advanced GIS Civil &amp; Orthophoto Workspace เวอร์ชัน ' + APP_INFO.version + ' · โดย ' + APP_INFO.author + '</div>';
