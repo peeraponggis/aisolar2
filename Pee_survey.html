@@ -732,6 +732,17 @@
                         <button class="btn btn-db" style="margin:0;" onclick="applyParametricSize()">&#8596; ปรับขนาดทันที</button></div>
                 </div>
                 <div class="note" id="size-readout"></div>
+                <div id="rot-box" style="border-top:1px dashed #b7dcbf; margin-top:6px; padding-top:6px;">
+                    <div class="grid-2">
+                        <div><label class="fld">หมุน (องศา · + = ตามเข็ม)</label><input type="number" id="input-rot" step="1" placeholder="เช่น 15 หรือ -90"></div>
+                        <div><label class="fld">&nbsp;</label><button class="btn btn-db" style="margin:0;" onclick="applyRotateInput('rel')">&#8635; หมุนเพิ่ม</button></div>
+                    </div>
+                    <div class="grid-2">
+                        <div><label class="fld" id="bearing-lbl">ตั้งแนวแกนยาว (&deg; จากทิศเหนือ)</label><input type="number" id="input-bearing" step="0.1"></div>
+                        <div><label class="fld">&nbsp;</label><button class="btn btn-db" style="margin:0;" onclick="applyRotateInput('abs')">&#129517; ตั้งมุม</button></div>
+                    </div>
+                    <div class="note" id="rot-msg" style="margin:2px 0 0;"></div>
+                </div>
             </div>
             <div class="grid-2">
                 <div class="modal-field"><label>ระดับฐาน Base (m):</label><input type="number" id="input-base" step="any" placeholder="0"></div>
@@ -847,10 +858,11 @@ function downloadText(text, filename, mime) {
     downloadBlob(new Blob(['﻿' + text], { type: (mime || 'text/plain') + ';charset=utf-8' }), filename);
 }
 const TH_MONTHS_FULL = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
-const APP_INFO={version:'4.6.0',created:'2026-08-02',updated:'2026-11-24',author:'ลุงพี'};
+const APP_INFO={version:'4.7.0',created:'2026-08-02',updated:'2026-11-24',author:'ลุงพี'};
 const SURVEY_ICON = (document.querySelector('link[rel="icon"]') || {}).href || ''; /* ไอคอนแท็บ (ใช้ซ้ำในหน้ารายงาน) */
 const PHOTO = { store: {}, edit: [], MAX: 1600, Q: 0.82, seq: 0 }; /* รูปประกอบวัตถุ (ดูส่วนรูปภาพ) */
 const APP_CHANGELOG=[
+  ['4.7.0','2026-11-24','หมุนวัตถุตามองศาที่กรอก: ช่อง หมุนเพิ่ม (+ = ตามเข็ม) และ ตั้งแนวแกนยาวเทียบทิศเหนือ ในหน้าต่างข้อมูล · หมุนรอบจุดกึ่งกลาง ขนาดไม่เปลี่ยน · ป้ายล็อกหมุนตาม · ย้อนกลับได้ · ย้อนกลับ 1 ครั้งต่อการแก้ 1 ครั้ง (ไม่เก็บสถานะซ้ำ) · ช่องกว้าง/ยาวแสดงขนาดจริงหลังหมุน/แก้ด้าน โดย ลุงพี'],
   ['4.6.0','2026-11-24','ย้ายวัตถุได้ทุกชนิดโดยตรง: คลิกเลือกแล้วลากได้ทันที (จับตรงกลางรูปได้ ไม่ต้องเปิดโหมด ✥) · ป้ายที่ล็อกไว้ย้ายตาม · ตาราง/3D อัปเดต · ย้อนกลับได้ โดย ลุงพี'],
   ['4.5.0','2026-11-24','แก้ความยาวแต่ละด้านได้ (ตาราง ด้าน/ระยะ หรือคลิกป้ายระยะ · ยืดทั้งแนว/ขยับจุดปลาย · เตือนด้านที่เปลี่ยนตาม) · ส่งออกให้ ASC Studio ไฟล์โครงการเดียว (ชื่อ พิกัด อาคาร สิ่งกีดขวาง ต้นไม้ + อุปกรณ์จริง เสาไฟฟ้า/หม้อแปลง/ตู้ MDB พร้อมชื่อ) · บันทึกไม่ปัดขนาดเป็น ซม. เงียบ ๆ โดย ลุงพี'],
   ['4.4.0','2026-11-24','ปุ่มวางอุปกรณ์: เสาไฟฟ้า 12 ม. · เสาไฟฟ้า + หม้อแปลง · ตู้ MDB (สี่เหลี่ยม 3D) พร้อมไอคอนบนแผนที่ โมเดล 3D ชื่อในตาราง/รายงาน · ระยะแต่ละด้าน/ตัวเลขขนาดแสดงเฉพาะวัตถุที่เลือก (คลิกพื้นที่ว่างหรือ Esc = ยกเลิกเลือก) · แก้บัควาดต้นไม้ค้าง (คลิกจบวงกลมไม่ได้) และหน้าต่างข้อมูลกรอกไม่ได้หลังวาดต้นไม้ โดย ลุงพี'],
@@ -1119,8 +1131,10 @@ App.historyIndex = 0;
 function saveHistoryState() {
     setTimeout(() => {
         const state = collectFeatures();
+        const js = JSON.stringify(state);
+        if (js === App.history[App.historyIndex]) return;   // 4.7.0: สถานะไม่เปลี่ยน ไม่ต้องเก็บซ้ำ (กดย้อนกลับครั้งเดียวต่อการแก้ 1 ครั้ง)
         App.history = App.history.slice(0, App.historyIndex + 1);
-        App.history.push(JSON.stringify(state));
+        App.history.push(js);
         App.historyIndex++;
     }, 100);
 }
@@ -2994,6 +3008,7 @@ function openModal(layer, isEdit) {
     buildVertexTable(layer);
     buildFaceTable(layer);
     markSizeInputs();
+    fillRotBox(layer);
     fillAscsBox(layer);
     const sm = document.getElementById('side-msg'); if (sm) sm.innerHTML = '';
     PHOTO.edit = (p.photos || []).map(x => ({ id: x.id, caption: x.caption || '' }));
@@ -6156,9 +6171,10 @@ function refreshModalAfterGeom(layer) {
     buildFaceTable(layer); buildVertexTable(layer); updateSizeReadout(layer);
     const p = layer.properties;
     if (isPolygonLayer(layer)) {
-        document.getElementById('input-width').value = num(p.width).toFixed(2);
-        document.getElementById('input-length').value = num(p.length).toFixed(2);
-    } else document.getElementById('input-length').value = num(p.length).toFixed(2);
+        const o = obbOf(layer);   /* ขนาดจริงบนแผนที่ตอนนี้ (ไม่ใช่ 0 ของรูปที่ยังไม่เคยกรอกขนาด) */
+        document.getElementById('input-width').value = (o ? o.w : num(p.width)).toFixed(2);
+        document.getElementById('input-length').value = (o ? o.l : num(p.length)).toFixed(2);
+    } else document.getElementById('input-length').value = (num(p.length) || sideLengths(layer).reduce((a, b) => a + b, 0)).toFixed(2);
     markSizeInputs();
 }
 function promptSideLength(layer, i) {
@@ -6178,6 +6194,80 @@ document.getElementById('faceTable').addEventListener('change', e => {
     const r = setSideLength(App.currentLayer, i, Lnew, document.getElementById('side-mode').value);
     reportSideChange(i, Lnew, r);
     refreshModalAfterGeom(App.currentLayer);
+});
+
+
+/* =====================================================================
+   4.7.0 : หมุนวัตถุตามองศาที่กรอก (Polygon / Rectangle / Line / ตู้ MDB / ต้นไม้)
+   - หมุนเพิ่ม: + = ตามเข็มนาฬิกา (มองจากบน) รอบจุดกึ่งกลางวัตถุ
+   - ตั้งมุม: แนวแกนยาวเทียบทิศเหนือ (Polygon 0–180° · เส้น = ทิศจากจุดแรกไปจุดสุดท้าย 0–360°)
+   ขนาด/ความยาวด้านไม่เปลี่ยน · ป้ายที่ล็อกไว้หมุนตาม · ย้อนกลับได้
+   ===================================================================== */
+function layerBearing(layer) {
+    if (isPolygonLayer(layer)) { const o = obbOf(layer); return o ? o.bearing : 0; }
+    const r = getRing(layer); if (r.length < 2) return 0;
+    const ref = r[0].lat, a = planarXY(r[0], ref), b = planarXY(r[r.length - 1], ref);
+    return (Math.atan2(b[0] - a[0], b[1] - a[1]) * 180 / Math.PI + 360) % 360;
+}
+function fillRotBox(layer) {
+    const box = document.getElementById('rot-box'); if (!box) return;
+    const ok = layer instanceof L.Polyline;
+    box.style.display = ok ? '' : 'none';
+    if (!ok) return;
+    document.getElementById('input-rot').value = '';
+    document.getElementById('input-bearing').value = layerBearing(layer).toFixed(1);
+    document.getElementById('bearing-lbl').innerHTML = isPolygonLayer(layer) ? 'ตั้งแนวแกนยาว (&deg; จากทิศเหนือ)' : 'ตั้งทิศของเส้น (&deg; จากทิศเหนือ)';
+    document.getElementById('rot-msg').innerHTML = '';
+}
+function rotateLayerBy(layer, deg) {
+    if (!layer || !(layer instanceof L.Polyline) || !isFinite(deg) || Math.abs(deg) < 1e-9) return false;
+    const ring = getRing(layer); if (ring.length < 2) return false;
+    const ref = ring[0].lat, P = ring.map(ll => planarXY(ll, ref));
+    let cx, cy;
+    if (isPolygonLayer(layer)) { const o = obbOf(layer); const c = o ? planarXY(planarToLatLng(o.center[0], o.center[1], o.ref), ref) : null; cx = c ? c[0] : 0; cy = c ? c[1] : 0; }
+    if (cx === undefined || (!cx && !cy)) { const xs = P.map(q => q[0]), ys = P.map(q => q[1]); cx = (Math.min(...xs) + Math.max(...xs)) / 2; cy = (Math.min(...ys) + Math.max(...ys)) / 2; }
+    const t = deg * Math.PI / 180, cs = Math.cos(t), sn = Math.sin(t);
+    const rot = q => { const dx = q[0] - cx, dy = q[1] - cy; return [cx + dx * cs + dy * sn, cy - dx * sn + dy * cs]; };
+    keepUnsavedTableEdits(layer);
+    setRing(layer, P.map(q => { const r2 = rot(q); return planarToLatLng(r2[0], r2[1], ref); }));
+    const p = layer.properties;
+    if (p.labelLocked && p.customLabelLatLng) { const q = rot(planarXY(L.latLng(p.customLabelLatLng), ref)); p.customLabelLatLng = planarToLatLng(q[0], q[1], ref); }
+    syncPropArrays(layer);
+    updateLabelAndCalculations(layer, p.type);
+    updateSummaryTable(); render3D.redraw(); avoidLabelCollisions();
+    if (typeof V3D !== 'undefined' && V3D.ready) V3D.rebuildFeatures();
+    saveHistoryState();
+    return true;
+}
+function applyRotateInput(mode) {
+    const layer = App.currentLayer;
+    if (!layer || !(layer instanceof L.Polyline)) { toast('หมุนได้เฉพาะรูปหลายเหลี่ยม / สี่เหลี่ยม / เส้น', 'warn'); return; }
+    const before = layerBearing(layer);
+    let deg;
+    if (mode === 'abs') {
+        const v = document.getElementById('input-bearing').value;
+        if (v === '') { toast('กรอกมุมที่ต้องการก่อน', 'warn'); return; }
+        const target = num(v);
+        if (isPolygonLayer(layer)) { deg = ((target - before) % 180 + 180) % 180; if (deg > 90) deg -= 180; }
+        else { deg = ((target - before) % 360 + 360) % 360; if (deg > 180) deg -= 360; }
+    } else {
+        const v = document.getElementById('input-rot').value;
+        if (v === '') { toast('กรอกองศาที่จะหมุนก่อน (+ = ตามเข็ม)', 'warn'); return; }
+        deg = num(v);
+    }
+    if (Math.abs(deg) < 1e-6) { document.getElementById('rot-msg').innerHTML = 'มุมตรงกับที่กรอกอยู่แล้ว'; return; }
+    rotateLayerBy(layer, deg);
+    refreshModalAfterGeom(layer);
+    const after = layerBearing(layer);
+    document.getElementById('input-bearing').value = after.toFixed(1);
+    document.getElementById('input-rot').value = '';
+    const msg = '&#10004; หมุน ' + (deg > 0 ? '+' : '') + fmt(deg, 1) + '&deg; ' + (deg > 0 ? '(ตามเข็ม)' : '(ทวนเข็ม)') + ' &bull; แนวแกนตอนนี้ <b>' + fmt(after, 1) + '&deg;</b> จากทิศเหนือ';
+    document.getElementById('rot-msg').innerHTML = msg;
+    toast(msg, 'ok', 2200);
+}
+['input-rot', 'input-bearing'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); applyRotateInput(id === 'input-rot' ? 'rel' : 'abs'); } });
 });
 
 /* =====================================================================
