@@ -887,10 +887,11 @@ function downloadText(text, filename, mime) {
     downloadBlob(new Blob(['﻿' + text], { type: (mime || 'text/plain') + ';charset=utf-8' }), filename);
 }
 const TH_MONTHS_FULL = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
-const APP_INFO={version:'4.12.0',created:'2026-08-02',updated:'2026-11-24',author:'ลุงพี'};
+const APP_INFO={version:'4.12.1',created:'2026-08-02',updated:'2026-11-24',author:'ลุงพี'};
 const SURVEY_ICON = (document.querySelector('link[rel="icon"]') || {}).href || ''; /* ไอคอนแท็บ (ใช้ซ้ำในหน้ารายงาน) */
 const PHOTO = { store: {}, edit: [], MAX: 1600, Q: 0.82, seq: 0 }; /* รูปประกอบวัตถุ (ดูส่วนรูปภาพ) */
 const APP_CHANGELOG=[
+  ['4.12.1','2026-11-24','PDF: ภาพแผนที่เต็มหน้าตอนพิมพ์ (50% บนจอ 100% ตอน Print/PDF) โดย ลุงพี'],
   ['4.12.0','2026-11-24','PDF: ภาพแผนที่สี (PNG แทน JPEG) ลดขนาด 50% · รูปวัตถุในหน้ารายละเอียดเพิ่มขนาด 50% (34mm→51mm) · crop วัตถุเป็น PNG คงสี โดย ลุงพี'],
   ['4.11.0','2026-11-24','รายงาน PDF แสดงหน้ารายละเอียดเฉพาะวัตถุที่มีรูปภาพ (วัตถุไม่มีรูปไม่แสดง) โดย ลุงพี'],
   ['4.10.0','2026-11-24','เพิ่มช่องผู้สำรวจ+วันที่สำรวจ (แสดงใน PDF แบบ วัน เดือน พ.ศ.) · เลือกแสดง/ซ่อนตามประเภทวัตถุ (Polygon/Line/Marker/เสา/หม้อแปลง/MDB/ต้นไม้) · ตารางสรุป+PDF กรองตามประเภทที่เลือก · ข้อมูลบันทึก/นำเข้ากลับได้ โดย ลุงพี'],
@@ -6806,7 +6807,7 @@ async function exportReportPDF() {
         h += '@page{size:A4 portrait;margin:10mm;} @media print{body{padding:0}.no-print{display:none!important}}';
         h += '.hdr{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #2c3e50;padding-bottom:6px;margin-bottom:8px;}';
         h += '.hdr h1{font-size:19px;margin:0;} .hdr .r{text-align:right;font-size:10.5px;color:#555;}';
-        h += '.desc{font-size:12px;color:#444;margin:0 0 8px;} img.map{width:50%;object-fit:contain;border:1px solid #bdc3c7;border-radius:4px;display:block;margin:0 auto;}';
+        h += '.desc{font-size:12px;color:#444;margin:0 0 8px;} img.map{width:50%;object-fit:contain;border:1px solid #bdc3c7;border-radius:4px;display:block;margin:0 auto;} @media print{img.map{width:100%;}}';
         h += '.kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:8px 0;} .kpi div{background:#ecf0f1;border-radius:4px;padding:6px 8px;} .kpi b{display:block;font-size:15px;}';
         h += 'table{width:100%;border-collapse:collapse;font-size:11px;} th,td{border:1px solid #bdc3c7;padding:5px 6px;text-align:left;vertical-align:top;} th{background:#2c3e50;color:#fff;}';
         h += 'tr{page-break-inside:avoid;} td.th img{width:54px;height:40px;object-fit:cover;margin:1px;border-radius:2px;}';
