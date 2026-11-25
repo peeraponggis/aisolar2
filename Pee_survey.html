@@ -899,10 +899,11 @@ function downloadText(text, filename, mime) {
     downloadBlob(new Blob(['﻿' + text], { type: (mime || 'text/plain') + ';charset=utf-8' }), filename);
 }
 const TH_MONTHS_FULL = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
-const APP_INFO={version:'4.18.0',created:'2026-08-02',updated:'2026-11-24',author:'ลุงพี'};
+const APP_INFO={version:'4.19.0',created:'2026-08-02',updated:'2026-11-25',author:'ลุงพี'};
 const SURVEY_ICON = (document.querySelector('link[rel="icon"]') || {}).href || ''; /* ไอคอนแท็บ (ใช้ซ้ำในหน้ารายงาน) */
 const PHOTO = { store: {}, edit: [], MAX: 1600, Q: 0.82, seq: 0 }; /* รูปประกอบวัตถุ (ดูส่วนรูปภาพ) */
 const APP_CHANGELOG=[
+  ['4.19.0','2026-11-25','PDF: ซ่อนแถวไม่มีรูปในตารางสรุป (ทั้งปุ่ม PDF และรายงาน) · ภาพในตาราง PDF กว้าง 52mm (A8) สูงตามสัดส่วนจริง โดย ลุงพี'],
   ['4.18.0','2026-11-24','เพิ่มฟีเจอร์เลือกแสดงป้ายตามประเภท (Polygon/Line/Marker/เสาไฟฟ้า/เสา+หม้อแปลง/ตู้ MDB/ต้นไม้) · แก้บั๊ก MarkerDrag error เมื่อ zoom โดย ลุงพี'],
   ['4.17.0','2026-11-24','แก้วัตถุเลื่อนตำแหน่งเมื่อ zoom: เปลี่ยน zoomSnap เป็น integer zoom เท่านั้น (1 ขั้น) ป้องกัน tile scaling artifact ที่ fractional zoom โดย ลุงพี'],
   ['4.16.0','2026-11-24','เขียนระบบหลบชนป้ายกำกับใหม่ทั้งหมด: ใช้ Leaflet CRS projection แทน containerPointToLatLng · leader line เป็นพิกัดภูมิศาสตร์ล้วน · คำนวณหลบชนใหม่ทุก pan/zoom · debounce ป้องกันคำนวณซ้ำ โดย ลุงพี'],
@@ -6919,10 +6920,13 @@ async function exportReportPDF() {
 
         // ตารางสรุป
         h += '<h2>ตารางสรุปโครงสร้างวัตถุ</h2><table><thead><tr><th style="width:5%">#</th><th style="width:11%">ประเภท</th><th style="width:20%">ชื่อวัตถุ</th><th>รายละเอียด</th><th style="width:25%">รูป</th></tr></thead><tbody>';
+        let rowNum = 0;
         items.forEach((l, i) => {
             const p = l.properties;
             const ph = (p.photos || []).filter(x => PHOTO.store[x.id]);
-            h += '<tr><td>' + (i + 1) + '</td><td style="color:' + p.color + ';font-weight:600">' + esc(typeLabel(p)) + '</td><td>' + esc(p.name || '-') + '</td><td>' +
+            if (!ph.length) return;
+            rowNum++;
+            h += '<tr><td>' + rowNum + '</td><td style="color:' + p.color + ';font-weight:600">' + esc(typeLabel(p)) + '</td><td>' + esc(p.name || '-') + '</td><td>' +
                 objectInfoRows(l).map(r => '<b>' + r[0] + ':</b> ' + r[1]).join('<br>') + '</td><td class="th">' +
                 (ph.slice(0, 4).map(x => '<img src="' + PHOTO.store[x.id] + '">').join('') + (ph.length > 4 ? ' +' + (ph.length - 4) : '') || '-') + '</td></tr>';
         });
@@ -6980,6 +6984,9 @@ async function exportPDF() {
         html += 'img.map-img { width: 100%; max-height: 55vh; object-fit: contain; border: 1px solid #bdc3c7; margin-bottom: 20px; border-radius: 4px; }';
         html += 'h2 { margin: 0 0 5px 0; border-bottom: 2px solid #2c3e50; padding-bottom: 8px; }';
         html += 'p { margin: 0 0 20px 0; color: #555; font-size: 13.5px; line-height: 1.5; }';
+        html += '.tbl-thumbs { display:flex; gap:6px; margin-top:6px; flex-wrap:wrap; }';
+        html += '.tbl-thumbs img { width:52mm; height:auto; object-fit:contain; border-radius:3px; border:1px solid #ccd5dc; }';
+        html += '.tbl-thumbs span { font-size:10.5px; color:#7f8c8d; align-self:center; }';
         html += '</style></head><body>';
         
         html += '<div class="no-print" style="margin-bottom:20px; padding:12px; background:#eaf2f8; color:#2980b9; border:1px solid #3498db; border-radius:5px; font-size:14px; display:flex; justify-content:space-between; align-items:center;">';
@@ -6993,6 +7000,9 @@ async function exportPDF() {
         html += '<img class="map-img" src="' + canvas.toDataURL('image/jpeg', 0.85) + '">';
         
         const tbl = document.getElementById('summaryTable').cloneNode(true);
+        tbl.querySelectorAll('tbody tr').forEach(tr => {
+            if (!tr.querySelector('.tbl-thumbs img')) tr.remove();
+        });
         html += tbl.outerHTML;
         
         const tot = document.getElementById('summaryTotals').innerHTML;
