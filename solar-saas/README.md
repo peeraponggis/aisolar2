@@ -2,7 +2,7 @@
 
 ธุรกิจ 3 ชั้น: Free Calculator → Lead Marketplace → SaaS สำหรับช่างติดตั้ง
 
-📄 **เปิดเครื่องคำนวณแบบไฟล์เดียว (ไม่ต้องรันเซิร์ฟเวอร์):** [solar-saas.html](https://github.com/peeraponggis/aisolar2/blob/main/solar-saas/solar-saas.html) — ดาวน์โหลดแล้วดับเบิลคลิกได้เลย · ส่ง lead / PDF / ล็อกอินไม่ทำงานในไฟล์นี้
+📄 **เปิดเครื่องคำนวณแบบไฟล์เดียว (ไม่ต้องรันเซิร์ฟเวอร์):** [solar-saas.html](https://github.com/peeraponggis/aisolar2/blob/main/solar-saas.html) — ดาวน์โหลดแล้วดับเบิลคลิกได้เลย · ส่ง lead / PDF / ล็อกอินไม่ทำงานในไฟล์นี้
 
 ## โครงสร้าง
 
