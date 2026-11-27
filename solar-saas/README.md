@@ -32,8 +32,7 @@ apps/web/                Next.js 16 (App Router) — หน้า Free Calculato
   lib/admin-leads.ts     คิว lead รอตรวจ + ตัวนับงานค้าง + ธงเตือนเบอร์ซ้ำ
   app/api/auth/          signup · login · logout (เซสชันเก็บใน httpOnly cookie)
   app/api/pro/           ซื้อ lead ด้วยเครดิต
-  app/api/pi/tables/     GET ตารางมาตรฐาน วสท. ให้ Pi บนเว็บ proinventive (bearer PI_TABLES_TOKEN + CORS)
-  private-data/          tables-private.json — ข้อมูลลิขสิทธิ์ วสท. อยู่ได้เฉพาะ repo private นี้
+  (ไม่มีในรุ่นสาธารณะนี้: route ตารางมาตรฐาน วสท. และ private-data/ — ไฟล์ลิขสิทธิ์ วสท. อยู่ใน repo private ของ picode เท่านั้น)
   lib/auth.ts            เซสชันฝั่ง server + ยอดเครดิต
   lib/marketplace.ts     ดึง lead พร้อมปกปิดข้อมูลติดต่อจนกว่าจะซื้อ
   lib/pro.ts             ราคา lead ต่อ segment · กฎการปกปิดชื่อ/เบอร์
@@ -517,9 +516,7 @@ curl -H "Authorization: Bearer $CRON_SECRET" https://<โดเมน>/api/cron/
 - ยังส่งจาก `onboarding@resend.dev` (ส่งได้เฉพาะถึงอีเมลเจ้าของบัญชี Resend) — ก่อนเปิดใช้กับลูกค้าจริงต้อง**ยืนยันโดเมนใน Resend** แล้วตั้ง `EMAIL_FROM`
 
 **อัปเดต 3 ก.ย. 2569:**
-- ✅ **`GET /api/pi/tables`** — ส่งตารางมาตรฐาน วสท. (18 ตาราง จาก `apps/web/private-data/tables-private.json`) ให้ Pi บนเว็บสาธารณะ proinventive (repo `peeraponggis/webproinventive`) ไฟล์ตารางเป็นลิขสิทธิ์ วสท. จึงเก็บใน repo private นี้แทน
-  ป้องกันด้วย `PI_TABLES_TOKEN` (bearer; ตั้งบน service `web` แล้ว) · CORS เฉพาะ `https://peeraponggis.github.io` กับ `localhost:8123` · ไม่มี token → 401
-  อัปเดตตาราง: จากโฟลเดอร์เว็บรัน `python tools/build_knowledge.py --private-out "<repo นี้>/apps/web/private-data"` แล้ว `railway up --service web`
+- ✅ **`GET /api/pi/tables`** — ส่งตารางมาตรฐาน วสท. ให้ Pi บนเว็บ proinventive · **ไม่อยู่ใน repo สาธารณะนี้** (ไฟล์ตารางเป็นลิขสิทธิ์ วสท.) · ดูและอัปเดตได้ใน repo private ของ picode
 - repo GitHub เปลี่ยนชื่อเป็น `enterprice0945-Solar-SaaS` (ดู URL ด้านบน)
 
 **ค้างก่อนเปิดใช้จริง:** *(รายการนี้เขียนไว้ตอนเว็บยังออนไลน์ — ทุกข้อที่อ้าง "โดเมน Railway"
