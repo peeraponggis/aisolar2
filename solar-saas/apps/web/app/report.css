@@ -1,0 +1,91 @@
+/**
+ * รายงานฉบับเต็ม — ใช้ทั้งบนจอและตอนสั่งพิมพ์เป็น PDF (A4)
+ * ยังคงกฎเดิม: สีทั้งหมดอ้าง var(--*) จาก themes.css เท่านั้น
+ */
+
+.report {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 24px 20px 60px;
+}
+
+/* ---------- หัวรายงาน ---------- */
+.report-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap;
+  padding-bottom: 16px; margin-bottom: 24px;
+  border-bottom: 2px solid var(--primary);
+}
+.report-head .brand small { max-width: 320px; line-height: 1.5; }
+.report-meta { font-size: 0.78rem; color: var(--text); line-height: 1.9; }
+.report-meta span { color: var(--text-muted); display: inline-block; min-width: 96px; }
+
+.print-btn {
+  padding: 10px 16px; font-family: inherit; font-size: 0.85rem; font-weight: 600;
+  border: none; border-radius: var(--radius); cursor: pointer;
+  background: var(--primary); color: var(--primary-contrast);
+}
+.print-btn:hover { background: var(--primary-strong); }
+
+/* ---------- ส่วนของรายงาน ---------- */
+.report-section { margin-bottom: 30px; }
+.report-section h2 {
+  font-size: 0.98rem; font-weight: 600; margin-bottom: 14px;
+  padding-bottom: 8px; border-bottom: 1px solid var(--border);
+}
+.report-section .foot {
+  font-size: 0.74rem; color: var(--text-muted); line-height: 1.8; margin-top: 10px;
+}
+
+/* ---------- ตารางคู่คีย์-ค่า ---------- */
+table.kv { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+table.kv th, table.kv td {
+  border: 1px solid var(--border); padding: 8px 10px; text-align: left; vertical-align: top;
+}
+table.kv th {
+  background: var(--surface-alt); color: var(--text-muted);
+  font-weight: 500; width: 22%; white-space: nowrap;
+}
+table.kv td { color: var(--text); font-weight: 600; }
+
+/* ---------- ตารางกระแสเงินสด ---------- */
+.table-scroll { overflow-x: auto; }
+table.cashflow { width: 100%; border-collapse: collapse; font-size: 0.72rem; }
+table.cashflow th, table.cashflow td {
+  border: 1px solid var(--border); padding: 5px 8px; text-align: right; white-space: nowrap;
+}
+table.cashflow th {
+  background: var(--surface-alt); color: var(--text-muted); font-weight: 500; text-align: center;
+}
+table.cashflow td:first-child, table.cashflow th:first-child { text-align: center; }
+table.cashflow tr.year-zero td { background: var(--surface-alt); }
+table.cashflow td.neg { color: var(--danger); }
+table.cashflow td.pos { color: var(--success); font-weight: 600; }
+
+/* ---------- โหมดพิมพ์ ---------- */
+@media print {
+  @page { size: A4; margin: 12mm; }
+
+  .no-print { display: none !important; }
+
+  /* กระดาษเป็นสีขาวเสมอ — ต้องระบุ [data-theme] ด้วยเพื่อให้ชนะ specificity ของ themes.css */
+  :root,
+  :root[data-theme] {
+    --bg: #ffffff; --surface: #ffffff; --surface-alt: #f4f4f5;
+    --text: #18181b; --text-muted: #52525b; --border: #d4d4d8;
+    --shadow-card: none;
+  }
+  body { background: #ffffff; }
+
+  .report { max-width: none; padding: 0; }
+  .report-section { margin-bottom: 18px; break-inside: avoid; }
+  .break-before { break-before: page; }
+  .chart-box { height: 240px; break-inside: avoid; }
+  table.cashflow { font-size: 0.62rem; }
+  .table-scroll { overflow: visible; }
+}
+
+/* โลโก้ในรายงาน — รองรับทั้งของเราและของช่างที่อัปโหลดเอง สัดส่วนไม่เท่ากัน */
+.report-head .mark.doc {
+  width: auto; height: 52px; max-width: 200px; object-fit: contain;
+}

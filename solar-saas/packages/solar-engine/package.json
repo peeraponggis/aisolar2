@@ -1,0 +1,12 @@
+{
+  "name": "@proinventive/solar-engine",
+  "version": "0.1.0",
+  "description": "เอนจินคำนวณกลาง: บิลค่าไฟ กฟภ. 8 ประเภท, PV/BESS sizing, การเงินโครงการ",
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  }
+}

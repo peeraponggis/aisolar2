@@ -1,0 +1,156 @@
+/**
+ * PROINVENTIVE Solar — Theme system (เฟส 0)
+ * สลับธีมด้วย data-theme บน <html> — คอมโพเนนต์ทุกตัวอ้างเฉพาะ var(--*) ห้าม hardcode สี
+ * ทุกคู่ --text บน --bg / --surface ผ่าน WCAG AA (contrast >= 4.5:1)
+ * สถานะ success / warning / danger ใช้โทนกลางร่วมกันทุกธีม เพื่อคงความหมายเดียวกัน
+ */
+
+:root {
+  /* ---- โทนสถานะกลาง (ทุกธีมใช้ร่วมกัน) ---- */
+  --success: #15803d;
+  --success-bg: #dcfce7;
+  --warning: #a16207;
+  --warning-bg: #fef9c3;
+  --danger: #b91c1c;
+  --danger-bg: #fee2e2;
+
+  /* ---- Typography ---- */
+  --font-sans: 'IBM Plex Sans Thai', 'Sarabun', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  /* ---- Layout tokens ---- */
+  --radius: 10px;
+  --radius-lg: 16px;
+  --shadow-card: 0 1px 3px rgb(0 0 0 / 0.08);
+}
+
+/* ============================================================
+   1. Solar Amber — ธีมหลัก (default)
+   ============================================================ */
+:root,
+:root[data-theme='solar-amber'] {
+  --primary: #d97706;          /* amber-600 — ปรับเข้มจาก #F59E0B เพื่อผ่าน AA บนพื้นขาว */
+  --primary-strong: #b45309;
+  --primary-contrast: #ffffff;
+  --accent: #f59e0b;
+  --bg: #fffbeb;
+  --surface: #ffffff;
+  --surface-alt: #fef3c7;
+  --text: #1e293b;
+  --text-muted: #64748b;
+  --border: #e2d5b8;
+  --chart-neg: #cbd5e1;
+  --chart-1: #f59e0b;
+  --chart-2: #1e293b;
+  --chart-3: #0ea5e9;
+}
+
+/* ============================================================
+   2. Engineer Blue — ต่อยอดโทนเดิมของ asc_e_analysis
+   ============================================================ */
+:root[data-theme='engineer-blue'] {
+  --primary: #1565c0;
+  --primary-strong: #0d47a1;
+  --primary-contrast: #ffffff;
+  --accent: #0ea5e9;
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --surface-alt: #e6f1fb;
+  --text: #0f172a;
+  --text-muted: #64748b;
+  --border: #cbd5e1;
+  --chart-neg: #cbd5e1;
+  --chart-1: #1565c0;
+  --chart-2: #0ea5e9;
+  --chart-3: #f59e0b;
+}
+
+/* ============================================================
+   3. Emerald Energy — ภาพลักษณ์ความยั่งยืน / ESG
+   ============================================================ */
+:root[data-theme='emerald-energy'] {
+  --primary: #059669;
+  --primary-strong: #064e3b;
+  --primary-contrast: #ffffff;
+  --accent: #65a30d;          /* lime-600 — เข้มกว่า #84CC16 เพื่อผ่าน AA */
+  --bg: #f0fdf4;
+  --surface: #ffffff;
+  --surface-alt: #dcfce7;
+  --text: #14532d;
+  --text-muted: #4d7c62;
+  --border: #bbe5c8;
+  --chart-neg: #cbd5e1;
+  --chart-1: #059669;
+  --chart-2: #84cc16;
+  --chart-3: #0d9488;
+}
+
+/* ============================================================
+   4. Midnight Pro — โหมดมืดสำหรับใช้งานต่อเนื่อง
+   ============================================================ */
+:root[data-theme='midnight-pro'] {
+  --primary: #22d3ee;
+  --primary-strong: #06b6d4;
+  --primary-contrast: #0f172a;
+  --accent: #facc15;
+  --bg: #0f172a;
+  --surface: #1e293b;
+  --surface-alt: #283548;
+  --text: #e2e8f0;
+  --text-muted: #94a3b8;
+  --border: #334155;
+  --shadow-card: 0 1px 3px rgb(0 0 0 / 0.4);
+  /* โทนสถานะเวอร์ชันโหมดมืด */
+  --success: #4ade80;
+  --success-bg: #14532d;
+  --warning: #fde047;
+  --warning-bg: #713f12;
+  --danger: #f87171;
+  --danger-bg: #7f1d1d;
+  --chart-neg: #475569;
+  --chart-1: #22d3ee;
+  --chart-2: #facc15;
+  --chart-3: #a78bfa;
+}
+
+/* ============================================================
+   5. Minimal Slate — เรียบหรู สำหรับรายงาน C&I / องค์กร
+   ============================================================ */
+:root[data-theme='minimal-slate'] {
+  --primary: #334155;
+  --primary-strong: #0f172a;
+  --primary-contrast: #ffffff;
+  --accent: #e11d48;
+  --bg: #f1f5f9;
+  --surface: #ffffff;
+  --surface-alt: #e2e8f0;
+  --text: #0f172a;
+  --text-muted: #64748b;
+  --border: #cbd5e1;
+  --chart-neg: #cbd5e1;
+  --chart-1: #334155;
+  --chart-2: #e11d48;
+  --chart-3: #94a3b8;
+}
+
+/* ============================================================
+   Base — ตัวอย่างการใช้ token (คอมโพเนนต์จริงอยู่ใน Next.js)
+   ============================================================ */
+body {
+  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--text);
+  transition: background 0.25s ease, color 0.25s ease;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+.btn-primary {
+  background: var(--primary);
+  color: var(--primary-contrast);
+  border-radius: var(--radius);
+}
+.btn-primary:hover { background: var(--primary-strong); }

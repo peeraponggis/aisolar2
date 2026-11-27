@@ -1,0 +1,11 @@
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+.env
+.env.local
+.leads.local.jsonl
+
+# ไฟล์ที่มีรหัสผ่าน/คีย์ ห้ามขึ้น git เด็ดขาด
+supabase/supabase.txt
+*.local.txt

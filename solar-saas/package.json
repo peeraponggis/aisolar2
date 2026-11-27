@@ -1,0 +1,15 @@
+{
+  "name": "proinventive-solar",
+  "private": true,
+  "workspaces": ["packages/*", "apps/*"],
+  "scripts": {
+    "dev": "npm run dev -w @proinventive/web",
+    "build": "npm run build -w @proinventive/web",
+    "start": "npm run start -w @proinventive/web",
+    "test": "npm run test -w @proinventive/solar-engine",
+    "typecheck": "npm run typecheck -w @proinventive/solar-engine && npm run typecheck -w @proinventive/web"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.0"
+  }
+}

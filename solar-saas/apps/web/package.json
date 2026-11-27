@@ -1,0 +1,31 @@
+{
+  "name": "@proinventive/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@proinventive/solar-engine": "*",
+    "@supabase/supabase-js": "^2.112.3",
+    "chart.js": "^4.5.1",
+    "next": "^16.3.1",
+    "nodemailer": "^9.0.5",
+    "playwright-core": "^1.62.1",
+    "react": "^19.2.0",
+    "react-chartjs-2": "^5.3.1",
+    "react-dom": "^19.2.0",
+    "server-only": "^0.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/nodemailer": "^8.0.1",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "typescript": "^5.9.0"
+  }
+}
